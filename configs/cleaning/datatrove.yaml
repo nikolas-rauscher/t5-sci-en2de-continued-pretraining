@@ -1,0 +1,17 @@
+# ------------------------------------------------------------------
+#  Hydra-Konfiguration für die DataTrove-Preprocessing-Pipeline
+# ------------------------------------------------------------------
+paths:
+  # (Basisordner)
+  src_dir: /netscratch/nrauscher/projects/BA-NikolasRauscher/datasets/texts_pq_3-deduped-Eng_Latn/data/
+  src_pattern: "*.parquet"
+  # Ziel-Ordner
+  dst: /netscratch/nrauscher/projects/BA-hydra/data/cleaned/
+
+cleaning:
+  # Parameter für die Begrenzung der Dokumente für Testläufe (-1 = keine Begrenzung)
+  limit_documents: -1 # limit pro task 
+  # URL-Filter-Parameter
+
+  tasks:   8                   # Task-Shards × CPU
+  workers: 8
