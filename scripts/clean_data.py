@@ -19,7 +19,7 @@ def main(cfg: DictConfig) -> None:
 
 
     pipeline = [
-        ParquetReader(data_folder=cfg.cleaning.paths.src_dir, glob_pattern=cfg.cleaning.paths.src_pattern, limit=cfg.cleaning.limit_documents),
+        ParquetReader(data_folder=cfg.cleaning.paths.src_dir, glob_pattern=cfg.cleaning.paths.src_pattern, limit=cfg.cleaning.cleaning.limit_documents),
         #URLFilter(),
         #StructMetaToJSON(),
         SamplerFilter(),
