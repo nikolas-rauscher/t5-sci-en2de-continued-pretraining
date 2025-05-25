@@ -1,0 +1,78 @@
+# Inhalt von compute_stats_datatrove.yaml
+
+# Dataset paths
+paths:
+  input_folder: /netscratch/nrauscher/projects/BA-NikolasRauscher/datasets/texts_pq_3-deduped-Eng_Latn/data/
+  src_pattern: "*.parquet"
+  output_folder: /netscratch/nrauscher/projects/BA-hydra/data/statistics/
+  logging_dir: /netscratch/nrauscher/projects/BA-hydra/logs/datatrove_stats/
+
+# Reader configuration
+reader:
+  text_key: "text"
+  id_key: "id"
+  default_metadata: {}
+
+# Pipeline execution settings
+tasks: 1
+workers: 1
+limit_documents: -1 # Wird per Kommandozeile überschrieben
+
+pipeline:
+  stats_modules:
+    # Globale Defaults für Stats-Module, können pro Modul überschrieben werden
+    # top_k_config wird hier jetzt weggelassen, damit der Code-Default greift.
+    _defaults:
+      groups_to_compute: ["summary", "histogram"] # Sinnvoller Default ohne URLs
+      histogram_round_digits: 3                   # Default von BaseStats
+
+    doc_stats:
+      _target_: datatrove.pipeline.stats.DocStats
+      output_subfolder: "doc_stats"
+      # groups_to_compute, histogram_round_digits erben von _defaults
+
+    line_stats:
+      _target_: datatrove.pipeline.stats.LineStats
+      output_subfolder: "line_stats"
+      max_k_chars_per_line_tresholds: [10, 30]
+      min_k_chars_per_line_thresholds: [2000, 10000]
+      ignore_empty_lines: false
+
+    paragraph_stats:
+      _target_: datatrove.pipeline.stats.ParagraphStats
+      output_subfolder: "paragraph_stats"
+      short_paragraph_max_chars_threshold: [100]
+      long_paragraph_max_chars_threshold: [1000]
+      ignore_empty_paragraphs: false
+
+    sentence_stats:
+      _target_: datatrove.pipeline.stats.SentenceStats
+      output_subfolder: "sentence_stats"
+      short_sentence_max_chars_threshold: [20]
+      long_sentence_max_chars_threshold: [75]
+      language: "en"
+
+    token_stats:
+      _target_: datatrove.pipeline.stats.TokenStats
+      output_subfolder: "token_stats"
+      tokenizer_name_or_path: "gpt2"
+      groups_to_compute: ["summary", "histogram"] # Überschreibt _defaults, da TokenStats sonst "fqdn", "suffix" hätte
+      histogram_rounding: 3
+
+    word_stats:
+      _target_: datatrove.pipeline.stats.WordStats
+      output_subfolder: "word_stats"
+      short_word_max_chars_threshold: [3]
+      long_word_max_chars_threshold: [7]
+      language: "en"
+
+    lang_stats:
+      _target_: datatrove.pipeline.stats.LangStats
+      output_subfolder: "lang_stats"
+      language: "en" # Erforderlich
+
+    perplexity_stats:
+      _target_: datatrove.pipeline.stats.CCNetPerplexityStats
+      output_subfolder: "perplexity_stats"
+      model_dataset: "cc_net" # Erforderlich
+      language: "en"
