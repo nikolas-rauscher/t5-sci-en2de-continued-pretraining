@@ -4,6 +4,9 @@ torchvision>=0.15.0
 lightning>=2.0.0
 torchmetrics>=0.11.4
 
+# --------- numpy --------- #
+numpy>=1.20.0,<2.0  # NumPy 2.x compatibility issues with Lightning/DataTrove
+
 # --------- hydra --------- #
 hydra-core==1.3.2
 hydra-colorlog==1.2.0
@@ -22,3 +25,17 @@ pre-commit      # hooks for applying linters on commit
 rich            # beautiful text formatting in terminal
 pytest          # tests
 # sh            # for running bash commands in some tests (linux/macos only)
+
+# --------- datatrove dependencies --------- #
+# Note: DataTrove modules WordStats/SentenceStats/LangStats require NumPy < 2.0 
+# due to spaCy → CuPy compatibility issues
+numba           # required for librosa compatibility with NumPy 1.x
+librosa         # audio processing (torchmetrics dependency)
+
+# DataTrove stats module dependencies
+spacy>=3.0.0    # required for WordStats, SentenceStats, WordsContaminationStats (word tokenization)
+fasttext        # required for LangStats (language detection via FT176LID)
+kenlm           # required for CCNetPerplexityStats (language model perplexity calculation)
+sentencepiece   # required for CCNetPerplexityStats (SentencePiece tokenization)
+tokenizers      # required for TokenStats (tokenization and counting)
+tldextract      # required for BaseStats (extracting top-level domains from URLs)
