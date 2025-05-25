@@ -14,7 +14,7 @@ sys.path.insert(0, proj_root)
 
 from src.dataprep.cleaning_blocks import StructMetaToJSON
 
-@hydra.main(config_path="../configs", config_name="cleaning/datatrove")
+@hydra.main(version_base="1.3", config_path="../configs", config_name="cleaning/datatrove")
 def main(cfg: DictConfig) -> None:
 
 
