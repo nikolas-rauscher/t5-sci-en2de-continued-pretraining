@@ -2,10 +2,11 @@
 
 # Pfade für Datenzugriff und -ausgabe
 paths:
-  input_folder: /netscratch/nrauscher/projects/BA-NikolasRauscher/datasets/texts_pq_3-deduped-Eng_Latn/data/
+  # CHAINED v2: Liest enriched documents v1 (Standard-Stats) und erstellt v2 (Standard + spaCy)
+  input_folder: /netscratch/nrauscher/projects/BA-hydra/data/statistics/enriched_documents_statistics_v1/
   src_pattern: "*.parquet"
   output_folder: /netscratch/nrauscher/projects/BA-hydra/data/statistics/
-  logging_dir: /netscratch/nrauscher/projects/BA-hydra/logs/datatrove_spacy_stats/
+  # logging_dir: Wird dynamisch von Script generiert (Hydra-Output + DataTrove-Subdirectory)
 
 # Reader Konfiguration
 reader:

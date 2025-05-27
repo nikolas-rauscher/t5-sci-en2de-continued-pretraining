@@ -196,7 +196,7 @@ def main(cfg: DictConfig) -> None:
     # Optional: Enriched documents mit Stats speichern
     if hasattr(cfg.stats, 'save_enriched_docs') and cfg.stats.save_enriched_docs:
         from datatrove.pipeline.writers import ParquetWriter
-        enriched_output = os.path.join(primary_stats_dir, "enriched_documents")
+        enriched_output = os.path.join(primary_stats_dir, "enriched_documents_statistics_v1")
         pipeline.append(ParquetWriter(enriched_output))
         log.info(f"💾 Enriched documents will be saved to: {enriched_output}")
         added_modules.append("ParquetWriter(enriched)")
