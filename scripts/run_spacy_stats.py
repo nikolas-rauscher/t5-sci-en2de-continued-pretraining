@@ -52,7 +52,7 @@ def get_datatrove_logging_dir(pipeline_type: str, limit_docs: int) -> str:
         fallback_dir = f"logs/{timestamp}_{pipeline_type}_{limit_docs}"
         return fallback_dir
 
-def get_dual_output_dirs():
+def get_dual_output_dirs(cfg: DictConfig):
     """Erstellt sowohl Hydra-basierte als auch zentrale Output-Verzeichnisse."""
     try:
         hydra_cfg = HydraConfig.get()
@@ -61,8 +61,11 @@ def get_dual_output_dirs():
         # Primary: Stats im Hydra-Output (mit vollständiger Historie)
         primary_stats_dir = os.path.join(hydra_output_dir, "stats")
         
-        # Secondary: Zentraler Zugang für neueste Stats  
-        central_stats_dir = os.path.join(proj_root, "data", "statistics")
+        # Secondary: Beachte cfg.stats.paths.output_folder Override
+        if hasattr(cfg.stats.paths, 'output_folder'):
+            central_stats_dir = cfg.stats.paths.output_folder
+        else:
+            central_stats_dir = os.path.join(proj_root, "data", "statistics")
         
         os.makedirs(primary_stats_dir, exist_ok=True)
         os.makedirs(central_stats_dir, exist_ok=True)
@@ -74,7 +77,10 @@ def get_dual_output_dirs():
         
     except Exception as e:
         log.warning(f"Could not setup dual output ({e}), using fallback")
-        fallback_dir = os.path.join(proj_root, "data", "statistics")
+        if hasattr(cfg.stats.paths, 'output_folder'):
+            fallback_dir = cfg.stats.paths.output_folder
+        else:
+            fallback_dir = os.path.join(proj_root, "data", "statistics")
         os.makedirs(fallback_dir, exist_ok=True)
         return fallback_dir, fallback_dir
 
@@ -114,7 +120,7 @@ def main(cfg: DictConfig) -> None:
         raise ValueError("Die Konfiguration enthält keinen 'stats'-Abschnitt")
     
     # Dual-Output-System einrichten
-    primary_stats_dir, central_stats_dir = get_dual_output_dirs()
+    primary_stats_dir, central_stats_dir = get_dual_output_dirs(cfg)
     
     limit_val = cfg.stats.limit_documents
     log.info(f"📄 Processing limit: {limit_val} documents")
