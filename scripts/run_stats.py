@@ -175,6 +175,32 @@ def main(cfg: DictConfig) -> None:
         pipeline.append(token_stats)
         added_modules.append("TokenStats")
     
+    # PerplexityStats - OSCAR (NumPy 2.0 kompatibel, braucht nur KenLM)
+    if hasattr(modules, 'perplexity_stats_oscar'):
+        perplexity_stats_oscar = hydra.utils.instantiate(
+            modules.perplexity_stats_oscar,
+            output_folder=os.path.join(primary_stats_dir, modules.perplexity_stats_oscar.output_folder)
+        )
+        pipeline.append(perplexity_stats_oscar)
+        added_modules.append("PerplexityStats-OSCAR")
+    
+    # PerplexityStats - Wikipedia (NumPy 2.0 kompatibel, braucht nur KenLM)
+    if hasattr(modules, 'perplexity_stats_wikipedia'):
+        perplexity_stats_wikipedia = hydra.utils.instantiate(
+            modules.perplexity_stats_wikipedia,
+            output_folder=os.path.join(primary_stats_dir, modules.perplexity_stats_wikipedia.output_folder)
+        )
+        pipeline.append(perplexity_stats_wikipedia)
+        added_modules.append("PerplexityStats-Wikipedia")
+    
+    # Optional: Enriched documents mit Stats speichern
+    if hasattr(cfg.stats, 'save_enriched_docs') and cfg.stats.save_enriched_docs:
+        from datatrove.pipeline.writers import ParquetWriter
+        enriched_output = os.path.join(primary_stats_dir, "enriched_documents")
+        pipeline.append(ParquetWriter(enriched_output))
+        log.info(f"💾 Enriched documents will be saved to: {enriched_output}")
+        added_modules.append("ParquetWriter(enriched)")
+    
     log.info(f"📊 Pipeline modules: {', '.join(added_modules)}")
     log.info(f"🔧 Total pipeline steps: {len(pipeline)}")
     
