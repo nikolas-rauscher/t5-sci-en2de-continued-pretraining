@@ -165,6 +165,14 @@ def main(cfg: DictConfig) -> None:
         pipeline.append(lang_stats)
         added_modules.append("LangStats")
     
+    #Enriched documents mit Stats speichern
+    if hasattr(cfg.stats, 'save_enriched_docs') and cfg.stats.save_enriched_docs:
+        from datatrove.pipeline.writers import ParquetWriter
+        enriched_output = os.path.join(primary_stats_dir, "enriched_documents")
+        pipeline.append(ParquetWriter(enriched_output))
+        log.info(f"💾 Enriched documents will be saved to: {enriched_output}")
+        added_modules.append("ParquetWriter(enriched)")
+    
     log.info(f"📊 Pipeline modules: {', '.join(added_modules)}")
     log.info(f"🔧 Total pipeline steps: {len(pipeline)}")
     
