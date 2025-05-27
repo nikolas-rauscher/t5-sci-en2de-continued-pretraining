@@ -1,4 +1,3 @@
-
 help:  ## Show help
 	@grep -E '^[.a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
@@ -28,3 +27,69 @@ test-full: ## Run all tests
 
 train: ## Train the model
 	python src/train.py
+
+setup:  ## Show environment activation instructions
+	@echo "To activate your virtual environment, run:"
+	@echo "source .venv/bin/activate"
+
+setup-spacy-env: ## Setup separate spaCy environment for stats
+	python -m venv .venv_spacy_stats
+	.venv_spacy_stats/bin/pip install --upgrade pip setuptools wheel
+	.venv_spacy_stats/bin/pip install -r requirements_spacy_stats.txt
+	.venv_spacy_stats/bin/pip install -e external/datatrove
+
+# Data preprocessing commands
+clean-data: ## Run data cleaning pipeline  
+	.venv/bin/python scripts/clean_data.py
+
+stats: ## Run standard stats (NumPy 2.0 compatible)
+	.venv/bin/python scripts/run_stats.py
+
+stats-spacy: ## Run spaCy-based stats (SentenceStats, WordStats, LangStats)
+	.venv_spacy_stats/bin/python scripts/run_spacy_stats.py
+
+stats-all: ## Run all stats pipelines
+	.venv/bin/python scripts/run_stats.py
+	.venv_spacy_stats/bin/python scripts/run_spacy_stats.py
+
+stats-test: ## Run stats with limited documents for testing
+	.venv/bin/python scripts/run_stats.py stats.limit_documents=10
+	.venv_spacy_stats/bin/python scripts/run_spacy_stats.py stats.limit_documents=10
+
+# Stats analysis commands
+analyze: ## Basic stats analysis with plots and CSV export
+	.venv_spacy_stats/bin/python scripts/analyze_stats.py
+
+analyze-enhanced: ## Enhanced stats analysis with insights and correlations
+	.venv_spacy_stats/bin/python scripts/analyze_stats_enhanced.py
+
+analyze-all: ## Run both basic and enhanced analysis
+	@echo "🔍 Running basic analysis..."
+	.venv_spacy_stats/bin/python scripts/analyze_stats.py
+	@echo "🚀 Running enhanced analysis..." 
+	.venv_spacy_stats/bin/python scripts/analyze_stats_enhanced.py
+	@echo "✅ All analyses completed!"
+
+# Complete pipeline commands
+pipeline-full: ## Run complete pipeline: clean -> stats -> analysis
+	@echo "🚀 Starting full pipeline..."
+	@echo "📊 Step 1: Data cleaning..."
+	$(MAKE) clean-data
+	@echo "📈 Step 2: Statistics computation..."
+	$(MAKE) stats-all  
+	@echo "📊 Step 3: Statistics analysis..."
+	$(MAKE) analyze-all
+	@echo "✅ Full pipeline completed!"
+
+pipeline-test: ## Run pipeline with limited documents for testing
+	@echo "🧪 Starting test pipeline..."
+	@echo "📊 Step 1: Test cleaning (5 docs)..."
+	.venv/bin/python scripts/clean_data.py +cleaning.cleaning.limit_documents=5
+	@echo "📈 Step 2: Test stats..."
+	$(MAKE) stats-test
+	@echo "📊 Step 3: Analysis..."
+	$(MAKE) analyze-all
+	@echo "✅ Test pipeline completed!"
+
+quick-overview: ## Quick overview of latest statistics  
+	.venv/bin/python scripts/quick_stats_overview.py
