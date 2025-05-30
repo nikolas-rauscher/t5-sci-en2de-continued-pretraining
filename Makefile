@@ -42,54 +42,41 @@ setup-spacy-env: ## Setup separate spaCy environment for stats
 clean-data: ## Run data cleaning pipeline  
 	.venv/bin/python scripts/clean_data.py
 
-stats: ## Run standard stats (NumPy 2.0 compatible)
+stats_p1: ## Run standard stats (NumPy 2.0 compatible)
 	.venv/bin/python scripts/run_stats.py
 
-stats-spacy: ## Run spaCy-based stats (SentenceStats, WordStats, LangStats)
+stats_p2: ## Run spaCy-based stats (SentenceStats, WordStats, LangStats)
 	.venv_spacy_stats/bin/python scripts/run_spacy_stats.py
 
-stats-all: ## Run all stats pipelines
-	.venv/bin/python scripts/run_stats.py
+stats-all: ## Run all stats pipelines (chained: standard -> spacy) 
+	@echo "Running stats pipeline (chained)..."
+	@echo "Step 1: Standard stats with enriched docs..."
+	.venv/bin/python scripts/run_stats.py stats.save_enriched_docs=true
+	@echo "Step 2: spaCy stats on enriched docs..."
 	.venv_spacy_stats/bin/python scripts/run_spacy_stats.py
+	@echo "Complete stats pipeline finished!"
 
-stats-test: ## Run stats with limited documents for testing
-	.venv/bin/python scripts/run_stats.py stats.limit_documents=10
-	.venv_spacy_stats/bin/python scripts/run_spacy_stats.py stats.limit_documents=10
+stats-test: ## Run stats with limited documents for testing (chained)
+	@echo "Running test stats pipeline (chained)..."
+	.venv/bin/python scripts/run_stats.py stats.save_enriched_docs=true stats.limit_documents=10 stats.tasks=16 stats.workers=16
+	.venv_spacy_stats/bin/python scripts/run_spacy_stats.py stats.limit_documents=10 stats.tasks=16 stats.workers=16
+	@echo "Test pipeline completed!"
+
+stats-test-safe: ## Run test with separate output to avoid conflicts
+	@echo "Running SAFE test stats pipeline (separate output)..."
+	.venv/bin/python scripts/run_stats.py stats.save_enriched_docs=true stats.paths.output_folder=data/statistics_test/ stats.limit_documents=200 stats.tasks=16 stats.workers=16
+	.venv_spacy_stats/bin/python scripts/run_spacy_stats.py stats.paths.input_folder=data/statistics_test/enriched_documents_statistics_v1/ stats.paths.output_folder=data/statistics_test/ stats.limit_documents=200 stats.tasks=16 stats.workers=16
+	@echo "Safe test pipeline completed! Output in: data/statistics_test/"
+
+
+stats-production-chained: ## Run production chained pipeline with high-performance settings
+	@echo "Running PRODUCTION chained stats pipeline..."
+	@echo "Step 1: Standard stats with enriched docs (64 CPUs)..."
+	.venv/bin/python scripts/run_stats.py stats.save_enriched_docs=true stats.paths.output_folder=data/statistics_production/ stats.tasks=200 stats.workers=62
+	@echo "Step 2: spaCy stats on enriched docs (64 CPUs)..."
+	.venv_spacy_stats/bin/python scripts/run_spacy_stats.py stats.paths.input_folder=data/statistics_production/enriched_documents_statistics_v1/ stats.paths.output_folder=data/statistics_production/ stats.tasks=200 stats.workers=62
+	@echo "Production pipeline completed! Output in: data/statistics_production/"
 
 # Stats analysis commands
 analyze: ## Basic stats analysis with plots and CSV export
 	.venv_spacy_stats/bin/python scripts/analyze_stats.py
-
-analyze-enhanced: ## Enhanced stats analysis with insights and correlations
-	.venv_spacy_stats/bin/python scripts/analyze_stats_enhanced.py
-
-analyze-all: ## Run both basic and enhanced analysis
-	@echo "🔍 Running basic analysis..."
-	.venv_spacy_stats/bin/python scripts/analyze_stats.py
-	@echo "🚀 Running enhanced analysis..." 
-	.venv_spacy_stats/bin/python scripts/analyze_stats_enhanced.py
-	@echo "✅ All analyses completed!"
-
-# Complete pipeline commands
-pipeline-full: ## Run complete pipeline: clean -> stats -> analysis
-	@echo "🚀 Starting full pipeline..."
-	@echo "📊 Step 1: Data cleaning..."
-	$(MAKE) clean-data
-	@echo "📈 Step 2: Statistics computation..."
-	$(MAKE) stats-all  
-	@echo "📊 Step 3: Statistics analysis..."
-	$(MAKE) analyze-all
-	@echo "✅ Full pipeline completed!"
-
-pipeline-test: ## Run pipeline with limited documents for testing
-	@echo "🧪 Starting test pipeline..."
-	@echo "📊 Step 1: Test cleaning (5 docs)..."
-	.venv/bin/python scripts/clean_data.py +cleaning.cleaning.limit_documents=5
-	@echo "📈 Step 2: Test stats..."
-	$(MAKE) stats-test
-	@echo "📊 Step 3: Analysis..."
-	$(MAKE) analyze-all
-	@echo "✅ Test pipeline completed!"
-
-quick-overview: ## Quick overview of latest statistics  
-	.venv/bin/python scripts/quick_stats_overview.py
