@@ -1,10 +1,19 @@
 # Konfiguration für DataTrove Stats-Pipeline
 
+# Wandb Logging (direkt konfiguriert)
+logger:
+  project: "BA-DataTrove"
+  group: "stats-pipeline"
+  tags: ["datatrove", "statistics", "first-pipeline"]
+  job_type: "data-analysis"
+  save_code: false
+  notes: "First stats pipeline"
+
 # Pfade für Datenzugriff und -ausgabe
 paths:
   input_folder: /netscratch/nrauscher/projects/BA-NikolasRauscher/datasets/texts_pq_3-deduped-Eng_Latn/data/
   src_pattern: "*.parquet"
-  output_folder: /netscratch/nrauscher/projects/BA-hydra/data/statistics/
+  output_folder: /netscratch/nrauscher/projects/BA-hydra/data/statistics_test/
   # logging_dir: Wird dynamisch von Script generiert (Hydra-Output + DataTrove-Subdirectory)
 
 # Reader Konfiguration

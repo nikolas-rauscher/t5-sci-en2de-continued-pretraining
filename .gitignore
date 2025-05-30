@@ -147,9 +147,16 @@ dmypy.json
 
 # Lightning-Hydra-Template
 configs/local/default.yaml
+
+# Data and outputs - completely ignored
 /data/
+/outputs/
+
 /logs/
 .env
 
 # Aim logging
 .aim
+
+doc/temp_docs/*
+wandb/*

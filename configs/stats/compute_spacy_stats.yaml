@@ -1,5 +1,14 @@
 # Konfiguration für spaCy-basierte Stats-Module (nur SentenceStats, WordStats, LangStats)
 
+# Wandb Logging (direkt konfiguriert)
+logger:
+  project: "BA-DataTrove"
+  group: "stats-pipeline"
+  tags: ["datatrove", "statistics", "second-pipeline"]
+  job_type: "data-analysis"
+  save_code: false
+  notes: "spaCy-based stats pipeline (SentenceStats, WordStats, LangStats)"
+
 # Pfade für Datenzugriff und -ausgabe
 paths:
   # CHAINED v2: Liest enriched documents v1 (Standard-Stats) und erstellt v2 (Standard + spaCy)
