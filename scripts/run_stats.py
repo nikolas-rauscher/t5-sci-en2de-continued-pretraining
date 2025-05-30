@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 import shutil
+import wandb
 from datetime import datetime
 
 # 1) Projekt-Root und lokale Datatrove-Quelle ins PYTHONPATH
@@ -17,10 +18,6 @@ from omegaconf import DictConfig, OmegaConf
 from datatrove.executor import LocalPipelineExecutor
 from datatrove.pipeline.readers import ParquetReader
 
-# TopKConfig und DEFAULT_TOP_K_CONFIG werden nicht mehr direkt benötigt,
-# da wir uns auf die internen Defaults der Stats-Klassen verlassen.
-# from datatrove.pipeline.stats import TopKConfig
-# from datatrove.pipeline.stats.config import DEFAULT_TOP_K_CONFIG
 
 # Hydra-Logger verwenden
 log = logging.getLogger(__name__)
@@ -116,15 +113,29 @@ def main(cfg: DictConfig) -> None:
     log.info("Configuration:")
     log.info(f"\n{OmegaConf.to_yaml(cfg)}")
 
-    # Überprüfe, ob die Konfiguration korrekt ist
-    if not hasattr(cfg, 'stats'):
-        raise ValueError("Die Konfiguration enthält keinen 'stats'-Abschnitt")
+    # Limit-Wert 
+    limit_val = cfg.stats.limit_documents
+
+    # Automatische Tag-Generierung basierend auf Run-Parametern
+    base_tags = list(cfg.stats.logger.get("tags", []))
+    
+    if limit_val != -1:
+        base_tags.extend(["test_run", f"limit-{limit_val}"])
+    else:
+        base_tags.extend(["full-dataset"])
+
+    # Wandb initialisieren mit automatischen Tags
+    logger_config = OmegaConf.to_container(cfg.stats.logger, resolve=True)
+    logger_config["tags"] = base_tags
+    
+    wandb_run = wandb.init(
+        **logger_config,
+        config=OmegaConf.to_container(cfg, resolve=True)
+    )
+    log.info(f"🌐 Wandb initialized: {wandb_run.url}")
 
     # Dual-Output-System einrichten
     primary_stats_dir, central_stats_dir = get_dual_output_dirs(cfg)
-    
-    limit_val = cfg.stats.limit_documents
-    log.info(f"📄 Processing limit: {limit_val} documents")
     
     # Hydra-integriertes Logging-Verzeichnis
     datatrove_logging_dir = get_datatrove_logging_dir("standard_stats", limit_val)
@@ -219,8 +230,28 @@ def main(cfg: DictConfig) -> None:
     )
     
     log.info("🏃 Starting pipeline execution...")
+    start_time = datetime.now()
     executor.run()
+    execution_time = (datetime.now() - start_time).total_seconds()
     log.info("✅ Pipeline completed successfully!")
+    
+    # Nur wichtigste Pipeline-Metriken für Vergleiche
+    wandb.log({
+        "execution_time": execution_time,
+        "limit_documents": limit_val,
+        "active_modules": added_modules,  # Liste der verwendeten Module
+        
+        # Pipeline-Parameter
+        "tasks": cfg.stats.tasks,
+        "workers": cfg.stats.workers,
+        "save_enriched_docs": cfg.stats.get("save_enriched_docs", False),
+        
+        # Input-Parameter
+        "input_folder": cfg.stats.paths.input_folder,
+        "src_pattern": cfg.stats.paths.src_pattern,
+        "text_key": cfg.stats.reader.text_key,
+        "id_key": cfg.stats.reader.id_key,
+    })
     
     # Synchronisiere Stats zum zentralen Verzeichnis
     if primary_stats_dir != central_stats_dir:
@@ -229,6 +260,7 @@ def main(cfg: DictConfig) -> None:
     log.info(f"📁 Primary stats (with history): {primary_stats_dir}")
     log.info(f"📁 Central stats (latest): {central_stats_dir}")
     log.info(f"📋 Logs saved to: {datatrove_logging_dir}")
+    wandb.finish()      
 
 if __name__ == "__main__":
     main()
