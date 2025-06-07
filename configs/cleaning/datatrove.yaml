@@ -1,17 +1,28 @@
 # ------------------------------------------------------------------
 #  Hydra-Konfiguration für die DataTrove-Preprocessing-Pipeline
 # ------------------------------------------------------------------
+
+# W&B Logger für Citation Cleaning
+logger:
+  wandb:
+    project: "BA-DataTrove"
+    group: "citation-cleaning"
+    tags: ["citation-cleaning", "datatrove", "text-preprocessing"]
+    job_type: "data-cleaning"
+    save_code: true
+    notes: "Citation cleaning with regex pattern"
+
 paths:
   # (Basisordner)
-  src_dir: /netscratch/nrauscher/projects/BA-NikolasRauscher/datasets/texts_pq_3-deduped-Eng_Latn/data/
+  src_dir: /netscratch/nrauscher/projects/BA-hydra/data/statistics_data_gold/enriched_documents_statistics_v2
   src_pattern: "*.parquet"
   # Ziel-Ordner
   dst: /netscratch/nrauscher/projects/BA-hydra/data/cleaned/
 
 cleaning:
   # Parameter für die Begrenzung der Dokumente für Testläufe (-1 = keine Begrenzung)
-  limit_documents: -1 # limit pro task 
+  limit_documents: 1000 # limit pro task 
   # URL-Filter-Parameter
 
-  tasks:   8                   # Task-Shards × CPU
-  workers: 8
+  tasks:   1                   # Task-Shards × CPU
+  workers: 1
