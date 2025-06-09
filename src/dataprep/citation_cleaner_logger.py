@@ -430,6 +430,13 @@ class CitationCleanerLogger:
             "summary/figure_line_removal_rate": (
                 cleaning_stats["docs_with_figure_lines_removed"] / cleaning_stats["docs_processed"]
                 if cleaning_stats["docs_processed"] > 0 else 0
+            ),
+            
+            # Citation limit exceeded summary
+            "summary/docs_with_citation_limits_exceeded": cleaning_stats["docs_with_citation_limits_exceeded"],
+            "summary/citation_limit_exceeded_rate": (
+                cleaning_stats["docs_with_citation_limits_exceeded"] / cleaning_stats["docs_processed"]
+                if cleaning_stats["docs_processed"] > 0 else 0
             )
         }
         
@@ -498,4 +505,27 @@ class CitationCleanerLogger:
             )
             wandb.log({"tables/top_combined_reduction_documents": top_combined_table})
             
-            log.info(f"📋 Top combined reduction document: {top_combined_docs_data[0][0]} chars reduced") 
+            log.info(f"📋 Top combined reduction document: {top_combined_docs_data[0][0]} chars reduced")
+        
+        # Citation Limit Exceeded Documents Table
+        if cleaning_stats["citation_limit_exceeded_samples"]:
+            exceeded_docs_data = []
+            for sample in cleaning_stats["citation_limit_exceeded_samples"]:
+                exceeded_docs_data.append([
+                    sample["doc_id"][:40],
+                    sample["title"][:60], 
+                    sample["citation_type"],
+                    sample["count"],
+                    sample["limit"],
+                    sample["ratio"],
+                    sample["doc_length"],
+                    ", ".join(sample["first_matches"][:3])  # Erste 3 Matches
+                ])
+            
+            exceeded_table = wandb.Table(
+                columns=["Doc ID", "Title", "Citation Type", "Count", "Limit", "Ratio", "Doc Length", "Example Matches"],
+                data=exceeded_docs_data
+            )
+            wandb.log({"tables/citation_limit_exceeded_documents": exceeded_table})
+            
+            log.info(f"📋 Citation limits exceeded: {len(cleaning_stats['citation_limit_exceeded_samples'])} documents logged") 

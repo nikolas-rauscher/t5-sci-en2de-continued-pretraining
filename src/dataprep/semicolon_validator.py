@@ -20,12 +20,29 @@ COMMON_STOPWORDS = {
     "most", "many", "some", "any", "each", "every", "all", "both", "either", "neither"
 }
 
-# Biologische/lateinische Terminologie
+# Biologische/lateinische Terminologie - erweitert für OCR Artifacts
 BIOLOGICAL_TERMS = {
     "elytris", "prothorace", "punctato", "globosis", "nudis", "sulcato", "fossulato",
     "impunctato", "acutis", "scutello", "hirsutis", "validis", "diviso", "punctulatis",
     "meso", "et", "tibiis", "prothoracis", "protboracis", "corpus", "thorax", "abdomen",
-    "species", "genus", "familia", "ordo", "classis", "phylum", "regnum", "metasterni"
+    "species", "genus", "familia", "ordo", "classis", "phylum", "regnum", "metasterni",
+    
+    # Zusätzliche häufige OCR-Artifacts aus biologischen Texten
+    "tarsorum", "antennis", "capite", "pronoto", "mesosterno", "metasterno", 
+    "coxis", "femoribus", "segmentis", "marginibus", "angulis", "lateribus",
+    "dorsalibus", "ventralibus", "basalibus", "apicalibus", "medianus", "distalis",
+    "proximalis", "anterior", "posterior", "superior", "inferior", "external", "internal",
+    "specimen", "specimens", "holotype", "paratype", "morphology", "diagnosis", "etymology",
+    "material", "examined", "locality", "collection", "museum", "deposited",
+    
+    # Technische/chemische Begriffe die oft als False Positives erscheinen
+    "acetate", "sulfate", "chloride", "hydroxide", "carbonate", "nitrate", "phosphate",
+    "oxide", "dioxide", "monoxide", "hydrate", "anhydrous", "crystalline", "amorphous",
+    "solvent", "solution", "concentration", "dilution", "extraction", "purification",
+    
+    # Methodische Begriffe
+    "protocol", "procedure", "methodology", "analysis", "measurement", "observation",
+    "experiment", "control", "treatment", "sample", "sampling", "preparation"
 }
 
 
@@ -74,22 +91,26 @@ class SemicolonCitationValidator:
                 validation_info["validation_steps"].append(f"REJECT: Candidate '{candidate}' contains/is a stopword")
                 return False, validation_info
         
-        # 3. Check for biological terms 
-        bio_count = sum(1 for candidate in author_candidates if candidate.lower() in BIOLOGICAL_TERMS)
-        if bio_count > 0:
-            validation_info["validation_steps"].append(f"REJECT: Contains {bio_count} biological terms")
+        # 3. Skip biological terms check - too many false negatives
+        
+        # 4. Check for obvious technical patterns that are NOT author names
+        obvious_tech_count = sum(1 for candidate in author_candidates if self._is_obvious_technical_pattern(candidate))
+        if obvious_tech_count > 0:
+            validation_info["validation_steps"].append(f"REJECT: Contains {obvious_tech_count} obvious technical patterns")
             return False, validation_info
         
-        # 4. Simple confidence check (with capitalization and improved regex)
+        # 5. Skip complex non-author checks - keep it simple
+        
+        # 6. Simple confidence check - if it passes basic checks, likely a citation
         simple_confidence = self._calculate_simple_confidence(author_candidates)
         validation_info["author_confidence"] = simple_confidence
         
-        if simple_confidence < self.confidence_threshold:
-            validation_info["validation_steps"].append(f"REJECT: Low confidence ({simple_confidence:.3f} < {self.confidence_threshold})")
-            return False, validation_info
+        if simple_confidence >= self.confidence_threshold:
+            validation_info["validation_steps"].append(f"ACCEPT: Confidence {simple_confidence:.3f} ≥ {self.confidence_threshold}")
+            return True, validation_info
         
-        validation_info["validation_steps"].append(f"ACCEPT: Confidence {simple_confidence:.3f} ≥ {self.confidence_threshold}")
-        return True, validation_info
+        validation_info["validation_steps"].append(f"REJECT: Low confidence ({simple_confidence:.3f} < {self.confidence_threshold})")
+        return False, validation_info
     
     def _calculate_simple_confidence(self, author_candidates: List[str]) -> float:
         """Very simple confidence calculation - checks length, and valid characters (capitalization is NOT checked)"""
@@ -121,4 +142,76 @@ class SemicolonCitationValidator:
             if is_valid:
                 valid_count += 1
         
-        return valid_count / len(author_candidates) if author_candidates else 0.0 
+        return valid_count / len(author_candidates) if author_candidates else 0.0
+    
+    def _is_obvious_technical_pattern(self, candidate: str) -> bool:
+        """Erkennt nur die OFFENSICHTLICHSTEN technischen Patterns"""
+        candidate_clean = candidate.strip().lower()
+        
+        # Pattern 1: Nur Zahlen
+        if candidate_clean.isdigit():
+            return True
+        
+        # Pattern 2: Enthält mathematische Sonderzeichen
+        if re.search(r'[\(\)\[\]{}+=<>|\\/@#$%^&*]', candidate_clean):
+            return True
+        
+        # Pattern 3: Zu lang (über 30 Zeichen)
+        if len(candidate_clean) > 30:
+            return True
+        
+        # Pattern 4: Leer oder nur Whitespace
+        if not candidate_clean.strip():
+            return True
+        
+        return False
+    
+    def _looks_like_non_author(self, candidate: str) -> bool:
+        """Erkennt offensichtliche Nicht-Autor-Patterns"""
+        candidate_clean = candidate.strip().lower()
+        
+        # Pattern 1: Methodische Begriffe
+        method_terms = {
+            'method', 'protocol', 'procedure', 'analysis', 'technique', 'approach',
+            'algorithm', 'model', 'framework', 'system', 'software', 'program',
+            'data', 'result', 'conclusion', 'discussion', 'introduction', 'abstract'
+        }
+        if candidate_clean in method_terms:
+            return True
+        
+        # Pattern 2: Zeitangaben
+        time_patterns = [
+            r'^\d{4}$',  # Jahre: 2020, 1995, etc.
+            r'^(january|february|march|april|may|june|july|august|september|october|november|december)$',
+            r'^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)$'
+        ]
+        if any(re.match(pattern, candidate_clean) for pattern in time_patterns):
+            return True
+        
+        # Pattern 3: Institutionen/Orte (häufige False Positives)
+        institution_terms = {
+            'university', 'institute', 'laboratory', 'department', 'center', 'centre',
+            'hospital', 'clinic', 'school', 'college', 'company', 'corporation',
+            'foundation', 'society', 'association', 'organization', 'group'
+        }
+        if any(term in candidate_clean for term in institution_terms):
+            return True
+        
+        # Pattern 4: Geografische Begriffe
+        geo_terms = {
+            'north', 'south', 'east', 'west', 'central', 'northern', 'southern', 
+            'eastern', 'western', 'region', 'area', 'zone', 'district', 'province',
+            'state', 'country', 'city', 'town', 'village', 'location'
+        }
+        if candidate_clean in geo_terms:
+            return True
+        
+        # Pattern 5: Nur Großbuchstaben (oft Abkürzungen, nicht Namen)
+        if candidate_clean.isupper() and len(candidate_clean) >= 3:
+            return True
+        
+        # Pattern 6: Enthält Punkt am Ende (oft Abkürzungen)
+        if candidate_clean.endswith('.') and len(candidate_clean) <= 5:
+            return True
+        
+        return False 

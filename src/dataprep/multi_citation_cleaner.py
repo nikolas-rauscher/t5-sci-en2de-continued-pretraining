@@ -150,6 +150,10 @@ class MultiCitationCleaner(BaseFilter):
                 "autor_jahr_multi_klammer": r"\((?:[A-Z][A-Za-z'-]+(?:\s+(?:and|et)\s+[A-Z][A-Za-z'-]+)?(?:,\s*Jr\.?)?(?: et al\.)?,\s*\d{4}[a-z]?\s*;\s*)+[A-Z][A-Za-z'-]+(?:\s+(?:and|et)\s+[A-Z][A-Za-z'-]+)?(?:,\s*Jr\.?)?(?: et al\.)?,\s*\d{4}[a-z]?\)",
                 "autor_jahr_klammer_einzel": r"\([A-Z][A-Za-z'-]+(?:\s+(?:and|et)\s+[A-Z][A-Za-z'-]+)?(?:,\s*Jr\.?)?(?: et al\.)?,\s*\d{4}[a-z]?\)",
                 
+                # Author-Year Citations in Square Brackets (NEW) - Universal Unicode support
+                "autor_jahr_eckig_einzel": r"\[[\w\u00C0-\u017F\u0400-\u04FF\u4E00-\u9FFF\u0590-\u05FF\u0600-\u06FF]+(?:\s+(?:and|et|und|y|et)\s+[\w\u00C0-\u017F\u0400-\u04FF\u4E00-\u9FFF\u0590-\u05FF\u0600-\u06FF]+)*(?:,\s*Jr\.?)?(?: et al\.)?,\s*\d{4}[a-z]?\]",
+                "autor_jahr_eckig_multi": r"\[(?:[\w\u00C0-\u017F\u0400-\u04FF\u4E00-\u9FFF\u0590-\u05FF\u0600-\u06FF]+(?:\s+(?:and|et|und|y|et)\s+[\w\u00C0-\u017F\u0400-\u04FF\u4E00-\u9FFF\u0590-\u05FF\u0600-\u06FF]+)*(?:,\s*Jr\.?)?(?: et al\.)?,\s*\d{4}[a-z]?\s*;\s*)+[\w\u00C0-\u017F\u0400-\u04FF\u4E00-\u9FFF\u0590-\u05FF\u0600-\u06FF]+(?:\s+(?:and|et|und|y|et)\s+[\w\u00C0-\u017F\u0400-\u04FF\u4E00-\u9FFF\u0590-\u05FF\u0600-\u06FF]+)*(?:,\s*Jr\.?)?(?: et al\.)?,\s*\d{4}[a-z]?\]",
+                
                 # Referenz-Nummern
                 "ref_nummer": r"\b(?:ref|refs)\.?\s*\d+(?:,\s*\d+)*(?:-\s*\d+)?\b",
                 
@@ -207,9 +211,25 @@ class MultiCitationCleaner(BaseFilter):
             "total_figure_line_length_reduction": 0,
             "figure_line_removal_samples": [],
             
+            # Appendix section removal stats
+            "docs_with_appendix_sections_removed": 0,
+            "total_appendix_sections_removed": 0,
+            "total_appendix_lines_removed": 0,
+            "total_appendix_length_reduction": 0,
+            "appendix_removal_samples": [],
+            
+            # Short line removal stats
+            "docs_with_short_lines_removed": 0,
+            "total_short_lines_removed": 0,
+            "total_short_line_length_reduction": 0,
+            "short_line_removal_samples": [],
+            
             # Top Documents tracking
             "top_figure_line_removal_docs": [],  # (lines_removed, doc_id, title, length_reduction)
-            "top_combined_reduction_docs": []    # (total_reduction, doc_id, title, citations+figure_lines)
+            "top_appendix_removal_docs": [],     # (sections_removed, doc_id, title, length_reduction)
+            "top_short_line_removal_docs": [],   # (lines_removed, doc_id, title, length_reduction)
+            "top_combined_reduction_docs": [],   # (total_reduction, doc_id, title, citations+figure_lines+appendix+short_lines)
+            
         }
         
         # Logger Initialisierung - W&B nur für main process (rank 0)
@@ -389,6 +409,12 @@ class MultiCitationCleaner(BaseFilter):
             # POST-PROCESSING: Remove figure/table-only lines
             cleaned_text, figure_removal_stats = self._remove_figure_only_lines(cleaned_text, str(doc.id))
             
+            # POST-PROCESSING: Remove appendix/reference sections
+            cleaned_text, appendix_removal_stats = self._detect_appendix_sections(cleaned_text, str(doc.id))
+            
+            # POST-PROCESSING: Remove isolated short lines
+            cleaned_text, short_line_removal_stats = self._remove_isolated_short_lines(cleaned_text, str(doc.id))
+            
             # Update figure line removal stats
             if figure_removal_stats["lines_removed"] > 0:
                 self.cleaning_stats["docs_with_figure_lines_removed"] += 1
@@ -428,6 +454,91 @@ class MultiCitationCleaner(BaseFilter):
             else:
                 doc.metadata["figure_lines_removed"] = 0
                 doc.metadata["figure_line_length_reduction"] = 0
+            
+            # Update appendix section removal stats
+            if appendix_removal_stats["sections_removed"] > 0:
+                self.cleaning_stats["docs_with_appendix_sections_removed"] += 1
+                self.cleaning_stats["total_appendix_sections_removed"] += appendix_removal_stats["sections_removed"]
+                self.cleaning_stats["total_appendix_lines_removed"] += appendix_removal_stats["lines_removed"]
+                self.cleaning_stats["total_appendix_length_reduction"] += appendix_removal_stats["length_reduction"]
+                
+                # Store samples for W&B (with limit)
+                if len(self.cleaning_stats["appendix_removal_samples"]) < self.max_false_positive_samples:
+                    for removed_section in appendix_removal_stats["removed_sections"]:
+                        if len(self.cleaning_stats["appendix_removal_samples"]) < self.max_false_positive_samples:
+                            sample = {
+                                "doc_id": appendix_removal_stats["doc_id"],
+                                "section_type": removed_section["section_type"],
+                                "lines_count": removed_section["lines_count"],
+                                "start_line": removed_section["start_line"],
+                                "confidence": removed_section["confidence"],
+                                "sample_lines": removed_section["sample_lines"]
+                            }
+                            self.cleaning_stats["appendix_removal_samples"].append(sample)
+                
+                # Track top appendix removal documents
+                doc_title = str(doc.metadata.get("title", ""))[:50] if doc.metadata else ""
+                appendix_doc_entry = (
+                    appendix_removal_stats["sections_removed"], 
+                    appendix_removal_stats["doc_id"], 
+                    doc_title,
+                    appendix_removal_stats["length_reduction"]
+                )
+                
+                if len(self.cleaning_stats["top_appendix_removal_docs"]) < self.max_top_citation_docs:
+                    heapq.heappush(self.cleaning_stats["top_appendix_removal_docs"], appendix_doc_entry)
+                elif appendix_removal_stats["sections_removed"] > self.cleaning_stats["top_appendix_removal_docs"][0][0]:
+                    heapq.heapreplace(self.cleaning_stats["top_appendix_removal_docs"], appendix_doc_entry)
+                
+                # Add metadata to document
+                doc.metadata["appendix_sections_removed"] = appendix_removal_stats["sections_removed"]
+                doc.metadata["appendix_lines_removed"] = appendix_removal_stats["lines_removed"]
+                doc.metadata["appendix_length_reduction"] = appendix_removal_stats["length_reduction"]
+            else:
+                doc.metadata["appendix_sections_removed"] = 0
+                doc.metadata["appendix_lines_removed"] = 0
+                doc.metadata["appendix_length_reduction"] = 0
+            
+            # Update short line removal stats
+            if short_line_removal_stats["lines_removed"] > 0:
+                self.cleaning_stats["docs_with_short_lines_removed"] += 1
+                self.cleaning_stats["total_short_lines_removed"] += short_line_removal_stats["lines_removed"]
+                self.cleaning_stats["total_short_line_length_reduction"] += short_line_removal_stats["length_reduction"]
+                
+                # Store samples for W&B (with limit)
+                if len(self.cleaning_stats["short_line_removal_samples"]) < self.max_false_positive_samples:
+                    for removed_line in short_line_removal_stats["removed_lines"]:
+                        if len(self.cleaning_stats["short_line_removal_samples"]) < self.max_false_positive_samples:
+                            sample = {
+                                "doc_id": short_line_removal_stats["doc_id"],
+                                "line_content": removed_line["line_content"],
+                                "line_number": removed_line["line_number"],
+                                "word_count": removed_line["word_count"],
+                                "reason": removed_line["reason"],
+                                "length": removed_line["length"]
+                            }
+                            self.cleaning_stats["short_line_removal_samples"].append(sample)
+                
+                # Track top short line removal documents
+                doc_title = str(doc.metadata.get("title", ""))[:50] if doc.metadata else ""
+                short_line_doc_entry = (
+                    short_line_removal_stats["lines_removed"], 
+                    short_line_removal_stats["doc_id"], 
+                    doc_title,
+                    short_line_removal_stats["length_reduction"]
+                )
+                
+                if len(self.cleaning_stats["top_short_line_removal_docs"]) < self.max_top_citation_docs:
+                    heapq.heappush(self.cleaning_stats["top_short_line_removal_docs"], short_line_doc_entry)
+                elif short_line_removal_stats["lines_removed"] > self.cleaning_stats["top_short_line_removal_docs"][0][0]:
+                    heapq.heapreplace(self.cleaning_stats["top_short_line_removal_docs"], short_line_doc_entry)
+                
+                # Add metadata to document
+                doc.metadata["short_lines_removed"] = short_line_removal_stats["lines_removed"]
+                doc.metadata["short_line_length_reduction"] = short_line_removal_stats["length_reduction"]
+            else:
+                doc.metadata["short_lines_removed"] = 0
+                doc.metadata["short_line_length_reduction"] = 0
             
             # Stats updaten
             total_found = len(citations_found[citation_type])
@@ -496,14 +607,23 @@ class MultiCitationCleaner(BaseFilter):
         if total_citations_rejected > 0:
             self.cleaning_stats["total_citations_rejected"] += total_citations_rejected
         
-        # Track combined top documents (citations + figure lines)
+        # Track combined top documents (citations + figure lines + appendix + short lines)
         total_combined_reduction = 0
         if self.track_changes:
-            total_combined_reduction = length_reduction + figure_removal_stats.get("length_reduction", 0)
+            total_combined_reduction = (length_reduction + 
+                                      figure_removal_stats.get("length_reduction", 0) +
+                                      appendix_removal_stats.get("length_reduction", 0) +
+                                      short_line_removal_stats.get("length_reduction", 0))
         
-        if total_combined_reduction > 0 or total_citations_removed > 0 or figure_removal_stats.get("lines_removed", 0) > 0:
+        if (total_combined_reduction > 0 or total_citations_removed > 0 or 
+            figure_removal_stats.get("lines_removed", 0) > 0 or
+            appendix_removal_stats.get("sections_removed", 0) > 0 or
+            short_line_removal_stats.get("lines_removed", 0) > 0):
             doc_title = str(doc.metadata.get("title", ""))[:50] if doc.metadata else ""
-            combined_info = f"C:{total_citations_removed},F:{figure_removal_stats.get('lines_removed', 0)}"
+            combined_info = (f"C:{total_citations_removed},"
+                           f"F:{figure_removal_stats.get('lines_removed', 0)},"
+                           f"A:{appendix_removal_stats.get('sections_removed', 0)},"
+                           f"S:{short_line_removal_stats.get('lines_removed', 0)}")
             
             combined_doc_entry = (
                 total_combined_reduction,  # Sort by total text reduction
@@ -579,6 +699,60 @@ class MultiCitationCleaner(BaseFilter):
                 should_remove = True
                 removal_reason = "numeric_header"
             
+            # Pattern 6: Table column headers that got separated
+            elif (re.match(r'^(?:variable|coefficient|std\.?\s*err|p-?value|confidence|interval|estimate|statistic)', stripped_line, re.IGNORECASE) and
+                  len(stripped_line) < 60):
+                should_remove = True
+                removal_reason = "table_column_header"
+            
+            # Pattern 7: Statistical notation lines (stars, crosses, etc.)
+            elif re.match(r'^\s*[\*\+†‡§¶#]+\s*[^a-zA-Z]*$', stripped_line):
+                should_remove = True  
+                removal_reason = "statistical_notation"
+            
+            # Pattern 8: Standalone section numbers without content
+            elif re.match(r'^\s*(?:\d+\.\d+|\d+\s*$|[IVX]+\.\s*$)', stripped_line):
+                should_remove = True
+                removal_reason = "section_number"
+            
+            # Pattern 9: Page headers/footers (common OCR artifacts)
+            elif (re.match(r'^\s*(?:page\s+\d+|chapter\s+\d+|\d+\s*$)', stripped_line, re.IGNORECASE) and
+                  len(stripped_line) < 20):
+                should_remove = True
+                removal_reason = "page_header"
+            
+            # Pattern 10: Mathematical notation lines (often OCR artifacts)
+            elif re.match(r'^\s*[=<>≤≥≠±∓×÷∑∏∫∂∇∆]+\s*$', stripped_line):
+                should_remove = True
+                removal_reason = "math_notation"
+            
+            # Pattern 11: Units and measurements lines (often separated from content)
+            elif (re.match(r'^\s*(?:mm|cm|kg|mg|ml|μl|°c|°f|hz|khz|mhz|ghz|v|mv|ma|μa)\s*$', stripped_line, re.IGNORECASE) and
+                  len(stripped_line) < 15):
+                should_remove = True
+                removal_reason = "units_line"
+            
+            # Pattern 12: Standalone abbreviations (common in scientific texts)
+            elif (re.match(r'^\s*(?:fig|tab|eq|ref|sec|ch|app|supp|vs|cf|ibid|loc|cit|al|inc|ltd|corp)\s*\.?\s*$', stripped_line, re.IGNORECASE) and
+                  len(stripped_line) < 10):
+                should_remove = True
+                removal_reason = "standalone_abbreviation"
+            
+            # Pattern 13: Zeichen-zu-Wort-Ratio Check für kurze Lines (unter 100 Zeichen)
+            elif len(stripped_line) < 100:  # Nur für Lines unter 100 Zeichen prüfen
+                words = stripped_line.split()
+                if len(words) > 0:
+                    # Zähle Sonderzeichen (Nicht-Alphanumerisch, außer Leerzeichen)
+                    special_chars = len(re.findall(r'[^\w\s]', stripped_line))
+                    total_chars = len(stripped_line.replace(' ', ''))  # Ohne Leerzeichen
+                    
+                    if total_chars > 0:
+                        special_char_ratio = special_chars / total_chars
+                        # Wenn >50% Sonderzeichen in kurzer Line -> wahrscheinlich Artifact
+                        if special_char_ratio > 0.5 and len(words) <= 3:
+                            should_remove = True
+                            removal_reason = f"high_special_char_ratio_{special_char_ratio:.2f}"
+            
             if should_remove:
                 # Store removed line for analytics
                 removed_lines.append({
@@ -602,7 +776,406 @@ class MultiCitationCleaner(BaseFilter):
         
         return '\n'.join(cleaned_lines), stats
     
- 
+    def _detect_appendix_sections(self, text: str, doc_id: str = None) -> tuple[str, dict]:
+        """
+        Detect and remove appendix/reference sections using character ratio analysis.
+        
+        Targets scientific tables, gene lists, acknowledgments, and reference sections
+        that are harmful for T5 pretraining.
+        """
+        lines = text.splitlines()
+        cleaned_lines = []
+        removed_sections = []
+        current_section_lines = []
+        in_appendix_section = False
+        section_start_line = 0
+        
+        for i, line in enumerate(lines):
+            stripped_line = line.strip()
+            
+            # Skip empty lines but don't reset section detection
+            if not stripped_line:
+                if in_appendix_section:
+                    current_section_lines.append(line)
+                else:
+                    cleaned_lines.append(line)
+                continue
+            
+            # Detect start of appendix sections
+            section_indicators = [
+                # Table indicators
+                r'^table\s+\d+', r'^tab\s+\d+', r'^figure\s+\d+', r'^fig\s+\d+',
+                
+                # Scientific sections
+                r'^acknowledgments?$', r'^acknowledgements?$', r'^references?$', 
+                r'^bibliography$', r'^appendix', r'^supplementary',
+                
+                # Method sections with technical details
+                r'^materials?\s+and\s+methods?$', r'^methods?$', r'^procedures?$',
+                
+                # Gene/protein lists
+                r'^gene\s+symbol', r'^protein\s+name', r'^antibody\s+supplier',
+                
+                # Table content patterns
+                r'^[A-Z][A-Z0-9]+\s+[A-Z][A-Z0-9]+\s+[A-Z][A-Z0-9]+',  # Column headers
+            ]
+            
+            is_section_start = any(re.search(pattern, stripped_line, re.IGNORECASE) 
+                                 for pattern in section_indicators)
+            
+            if is_section_start and not in_appendix_section:
+                in_appendix_section = True
+                section_start_line = i + 1
+                current_section_lines = [line]
+                continue
+            
+            if in_appendix_section:
+                current_section_lines.append(line)
+                
+                # Check if we should end the section (normal paragraph text returns)
+                if len(current_section_lines) > 5:  # Only after minimum section length
+                    # Calculate ratios for this line
+                    line_stats = self._calculate_line_stats(stripped_line)
+                    
+                    # End section if we hit normal prose text
+                    if (line_stats['word_count'] > 15 and 
+                        line_stats['special_char_ratio'] < 0.15 and
+                        line_stats['uppercase_ratio'] < 0.3 and
+                        not re.search(r'^[A-Z]{2,}', stripped_line) and  # Not gene names
+                        not re.search(r'\d+\.\d+', stripped_line) and    # Not version numbers
+                        not re.search(r'[:\t]', stripped_line)):         # Not tabular data
+                        
+                        # This looks like normal text, end the section
+                        section_stats = self._analyze_section_stats(current_section_lines[:-1])  # Exclude current line
+                        
+                        if self._is_likely_appendix_section(section_stats):
+                            removed_sections.append({
+                                "start_line": section_start_line,
+                                "end_line": i,
+                                "lines_count": len(current_section_lines) - 1,
+                                "total_length": sum(len(l) for l in current_section_lines[:-1]),
+                                "section_type": section_stats.get('section_type', 'unknown'),
+                                "confidence": section_stats.get('confidence', 0.0),
+                                "sample_lines": current_section_lines[:3]  # First 3 lines as sample
+                            })
+                        else:
+                            # Not an appendix, add back to cleaned text
+                            cleaned_lines.extend(current_section_lines[:-1])
+                        
+                        # Reset and add current line as normal
+                        in_appendix_section = False
+                        current_section_lines = []
+                        cleaned_lines.append(line)
+                        continue
+                
+                # Continue collecting section lines
+                continue
+            
+            # Normal line - add to cleaned text
+            cleaned_lines.append(line)
+        
+        # Handle any remaining section at end of document
+        if in_appendix_section and current_section_lines:
+            section_stats = self._analyze_section_stats(current_section_lines)
+            if self._is_likely_appendix_section(section_stats):
+                removed_sections.append({
+                    "start_line": section_start_line,
+                    "end_line": len(lines),
+                    "lines_count": len(current_section_lines),
+                    "total_length": sum(len(l) for l in current_section_lines),
+                    "section_type": section_stats.get('section_type', 'unknown'),
+                    "confidence": section_stats.get('confidence', 0.0),
+                    "sample_lines": current_section_lines[:3]
+                })
+            else:
+                cleaned_lines.extend(current_section_lines)
+        
+        # Statistics
+        total_removed_lines = sum(section['lines_count'] for section in removed_sections)
+        total_removed_length = sum(section['total_length'] for section in removed_sections)
+        
+        stats = {
+            "sections_removed": len(removed_sections),
+            "lines_removed": total_removed_lines,
+            "length_reduction": total_removed_length,
+            "removed_sections": removed_sections[:5],  # Store max 5 samples per document
+            "doc_id": doc_id or "unknown"
+        }
+        
+        return '\n'.join(cleaned_lines), stats
+    
+    def _calculate_line_stats(self, line: str) -> dict:
+        """Calculate various statistics for a single line"""
+        if not line:
+            return {'word_count': 0, 'special_char_ratio': 0, 'uppercase_ratio': 0}
+        
+        words = line.split()
+        word_count = len(words)
+        
+        # Special characters (non-alphanumeric except spaces)
+        special_chars = len(re.findall(r'[^\w\s]', line))
+        total_chars = len(line.replace(' ', ''))
+        special_char_ratio = special_chars / total_chars if total_chars > 0 else 0
+        
+        # Uppercase letters
+        uppercase_chars = sum(1 for c in line if c.isupper())
+        letter_chars = sum(1 for c in line if c.isalpha())
+        uppercase_ratio = uppercase_chars / letter_chars if letter_chars > 0 else 0
+        
+        return {
+            'word_count': word_count,
+            'special_char_ratio': special_char_ratio,
+            'uppercase_ratio': uppercase_ratio,
+            'total_length': len(line)
+        }
+    
+    def _analyze_section_stats(self, section_lines: List[str]) -> dict:
+        """Analyze statistics for an entire section to determine if it's an appendix"""
+        if not section_lines:
+            return {'confidence': 0.0, 'section_type': 'empty'}
+        
+        # Calculate aggregate statistics
+        total_lines = len(section_lines)
+        non_empty_lines = [line.strip() for line in section_lines if line.strip()]
+        
+        if not non_empty_lines:
+            return {'confidence': 0.0, 'section_type': 'empty'}
+        
+        # Line-by-line analysis
+        line_stats = [self._calculate_line_stats(line) for line in non_empty_lines]
+        
+        # Aggregate metrics
+        avg_special_char_ratio = sum(s['special_char_ratio'] for s in line_stats) / len(line_stats)
+        avg_uppercase_ratio = sum(s['uppercase_ratio'] for s in line_stats) / len(line_stats)
+        avg_word_count = sum(s['word_count'] for s in line_stats) / len(line_stats)
+        
+        # Count specific patterns
+        tabular_lines = sum(1 for line in non_empty_lines if '\t' in line or re.search(r'\s{3,}', line))
+        gene_lines = sum(1 for line in non_empty_lines if re.search(r'^[A-Z0-9]{2,}\s+[A-Z0-9]{2,}', line))
+        short_lines = sum(1 for s in line_stats if s['word_count'] < 5)
+        numeric_lines = sum(1 for line in non_empty_lines if re.search(r'\d+\.\d+|\d+%', line))
+        
+        # Calculate confidence score
+        confidence = 0.0
+        section_type = "unknown"
+        
+        # High special character ratio (tables, technical data)
+        if avg_special_char_ratio > 0.2:
+            confidence += 0.3
+            section_type = "technical_table"
+        
+        # High uppercase ratio (gene names, abbreviations)
+        if avg_uppercase_ratio > 0.4:
+            confidence += 0.25
+            section_type = "gene_list"
+        
+        # Many short lines (tabular data)
+        if short_lines / len(non_empty_lines) > 0.5:
+            confidence += 0.2
+            section_type = "tabular_data"
+        
+        # Tabular formatting
+        if tabular_lines / len(non_empty_lines) > 0.3:
+            confidence += 0.3
+            section_type = "formatted_table"
+        
+        # Gene name patterns
+        if gene_lines / len(non_empty_lines) > 0.3:
+            confidence += 0.35
+            section_type = "gene_table"
+        
+        # Many numeric values
+        if numeric_lines / len(non_empty_lines) > 0.5:
+            confidence += 0.25
+            section_type = "numeric_data"
+        
+        # Low average word count (not prose)
+        if avg_word_count < 8:
+            confidence += 0.15
+        
+        return {
+            'confidence': min(confidence, 1.0),
+            'section_type': section_type,
+            'total_lines': total_lines,
+            'avg_special_char_ratio': avg_special_char_ratio,
+            'avg_uppercase_ratio': avg_uppercase_ratio,
+            'avg_word_count': avg_word_count,
+            'tabular_lines_ratio': tabular_lines / len(non_empty_lines),
+            'gene_lines_ratio': gene_lines / len(non_empty_lines)
+        }
+    
+    def _is_likely_appendix_section(self, section_stats: dict) -> bool:
+        """Determine if a section should be removed based on statistics"""
+        confidence = section_stats.get('confidence', 0.0)
+        
+        # Conservative threshold - only remove if we're quite confident
+        return confidence > 0.6
+    
+    def _remove_isolated_short_lines(self, text: str, doc_id: str = None) -> tuple[str, dict]:
+        """
+        Remove isolated short lines (1-3 words) that break text flow.
+        
+        These are typically structural artifacts, headers, or OCR errors
+        that are harmful for T5 pretraining.
+        """
+        lines = text.splitlines()
+        cleaned_lines = []
+        removed_lines = []
+        
+        for i, line in enumerate(lines):
+            stripped_line = line.strip()
+            
+            # Keep empty lines as they are important for paragraph structure
+            if not stripped_line:
+                cleaned_lines.append(line)
+                continue
+            
+            words = stripped_line.split()
+            word_count = len(words)
+            
+            # Criteria for removal of short lines
+            should_remove = False
+            removal_reason = ""
+            
+            # Single word lines (most problematic)
+            if word_count == 1:
+                word = words[0].upper()
+                
+                # Keep important section headers and meaningful words
+                important_single_words = {
+                    # Scientific sections (KEEP these!)
+                    'INTRODUCTION', 'CONCLUSION', 'RESULTS', 'DISCUSSION', 
+                    'METHODS', 'BACKGROUND', 'SUMMARY', 'OVERVIEW', 'ANALYSIS',
+                    'EXPERIMENT', 'PROCEDURE', 'MATERIALS', 'PROTOCOL', 'DESIGN',
+                    'IMPLEMENTATION', 'EVALUATION', 'LIMITATIONS', 'FUTURE',
+                    'APPLICATIONS', 'IMPLICATIONS', 'SIGNIFICANCE', 'ABSTRACT',
+                    
+                    # Common structural words (KEEP these!)
+                    'OBJECTIVES', 'HYPOTHESIS', 'APPROACH', 'FRAMEWORK', 'MODEL',
+                    'ALGORITHM', 'BASELINE', 'COMPARISON', 'VALIDATION', 'TESTING'
+                }
+                
+                # Remove only truly meaningless single words
+                if word not in important_single_words:
+                    # Additional checks - be more conservative
+                    if (len(word) < 10 and  # Only very short words
+                        not re.search(r'\d', word) and  # Not containing numbers
+                        not word.endswith('ING') and  # Not gerunds
+                        not re.match(r'^[A-Z]{2,}S$', word) and  # Not plurals of abbreviations (URLS, APIS)
+                        word not in ['PROBLEM', 'SOLUTION', 'APPROACH', 'THEORY', 'PRACTICE', 'REVIEW']):
+                        should_remove = True
+                        removal_reason = "isolated_meaningless_word"
+            
+            # Two-word lines (often table headers or structural elements)
+            elif word_count == 2:
+                line_upper = stripped_line.upper()
+                
+                # Check for numbered section headers (KEEP these!)
+                if re.match(r'^\d+[\.\)]\s+[A-Z]', stripped_line):  # "1. Introduction", "2) Methods" 
+                    # This is a numbered section header - keep it!
+                    pass  # Don't remove
+                elif re.match(r'^[IVX]+[\.\)]\s+[A-Z]', stripped_line):  # "I. Introduction", "II) Methods"
+                    # Roman numeral section header - keep it!
+                    pass  # Don't remove
+                else:
+                    # Keep meaningful scientific 2-word headers
+                    meaningful_two_word_patterns = {
+                        'RELATED WORK', 'FUTURE WORK', 'CASE STUDY', 'USER STUDY',
+                        'DATA ANALYSIS', 'STATISTICAL ANALYSIS', 'EXPERIMENTAL DESIGN',
+                        'LITERATURE REVIEW', 'SYSTEMATIC REVIEW', 'META ANALYSIS',
+                        'RESEARCH QUESTIONS', 'RESEARCH OBJECTIVES', 'ETHICAL CONSIDERATIONS',
+                        'PERFORMANCE EVALUATION', 'MODEL VALIDATION', 'EXPERIMENTAL SETUP',
+                        'BASELINE COMPARISON', 'ABLATION STUDY', 'ERROR ANALYSIS',
+                        'THEORETICAL BACKGROUND', 'CONCEPTUAL FRAMEWORK', 'PROBLEM STATEMENT'
+                    }
+                    
+                    # Remove metadata and clearly non-content headers
+                    if (line_upper not in meaningful_two_word_patterns and
+                        (re.match(r'^TABLE\s+\d+', line_upper) or       # Table headers
+                         re.match(r'^FIGURE\s+\d+', line_upper) or      # Figure headers  
+                         re.match(r'^CHAPTER\s+\d+', line_upper) or     # Chapter headers
+                         re.match(r'^SECTION\s+\d+', line_upper) or     # Section headers
+                         re.match(r'^STEP\s+\d+', line_upper) or        # Step headers
+                         re.search(r'^\w+\s+SUPPLIER$', line_upper) or  # Table column headers
+                         re.search(r'^GENE\s+SYMBOL$', line_upper) or   # Table column headers
+                         re.search(r'^FOLD\s+CHANGE$', line_upper) or   # Table column headers
+                         re.search(r'^LIST\s+OF$', line_upper) or       # "LIST OF" (tables/figures)
+                         line_upper in ['NAME SUPPLIER', 'ANTIBODY SUPPLIER', 'GENE NAME'])):
+                        should_remove = True
+                        removal_reason = "structural_two_word_header"
+            
+            # Three-word lines (often fragmented table headers or incomplete sentences)
+            elif word_count == 3:
+                line_upper = stripped_line.upper()
+                
+                # Check for numbered section headers (KEEP these!)
+                if re.match(r'^\d+[\.\)]\s+[A-Z]', stripped_line):  # "1.1 Data Collection", "2) Statistical Analysis"
+                    # This is a numbered section header - keep it!
+                    pass  # Don't remove
+                elif re.match(r'^[IVX]+[\.\)]\s+[A-Z]', stripped_line):  # "I.1 Introduction Overview"
+                    # Roman numeral section header - keep it!
+                    pass  # Don't remove
+                else:
+                    # Keep meaningful scientific 3-word headers
+                    meaningful_three_word_patterns = {
+                        'MATERIALS AND METHODS', 'RESULTS AND DISCUSSION', 'CONCLUSIONS AND IMPLICATIONS',
+                        'EXPERIMENTAL VALIDATION RESULTS', 'STATISTICAL SIGNIFICANCE TESTING', 'MODEL PERFORMANCE EVALUATION',
+                        'LITERATURE REVIEW METHODOLOGY', 'DATA COLLECTION PROCEDURES', 'ETHICAL APPROVAL CONSIDERATIONS',
+                        'LIMITATIONS AND ASSUMPTIONS', 'FUTURE RESEARCH DIRECTIONS', 'PRACTICAL IMPLEMENTATION CONSIDERATIONS',
+                        'THEORETICAL FRAMEWORK DEVELOPMENT', 'EMPIRICAL RESULTS ANALYSIS', 'COMPARATIVE PERFORMANCE ANALYSIS'
+                    }
+                    
+                    # Remove metadata and clearly non-content headers (but be more conservative)
+                    if (line_upper not in meaningful_three_word_patterns and
+                        (re.match(r'^KEYWORDS?:\s+', line_upper) or        # "Keywords: Research Article"
+                         re.match(r'^TABLE\s+\d+\s+', line_upper) or       # "TABLE 1 SOMETHING"
+                         re.match(r'^FIGURE\s+\d+\s+', line_upper) or      # "FIGURE 2 SOMETHING"
+                         re.match(r'^LIST\s+OF\s+', line_upper) or         # "LIST OF FIGURES"
+                         line_upper in ['TABLE OF CONTENTS', 'LIST OF TABLES', 'LIST OF FIGURES', 
+                                       'LIST OF ABBREVIATIONS', 'GENE SYMBOL CHANGE', 'FOLD CHANGE VALUES',
+                                       'KEYWORDS RESEARCH ARTICLE'] or    # Explicit keywords removal
+                         # Very high capital ratio AND contains table/figure words
+                         (sum(1 for c in stripped_line if c.isupper()) / len(stripped_line.replace(' ', '')) > 0.8 and
+                          re.search(r'TABLE|FIGURE|SYMBOL|SUPPLIER|ANTIBODY', line_upper)))):
+                        should_remove = True
+                        removal_reason = "metadata_or_structural_header"
+            
+            # Additional checks for lines that seem disconnected from context
+            if not should_remove and word_count <= 8:  # Extended range for keywords
+                # Check for Keywords lines (any length)
+                if re.match(r'^[Kk]eywords?:\s+', stripped_line):
+                    should_remove = True
+                    removal_reason = "keywords_metadata"
+                # Check if line contains mostly technical abbreviations or codes
+                elif (re.search(r'^[A-Z0-9\-]{2,}\s+[A-Z0-9\-]{2,}', stripped_line) or
+                      # Line with only numbers and letters (technical codes)
+                      re.match(r'^[A-Z0-9\s\-\.]+$', stripped_line) and 
+                      not re.search(r'[a-z]', stripped_line)):
+                    should_remove = True
+                    removal_reason = "technical_code_line"
+            
+            if should_remove:
+                removed_lines.append({
+                    "line_content": stripped_line[:100],  # Limit length for W&B
+                    "line_number": i + 1,
+                    "word_count": word_count,
+                    "length": len(stripped_line),
+                    "reason": removal_reason
+                })
+                continue
+            
+            # Keep the line
+            cleaned_lines.append(line)
+        
+        # Statistics
+        stats = {
+            "lines_removed": len(removed_lines),
+            "length_reduction": sum(item["length"] for item in removed_lines),
+            "removed_lines": removed_lines[:10],  # Store max 10 samples per document
+            "doc_id": doc_id or "unknown"
+        }
+        
+        return '\n'.join(cleaned_lines), stats
     
     def run(self, data, rank: int = 0, world_size: int = 1):
         """Override run method - alle sammeln, rank 0 aggregiert für W&B"""

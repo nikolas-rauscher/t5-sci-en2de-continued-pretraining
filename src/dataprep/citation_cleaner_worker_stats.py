@@ -149,7 +149,9 @@ class CitationCleanerWorkerStats:
             "total_figure_line_length_reduction": 0,
             "figure_line_removal_samples": [],
             "top_figure_line_removal_docs": [],
-            "top_combined_reduction_docs": []
+            "top_combined_reduction_docs": [],
+            "docs_with_citation_limits_exceeded": 0,
+            "citation_limit_exceeded_samples": []
         }
     
     def _merge_worker_data(self, worker_data: Dict, aggregated_citation_stats: Dict, aggregated_cleaning_stats: Dict):
@@ -161,7 +163,7 @@ class CitationCleanerWorkerStats:
         for key in ["docs_processed", "docs_with_any_citations", "total_citations_all_types",
                    "total_citations_rejected", "total_length_reduction", "total_word_reduction",
                    "docs_with_figure_lines_removed", "total_figure_lines_removed", 
-                   "total_figure_line_length_reduction"]:
+                   "total_figure_line_length_reduction", "docs_with_citation_limits_exceeded"]:
             if key in worker_cleaning_stats:
                 aggregated_cleaning_stats[key] += worker_cleaning_stats[key]
         
@@ -206,6 +208,12 @@ class CitationCleanerWorkerStats:
             aggregated_cleaning_stats["top_combined_reduction_docs"].extend(
                 worker_cleaning_stats["top_combined_reduction_docs"]
             )
+        
+        # Collect citation limit exceeded samples
+        if "citation_limit_exceeded_samples" in worker_cleaning_stats:
+            aggregated_cleaning_stats["citation_limit_exceeded_samples"].extend(
+                worker_cleaning_stats["citation_limit_exceeded_samples"][:10]  # Max 10 per worker
+            )
     
     def _finalize_aggregated_stats(self, aggregated_citation_stats: Dict, aggregated_cleaning_stats: Dict):
         """Limit and sort collected lists in aggregated stats"""
@@ -231,6 +239,10 @@ class CitationCleanerWorkerStats:
         if aggregated_cleaning_stats["top_combined_reduction_docs"]:
             aggregated_cleaning_stats["top_combined_reduction_docs"] = \
                 sorted(aggregated_cleaning_stats["top_combined_reduction_docs"], reverse=True)[:self.max_top_citation_docs]
+        
+        # Limit citation limit exceeded samples
+        aggregated_cleaning_stats["citation_limit_exceeded_samples"] = \
+            aggregated_cleaning_stats["citation_limit_exceeded_samples"][:self.max_false_positive_samples]
     
     def _cleanup_temp_files(self, worker_files: list, stats_dir: str):
         """Clean up temporary worker stats files"""
