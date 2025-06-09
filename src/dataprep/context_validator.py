@@ -192,3 +192,26 @@ class ContextValidator:
         
         # Ensure score stays in bounds
         return max(0.0, min(1.0, score)) 
+
+    def _is_likely_list_item(self, text_before: str, match_text: str) -> bool:
+        """
+        Prüft, ob ein Match wahrscheinlich ein Aufzählungspunkt ist.
+        Beispiele: (i), (a), 1.
+        """
+        # Muster für typische Aufzählungen: (a), a), 1., I.
+        list_pattern = r"^\s*(\([a-zA-Z0-9]+\)|[a-zA-Z0-9]+\)|[a-zA-Z0-9]+\.|\([ivxlcdm]+\)|[ivxlcdm]+\.)\s*$"
+        
+        # Prüfen, ob der Match-Text einem typischen Aufzählungsmuster entspricht
+        if not re.match(list_pattern, match_text, re.IGNORECASE):
+            return False
+
+        # Heuristik 1: Steht am Anfang einer Zeile (oder fast)
+        # text_before enthält den Text der Zeile vor dem Match
+        if len(text_before.strip()) < 5:  # Toleranz für Leerzeichen oder kleine Einrückungen
+            return True
+
+        # Heuristik 2: Folgt auf ein Doppelpunkt am Ende des vorherigen Satzes
+        if text_before.strip().endswith(':'):
+            return True
+
+        return False 

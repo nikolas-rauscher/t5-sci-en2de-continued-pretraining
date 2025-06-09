@@ -140,7 +140,7 @@ class CitationCleanerLogger:
         """Check if citation type has validation enabled"""
         if not enable_smart_validation:
             return False
-        return citation_type in ["semicolon_blocks", "autor_jahr_text", "figure_table_refs", "chapter_section"]
+        return citation_type in ["semicolon_blocks", "autor_jahr_text", "figure_table_refs", "page_references", "isolated_numeric_citations"]
     
     def log_aggregated_stats(self, citation_stats: Dict, cleaning_stats: Dict, enable_smart_validation: bool):
         """Loggt optimierte aggregierte Stats"""

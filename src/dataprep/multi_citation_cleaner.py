@@ -61,6 +61,7 @@ from datatrove.utils.hashing import create_hash_func, HashConfig
 from src.dataprep.semicolon_validator import SemicolonCitationValidator
 from src.dataprep.context_validator import ContextValidator
 from src.dataprep.citation_cleaner_logger import CitationCleanerLogger
+from src.dataprep.citation_cleaner_worker_stats import CitationCleanerWorkerStats
 
 log = logging.getLogger(__name__)
 
@@ -221,6 +222,14 @@ class MultiCitationCleaner(BaseFilter):
             max_top_citation_docs=max_top_citation_docs
         )
         
+        # Worker Stats Handler
+        self.worker_stats = CitationCleanerWorkerStats(
+            citation_patterns=self.citation_patterns,
+            max_false_positive_samples=max_false_positive_samples,
+            max_top_citation_docs=max_top_citation_docs,
+            enable_smart_validation=enable_smart_validation
+        )
+        
         # Logging Settings
         self.max_false_positive_samples = max_false_positive_samples
         self.max_top_citation_docs = max_top_citation_docs
@@ -276,6 +285,16 @@ class MultiCitationCleaner(BaseFilter):
                 match_text, start_pos, end_pos, full_text
             )
         
+        # Special validation for isolated numeric citations to avoid list items
+        if citation_type == "isolated_numeric_citations":
+            # Get text before the match to check for list item patterns
+            context_start = max(0, start_pos - 100)  # Look back 100 chars
+            text_before = full_text[context_start:start_pos]
+            
+            # Check if this looks like a list item
+            if self.context_validator._is_likely_list_item(text_before, match_text):
+                return False, "likely_list_item"
+        
         # For other citation types: basic validation
         if citation_type == "autor_jahr_text":
             # Check for unrealistic years
@@ -312,8 +331,8 @@ class MultiCitationCleaner(BaseFilter):
                 for match in matches:
                     match_text = match.group()
                     
-                    # Context-aware validation for semicolon_blocks and structural references
-                    if citation_type in ["semicolon_blocks", "figure_table_refs", "page_references"]:
+                    # Context-aware validation for citations that need position analysis
+                    if citation_type in ["semicolon_blocks", "figure_table_refs", "page_references", "isolated_numeric_citations"]:
                         is_valid, reason = self._validate_citation_with_context(
                             citation_type, match_text, match.start(), match.end(), cleaned_text
                         )
@@ -583,184 +602,7 @@ class MultiCitationCleaner(BaseFilter):
         
         return '\n'.join(cleaned_lines), stats
     
-    def _save_worker_stats(self, rank: int):
-        """Speichert Worker-spezifische Stats für spätere Aggregation"""
-        try:
-            import json
-            import tempfile
-            import os
-            
-            worker_stats = {
-                "rank": rank,
-                "citation_stats": self.citation_stats,
-                "cleaning_stats": self.cleaning_stats,
-                "enable_smart_validation": self.enable_smart_validation
-            }
-            
-            # Verwende temporäres Verzeichnis
-            temp_dir = tempfile.gettempdir()
-            stats_dir = os.path.join(temp_dir, "citation_cleaner_stats")
-            os.makedirs(stats_dir, exist_ok=True)
-            
-            stats_file = os.path.join(stats_dir, f"worker_{rank:05d}.json")
-            with open(stats_file, 'w') as f:
-                json.dump(worker_stats, f, indent=2, default=str)
-                
-            log.info(f"📊 Worker {rank} stats saved to {stats_file}")
-        except Exception as e:
-            log.warning(f"Failed to save worker {rank} stats: {e}")
-    
-    def _aggregate_all_worker_stats(self, world_size: int):
-        """Aggregiert Stats von allen Workern für W&B Logging"""
-        try:
-            import json
-            import tempfile
-            import os
-            import glob
-            
-            # Sammle alle Worker Stats
-            temp_dir = tempfile.gettempdir()
-            stats_dir = os.path.join(temp_dir, "citation_cleaner_stats")
-            
-            pattern = os.path.join(stats_dir, "worker_*.json")
-            worker_files = glob.glob(pattern)
-            
-            log.info(f"📊 Aggregating stats from {len(worker_files)} workers (expected: {world_size})")
-            
-            # Initialize aggregated structures
-            aggregated_citation_stats = {}
-            aggregated_cleaning_stats = {
-                "docs_processed": 0,
-                "docs_with_any_citations": 0,
-                "total_citations_all_types": 0,
-                "total_citations_rejected": 0,
-                "total_length_reduction": 0,
-                "total_word_reduction": 0,
-                "smart_validation_enabled": self.enable_smart_validation,
-                "docs_with_figure_lines_removed": 0,
-                "total_figure_lines_removed": 0,
-                "total_figure_line_length_reduction": 0,
-                "figure_line_removal_samples": [],
-                "top_figure_line_removal_docs": [],
-                "top_combined_reduction_docs": []
-            }
-            
-            # Initialize citation stats structure
-            for citation_type in self.citation_patterns.keys():
-                aggregated_citation_stats[citation_type] = {
-                    "docs_with_citations": 0,
-                    "total_citations_removed": 0,
-                    "total_citations_found": 0,
-                    "total_citations_rejected": 0,
-                    "total_length_reduction": 0,
-                    "citation_distribution": defaultdict(int),
-                    "top_citation_docs": [],
-                    "false_positive_samples": []
-                }
-            
-            # Aggregate from all workers
-            for worker_file in worker_files:
-                try:
-                    with open(worker_file, 'r') as f:
-                        worker_data = json.load(f)
-                    
-                    worker_citation_stats = worker_data["citation_stats"]
-                    worker_cleaning_stats = worker_data["cleaning_stats"]
-                    
-                    # Aggregate cleaning stats
-                    for key in ["docs_processed", "docs_with_any_citations", "total_citations_all_types",
-                               "total_citations_rejected", "total_length_reduction", "total_word_reduction",
-                               "docs_with_figure_lines_removed", "total_figure_lines_removed", 
-                               "total_figure_line_length_reduction"]:
-                        if key in worker_cleaning_stats:
-                            aggregated_cleaning_stats[key] += worker_cleaning_stats[key]
-                    
-                    # Aggregate citation stats
-                    for citation_type, stats in worker_citation_stats.items():
-                        if citation_type in aggregated_citation_stats:
-                            agg_stats = aggregated_citation_stats[citation_type]
-                            
-                            # Sum up numeric fields
-                            for key in ["docs_with_citations", "total_citations_removed", 
-                                       "total_citations_found", "total_citations_rejected", "total_length_reduction"]:
-                                if key in stats:
-                                    agg_stats[key] += stats[key]
-                            
-                            # Merge distribution
-                            if "citation_distribution" in stats:
-                                for count, freq in stats["citation_distribution"].items():
-                                    agg_stats["citation_distribution"][int(count)] += freq
-                            
-                            # Collect samples (limited)
-                            if "false_positive_samples" in stats:
-                                agg_stats["false_positive_samples"].extend(
-                                    stats["false_positive_samples"][:10]  # Max 10 per worker
-                                )
-                            
-                            # Collect top docs (limited)
-                            if "top_citation_docs" in stats:
-                                agg_stats["top_citation_docs"].extend(stats["top_citation_docs"])
-                    
-                    # Collect figure removal samples and top docs
-                    if "figure_line_removal_samples" in worker_cleaning_stats:
-                        aggregated_cleaning_stats["figure_line_removal_samples"].extend(
-                            worker_cleaning_stats["figure_line_removal_samples"][:10]
-                        )
-                    
-                    if "top_figure_line_removal_docs" in worker_cleaning_stats:
-                        aggregated_cleaning_stats["top_figure_line_removal_docs"].extend(
-                            worker_cleaning_stats["top_figure_line_removal_docs"]
-                        )
-                    
-                    if "top_combined_reduction_docs" in worker_cleaning_stats:
-                        aggregated_cleaning_stats["top_combined_reduction_docs"].extend(
-                            worker_cleaning_stats["top_combined_reduction_docs"]
-                        )
-                        
-                except Exception as e:
-                    log.warning(f"Failed to load worker stats from {worker_file}: {e}")
-            
-            # Limit and sort collected lists
-            for citation_type in aggregated_citation_stats:
-                # Limit false positive samples
-                aggregated_citation_stats[citation_type]["false_positive_samples"] = \
-                    aggregated_citation_stats[citation_type]["false_positive_samples"][:self.max_false_positive_samples]
-                
-                # Sort and limit top docs
-                top_docs = aggregated_citation_stats[citation_type]["top_citation_docs"]
-                if top_docs:
-                    aggregated_citation_stats[citation_type]["top_citation_docs"] = \
-                        sorted(top_docs, reverse=True)[:self.max_top_citation_docs]
-            
-            # Sort and limit figure removal lists
-            aggregated_cleaning_stats["figure_line_removal_samples"] = \
-                aggregated_cleaning_stats["figure_line_removal_samples"][:self.max_false_positive_samples]
-            
-            if aggregated_cleaning_stats["top_figure_line_removal_docs"]:
-                aggregated_cleaning_stats["top_figure_line_removal_docs"] = \
-                    sorted(aggregated_cleaning_stats["top_figure_line_removal_docs"], reverse=True)[:self.max_top_citation_docs]
-            
-            if aggregated_cleaning_stats["top_combined_reduction_docs"]:
-                aggregated_cleaning_stats["top_combined_reduction_docs"] = \
-                    sorted(aggregated_cleaning_stats["top_combined_reduction_docs"], reverse=True)[:self.max_top_citation_docs]
-            
-            # Cleanup temp files
-            try:
-                for worker_file in worker_files:
-                    os.remove(worker_file)
-                os.rmdir(stats_dir)
-            except:
-                pass  # Ignore cleanup errors
-            
-            log.info(f"📊 Successfully aggregated stats from {len(worker_files)} workers: "
-                    f"{aggregated_cleaning_stats['docs_processed']} total docs processed")
-            
-            return aggregated_citation_stats, aggregated_cleaning_stats
-            
-        except Exception as e:
-            log.warning(f"Failed to aggregate worker stats: {e}")
-            # Fallback: return rank 0 stats
-            return self.citation_stats, self.cleaning_stats 
+ 
     
     def run(self, data, rank: int = 0, world_size: int = 1):
         """Override run method - alle sammeln, rank 0 aggregiert für W&B"""
@@ -777,7 +619,7 @@ class MultiCitationCleaner(BaseFilter):
             yield from super().run(data, rank, world_size)
         finally:
             # Alle Worker: Lokale Stats speichern für Aggregation
-            self._save_worker_stats(rank)
+            self.worker_stats.save_worker_stats(rank, self.citation_stats, self.cleaning_stats)
             
             # Alle Worker: Lokale Stats loggen
             log.info(f"✅ Citation cleaning rank {rank} completed: {self.cleaning_stats['docs_processed']} docs, "
@@ -786,12 +628,11 @@ class MultiCitationCleaner(BaseFilter):
             
             # W&B Logging mit aggregierten Daten (nur rank 0)
             if rank == 0 and self.logger.wandb_initialized:
-                # Warte kurz, damit andere Worker ihre Stats speichern können
-                import time
-                time.sleep(2)
+                # Warte auf andere Worker
+                self.worker_stats.wait_for_workers(world_size)
                 
                 # Aggregiere Stats von allen Workern
-                aggregated_citation_stats, aggregated_cleaning_stats = self._aggregate_all_worker_stats(world_size)
+                aggregated_citation_stats, aggregated_cleaning_stats = self.worker_stats.aggregate_all_worker_stats(world_size)
                 
                 if aggregated_cleaning_stats["docs_processed"] > 0:
                     self.logger.log_final_summary(aggregated_citation_stats, aggregated_cleaning_stats, self.enable_smart_validation)
