@@ -99,10 +99,10 @@ class TextNormalizer(BaseFilter):
         self.top_normalization_docs = []
         self.max_tracked_docs = 20  # Top 20 Ausreißer
         
-        # W&B Initialisierung
+        # W&B Initialisierung - nur für rank 0
         self.wandb_initialized = False
-        if self.log_to_wandb:
-            self._init_wandb()
+        self.wandb_enabled = log_to_wandb and WANDB_AVAILABLE
+        # W&B wird erst in run() für rank 0 aktiviert
     
     def _init_wandb(self):
         """Prüft ob bereits eine W&B Session läuft - nutzt shared session"""
@@ -250,8 +250,8 @@ class TextNormalizer(BaseFilter):
         if text_changed:
             self.stat_update("docs_normalized")
             
-        # W&B Logging
-        if self.wandb_initialized:
+        # W&B Logging - nur für rank 0
+        if hasattr(self, 'current_rank') and self.current_rank == 0 and self.wandb_initialized:
             self._log_document_metrics(text_changed, changes_made, pre_metrics, post_metrics)
             
             # Aggregierte Stats alle 50 Dokumente
@@ -321,16 +321,44 @@ class TextNormalizer(BaseFilter):
             log.warning(f"Failed to log aggregated normalization stats to W&B: {e}")
     
     def run(self, data, rank: int = 0, world_size: int = 1):
-        """Override run method für finale W&B Stats"""
+        """Override run method - alle sammeln, rank 0 aggregiert für W&B"""
+        # Store rank für W&B check
+        self.current_rank = rank
+        
+        # W&B nur für main process (rank 0) aktivieren
+        if rank == 0 and self.wandb_enabled:
+            self._init_wandb()
+        
         try:
             # Normal pipeline run
             yield from super().run(data, rank, world_size)
         finally:
-            # Final logging (ohne wandb.finish() - managed by main script)
-            if self.wandb_initialized and self.normalization_stats["docs_processed"] > 0:
-                self._log_final_summary()
+            # Alle Worker: Lokale Stats speichern für Aggregation
+            self._save_worker_stats(rank)
+            
+            # Alle Worker: Lokale Stats loggen
+            log.info(f"✅ Text normalization rank {rank} completed: {self.normalization_stats['docs_processed']} docs, "
+                    f"{self.normalization_stats['docs_normalized']} normalized")
+            
+            # W&B Logging mit aggregierten Daten (nur rank 0)
+            if rank == 0 and self.wandb_initialized:
+                # Warte kurz, damit andere Worker ihre Stats speichern können
+                import time
+                time.sleep(1)
                 
-                log.info(f"✅ Text normalization completed: {self.normalization_stats}")
+                # Aggregiere Stats von allen Workern
+                aggregated_stats = self._aggregate_all_worker_stats(world_size)
+                
+                if aggregated_stats["docs_processed"] > 0:
+                    # Use aggregated stats for final summary
+                    original_stats = self.normalization_stats
+                    self.normalization_stats = aggregated_stats
+                    self._log_final_summary()
+                    self.normalization_stats = original_stats
+                    
+                    log.info(f"✅ Text normalization W&B Summary (ALL {world_size} workers): "
+                            f"{aggregated_stats['docs_normalized']}/{aggregated_stats['docs_processed']} docs normalized")
+                    log.info("✅ W&B shows complete aggregated dataset stats from all workers!")
     
     def _log_final_summary(self):
         """Loggt finale Normalization Summary"""
@@ -431,4 +459,107 @@ class TextNormalizer(BaseFilter):
         log.info(f"📋 Normalization Summary: {stats['docs_normalized']}/{stats['docs_processed']} docs normalized, "
                 f"{stats['total_length_reduction']} chars reduced, "
                 f"{stats['space_normalizations']} space fixes, {stats['newline_normalizations']} newline fixes, "
-                f"{stats['sentence_spacing_fixes']} sentence spacing fixes") 
+                f"{stats['sentence_spacing_fixes']} sentence spacing fixes")
+    
+    def _save_worker_stats(self, rank: int):
+        """Speichert Worker-spezifische Normalization Stats für spätere Aggregation"""
+        try:
+            import json
+            import tempfile
+            import os
+            
+            worker_stats = {
+                "rank": rank,
+                "normalization_stats": self.normalization_stats,
+                "top_normalization_docs": self.top_normalization_docs
+            }
+            
+            # Verwende temporäres Verzeichnis
+            temp_dir = tempfile.gettempdir()
+            stats_dir = os.path.join(temp_dir, "text_normalizer_stats")
+            os.makedirs(stats_dir, exist_ok=True)
+            
+            stats_file = os.path.join(stats_dir, f"worker_{rank:05d}.json")
+            with open(stats_file, 'w') as f:
+                json.dump(worker_stats, f, indent=2, default=str)
+                
+            log.info(f"📊 Text normalizer worker {rank} stats saved")
+        except Exception as e:
+            log.warning(f"Failed to save text normalizer worker {rank} stats: {e}")
+    
+    def _aggregate_all_worker_stats(self, world_size: int):
+        """Aggregiert Normalization Stats von allen Workern für W&B Logging"""
+        try:
+            import json
+            import tempfile
+            import os
+            import glob
+            
+            # Sammle alle Worker Stats
+            temp_dir = tempfile.gettempdir()
+            stats_dir = os.path.join(temp_dir, "text_normalizer_stats")
+            
+            pattern = os.path.join(stats_dir, "worker_*.json")
+            worker_files = glob.glob(pattern)
+            
+            log.info(f"📊 Aggregating normalization stats from {len(worker_files)} workers (expected: {world_size})")
+            
+            # Initialize aggregated structures
+            aggregated_stats = {
+                "docs_processed": 0,
+                "docs_normalized": 0,
+                "total_length_reduction": 0,
+                "total_word_reduction": 0,
+                "space_normalizations": 0,
+                "newline_normalizations": 0,
+                "strip_normalizations": 0,
+                "sentence_spacing_fixes": 0
+            }
+            
+            aggregated_top_docs = []
+            
+            # Aggregate from all workers
+            for worker_file in worker_files:
+                try:
+                    with open(worker_file, 'r') as f:
+                        worker_data = json.load(f)
+                    
+                    worker_stats = worker_data["normalization_stats"]
+                    worker_top_docs = worker_data.get("top_normalization_docs", [])
+                    
+                    # Aggregate numeric stats
+                    for key in aggregated_stats.keys():
+                        if key in worker_stats:
+                            aggregated_stats[key] += worker_stats[key]
+                    
+                    # Collect top docs (limited)
+                    aggregated_top_docs.extend(worker_top_docs)
+                        
+                except Exception as e:
+                    log.warning(f"Failed to load normalization worker stats from {worker_file}: {e}")
+            
+            # Sort and limit top docs
+            if aggregated_top_docs:
+                aggregated_top_docs = sorted(aggregated_top_docs, key=lambda x: x["length_reduction"], reverse=True)
+                aggregated_top_docs = aggregated_top_docs[:self.max_tracked_docs]
+            
+            # Update top docs for final summary
+            self.top_normalization_docs = aggregated_top_docs
+            
+            # Cleanup temp files
+            try:
+                for worker_file in worker_files:
+                    os.remove(worker_file)
+                os.rmdir(stats_dir)
+            except:
+                pass  # Ignore cleanup errors
+            
+            log.info(f"📊 Successfully aggregated normalization stats from {len(worker_files)} workers: "
+                    f"{aggregated_stats['docs_processed']} total docs processed")
+            
+            return aggregated_stats
+            
+        except Exception as e:
+            log.warning(f"Failed to aggregate normalization worker stats: {e}")
+            # Fallback: return rank 0 stats
+            return self.normalization_stats 

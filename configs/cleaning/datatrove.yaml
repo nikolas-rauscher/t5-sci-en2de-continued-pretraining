@@ -21,8 +21,8 @@ paths:
 
 cleaning:
   # Parameter für die Begrenzung der Dokumente für Testläufe (-1 = keine Begrenzung)
-  limit_documents: 1000 # limit pro task 
+  limit_documents: 10000 # limit pro task 
   # URL-Filter-Parameter
 
-  tasks:   1                   # Task-Shards × CPU
-  workers: 1
+  tasks:   75                   # Task-Shards × CPU
+  workers: 75
