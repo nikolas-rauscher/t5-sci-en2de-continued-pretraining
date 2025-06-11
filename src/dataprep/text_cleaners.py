@@ -13,6 +13,9 @@ from abc import ABC, abstractmethod
 class BaseTextCleaner(ABC):
     """Base class for all text cleaners"""
     
+    def __init__(self, debug_mode: bool = False):
+        self.debug_mode = debug_mode
+    
     @abstractmethod
     def clean(self, text: str, doc_id: str = None) -> Tuple[str, Dict]:
         """Clean text and return cleaned text with stats"""
@@ -24,11 +27,12 @@ class RepetitionCleaner(BaseTextCleaner):
     Cleaner für wiederholte Zeilen (OCR-Artefakte)
     """
     
-    def __init__(self, max_recent_lines: int = 5):
+    def __init__(self, max_recent_lines: int = 5, debug_mode: bool = False):
         """
         Args:
             max_recent_lines: Anzahl der letzten Zeilen für Wiederholungserkennung
         """
+        super().__init__(debug_mode)
         self.max_recent_lines = max_recent_lines
     
     def clean(self, text: str, doc_id: str = None) -> Tuple[str, Dict]:
@@ -48,24 +52,36 @@ class RepetitionCleaner(BaseTextCleaner):
             
             # Check for repetition
             if stripped_line in recent_lines:
+                # Skip debug tags - they can create false positives when different items get same tag
+                if stripped_line.startswith("[DEBUG:") and stripped_line.endswith("]"):
+                    cleaned_lines.append(line)
+                    continue
+                    
                 removed_lines.append({
                     "line_content": stripped_line[:100],
                     "line_number": i + 1,
                     "length": len(stripped_line),
                     "reason": "repeated_line"
                 })
-                continue
-            
-            # Update tracking and keep line
-            recent_lines.append(stripped_line)
-            if len(recent_lines) > self.max_recent_lines:
-                recent_lines.pop(0)
-            
-            cleaned_lines.append(line)
+                
+                if self.debug_mode:
+                    # Debug-Tag statt Entfernung
+                    debug_tag = f"[DEBUG:repetition:repeated_line]"
+                    cleaned_lines.append(debug_tag)
+                else:
+                    # Line wird nicht hinzugefügt (entfernt)
+                    continue
+            else:
+                # Update tracking and keep line
+                recent_lines.append(stripped_line)
+                if len(recent_lines) > self.max_recent_lines:
+                    recent_lines.pop(0)
+                
+                cleaned_lines.append(line)
         
         stats = {
             "lines_removed": len(removed_lines),
-            "length_reduction": sum(item["length"] for item in removed_lines),
+            "length_reduction": sum(item["length"] for item in removed_lines) if not self.debug_mode else 0,
             "removed_lines": removed_lines[:10],
             "doc_id": doc_id or "unknown"
         }
@@ -78,12 +94,13 @@ class TabularDataCleaner(BaseTextCleaner):
     Cleaner für Tabellendaten mit übermäßigen Leerzeichen
     """
     
-    def __init__(self, min_space_sequences: int = 2, space_ratio_threshold: float = 0.4):
+    def __init__(self, min_space_sequences: int = 2, space_ratio_threshold: float = 0.4, debug_mode: bool = False):
         """
         Args:
             min_space_sequences: Mindestanzahl von 3+-Leerzeichen-Sequenzen
             space_ratio_threshold: Schwellenwert für Leerzeichen-Anteil
         """
+        super().__init__(debug_mode)
         self.min_space_sequences = min_space_sequences
         self.space_ratio_threshold = space_ratio_threshold
     
@@ -110,13 +127,20 @@ class TabularDataCleaner(BaseTextCleaner):
                     "length": len(stripped_line),
                     "reason": reason
                 })
-                continue
-            
-            cleaned_lines.append(line)
+                
+                if self.debug_mode:
+                    # Debug-Tag statt Entfernung
+                    debug_tag = f"[DEBUG:tabular:{reason}]"
+                    cleaned_lines.append(debug_tag)
+                else:
+                    # Line wird nicht hinzugefügt (entfernt)
+                    continue
+            else:
+                cleaned_lines.append(line)
         
         stats = {
             "lines_removed": len(removed_lines),
-            "length_reduction": sum(item["length"] for item in removed_lines),
+            "length_reduction": sum(item["length"] for item in removed_lines) if not self.debug_mode else 0,
             "removed_lines": removed_lines[:10],
             "doc_id": doc_id or "unknown"
         }
@@ -145,7 +169,7 @@ class ShortLineCleaner(BaseTextCleaner):
     Cleaner für isolierte kurze Zeilen (1-3 Wörter)
     """
     
-    def __init__(self):
+    def __init__(self, debug_mode: bool = False):
         # Important single words that should be kept
         self.important_single_words = {
             'INTRODUCTION', 'CONCLUSION', 'RESULTS', 'DISCUSSION', 
@@ -176,6 +200,7 @@ class ShortLineCleaner(BaseTextCleaner):
             'LIMITATIONS AND ASSUMPTIONS', 'FUTURE RESEARCH DIRECTIONS', 'PRACTICAL IMPLEMENTATION CONSIDERATIONS',
             'THEORETICAL FRAMEWORK DEVELOPMENT', 'EMPIRICAL RESULTS ANALYSIS', 'COMPARATIVE PERFORMANCE ANALYSIS'
         }
+        super().__init__(debug_mode)
     
     def clean(self, text: str, doc_id: str = None) -> Tuple[str, Dict]:
         """Remove isolated short lines that break text flow"""
@@ -204,13 +229,20 @@ class ShortLineCleaner(BaseTextCleaner):
                     "length": len(stripped_line),
                     "reason": reason
                 })
-                continue
-            
-            cleaned_lines.append(line)
+                
+                if self.debug_mode:
+                    # Debug-Tag statt Entfernung
+                    debug_tag = f"[DEBUG:short_line:{reason}]"
+                    cleaned_lines.append(debug_tag)
+                else:
+                    # Line wird nicht hinzugefügt (entfernt)
+                    continue
+            else:
+                cleaned_lines.append(line)
         
         stats = {
             "lines_removed": len(removed_lines),
-            "length_reduction": sum(item["length"] for item in removed_lines),
+            "length_reduction": sum(item["length"] for item in removed_lines) if not self.debug_mode else 0,
             "removed_lines": removed_lines[:10],
             "doc_id": doc_id or "unknown"
         }
@@ -285,6 +317,9 @@ class MetadataCleaner(BaseTextCleaner):
     Cleaner für Metadata-Zeilen (Keywords, technische Codes)
     """
     
+    def __init__(self, debug_mode: bool = False):
+        super().__init__(debug_mode)
+    
     def clean(self, text: str, doc_id: str = None) -> Tuple[str, Dict]:
         """Remove metadata lines like keywords and technical codes"""
         lines = text.splitlines()
@@ -308,13 +343,20 @@ class MetadataCleaner(BaseTextCleaner):
                     "length": len(stripped_line),
                     "reason": reason
                 })
-                continue
-            
-            cleaned_lines.append(line)
+                
+                if self.debug_mode:
+                    # Debug-Tag statt Entfernung
+                    debug_tag = f"[DEBUG:metadata:{reason}]"
+                    cleaned_lines.append(debug_tag)
+                else:
+                    # Line wird nicht hinzugefügt (entfernt)
+                    continue
+            else:
+                cleaned_lines.append(line)
         
         stats = {
             "lines_removed": len(removed_lines),
-            "length_reduction": sum(item["length"] for item in removed_lines),
+            "length_reduction": sum(item["length"] for item in removed_lines) if not self.debug_mode else 0,
             "removed_lines": removed_lines[:10],
             "doc_id": doc_id or "unknown"
         }
@@ -343,11 +385,12 @@ class ComprehensiveLineCleaner:
     Orchestrator der alle spezialisierten Cleaner kombiniert
     """
     
-    def __init__(self):
-        self.repetition_cleaner = RepetitionCleaner(max_recent_lines=5)
-        self.tabular_cleaner = TabularDataCleaner(min_space_sequences=2, space_ratio_threshold=0.4)
-        self.short_line_cleaner = ShortLineCleaner()
-        self.metadata_cleaner = MetadataCleaner()
+    def __init__(self, debug_mode: bool = False):
+        self.repetition_cleaner = RepetitionCleaner(max_recent_lines=5, debug_mode=debug_mode)
+        self.tabular_cleaner = TabularDataCleaner(min_space_sequences=2, space_ratio_threshold=0.4, debug_mode=debug_mode)
+        self.short_line_cleaner = ShortLineCleaner(debug_mode=debug_mode)
+        self.metadata_cleaner = MetadataCleaner(debug_mode=debug_mode)
+        self.debug_mode = debug_mode
     
     def clean_lines(self, text: str, doc_id: str = None) -> Tuple[str, Dict]:
         """
@@ -389,5 +432,9 @@ class ComprehensiveLineCleaner:
         
         # Limit samples
         combined_stats["removed_lines"] = combined_stats["removed_lines"][:10]
+        
+        # In debug mode, no actual length reduction occurs (only tags added)
+        if self.debug_mode:
+            combined_stats["total_length_reduction"] = 0
         
         return current_text, combined_stats 

@@ -88,6 +88,9 @@ class MultiCitationCleaner(BaseFilter):
         replacement: str = ' ',
         track_changes: bool = True,
         
+        # Debug Mode
+        debug_mode: bool = False,
+        
         # Smart Validation Parameters
         enable_smart_validation: bool = True,
         semicolon_max_authors: int = 12,
@@ -109,6 +112,9 @@ class MultiCitationCleaner(BaseFilter):
             replacement: Womit Citations ersetzt werden 
             track_changes: Ob Änderungen getrackt werden sollen
             
+            # Debug Mode
+            debug_mode: Statt Text zu entfernen, Debug-Tags einfügen die zeigen welche Methode entfernt hätte
+            
             # Smart Validation
             enable_smart_validation: Intelligente Validierung aktivieren
             semicolon_max_authors: Max. Anzahl Autoren in Semicolon-Listen
@@ -124,6 +130,11 @@ class MultiCitationCleaner(BaseFilter):
             exclusion_writer: Optional writer für leere Dokumente
         """
         super().__init__(exclusion_writer)
+        
+        # Debug Mode Settings
+        self.debug_mode = debug_mode
+        if self.debug_mode:
+            log.info("🐛 DEBUG MODE ENABLED - Text wird mit Debug-Tags markiert statt entfernt")
         
         # Smart Validation Settings
         self.enable_smart_validation = enable_smart_validation
@@ -205,6 +216,7 @@ class MultiCitationCleaner(BaseFilter):
             "total_length_reduction": 0,
             "total_word_reduction": 0,
             "smart_validation_enabled": self.enable_smart_validation,
+            "debug_mode_enabled": self.debug_mode,
             
             # Figure-only line removal stats
             "docs_with_figure_lines_removed": 0,
@@ -251,8 +263,8 @@ class MultiCitationCleaner(BaseFilter):
             enable_smart_validation=enable_smart_validation
         )
         
-        # Comprehensive Line Cleaner with all specialized cleaners
-        self.line_cleaner = ComprehensiveLineCleaner()
+        # Comprehensive Line Cleaner with all specialized cleaners - pass debug mode
+        self.line_cleaner = ComprehensiveLineCleaner(debug_mode=self.debug_mode)
         
         # Logging Settings
         self.max_false_positive_samples = max_false_positive_samples
@@ -278,7 +290,7 @@ class MultiCitationCleaner(BaseFilter):
             year_match = re.search(r'\((\d{4})[a-z]?\)', match_text)
             if year_match:
                 year = int(year_match.group(1))
-                if year < 1900 or year > 2030:
+                if year < 1800 or year > 2030:
                     return False, f"unrealistic_year ({year})"
         
         # Default: accept if no issues
@@ -427,7 +439,12 @@ class MultiCitationCleaner(BaseFilter):
             # Text cleanen nur für validierte Matches
             for match in reversed(validated_matches):  # Rückwärts für korrekte Positionen
                 start, end = match.span()
-                cleaned_text = cleaned_text[:start] + self.replacement + cleaned_text[end:]
+                if self.debug_mode:
+                    # Debug-Tag statt Entfernung
+                    debug_tag = f"[DEBUG:citation:{citation_type}]"
+                    cleaned_text = cleaned_text[:start] + debug_tag + cleaned_text[end:]
+                else:
+                    cleaned_text = cleaned_text[:start] + self.replacement + cleaned_text[end:]
             
             # POST-PROCESSING: Remove figure/table-only lines
             cleaned_text, figure_removal_stats = self._remove_figure_only_lines(cleaned_text, str(doc.id))
@@ -785,15 +802,22 @@ class MultiCitationCleaner(BaseFilter):
                     "length": len(stripped_line),
                     "reason": removal_reason
                 })
-                continue
-            
-            # Keep the line
-            cleaned_lines.append(line)
+                
+                if self.debug_mode:
+                    # Debug-Tag statt Entfernung
+                    debug_tag = f"[DEBUG:figure_line:{removal_reason}]"
+                    cleaned_lines.append(debug_tag)
+                else:
+                    # Line wird nicht hinzugefügt (entfernt)
+                    continue
+            else:
+                # Keep the line
+                cleaned_lines.append(line)
         
         # Statistics
         stats = {
             "lines_removed": len(removed_lines),
-            "length_reduction": sum(item["length"] for item in removed_lines),
+            "length_reduction": sum(item["length"] for item in removed_lines) if not self.debug_mode else 0,
             "removed_lines": removed_lines[:10],  # Store max 10 samples per document
             "doc_id": doc_id or "unknown"
         }
@@ -901,6 +925,12 @@ class MultiCitationCleaner(BaseFilter):
                                 "confidence": section_stats.get('confidence', 0.0),
                                 "sample_lines": current_section_lines[:3]  # First 3 lines as sample
                             })
+                            
+                            if self.debug_mode:
+                                # Debug-Tag statt Entfernung
+                                debug_tag = f"[DEBUG:appendix:{section_stats.get('section_type', 'unknown')}]"
+                                cleaned_lines.append(debug_tag)
+                            # Else: Section wird nicht hinzugefügt (entfernt)
                         else:
                             # Not an appendix, add back to cleaned text
                             cleaned_lines.extend(current_section_lines[:-1])
@@ -930,6 +960,12 @@ class MultiCitationCleaner(BaseFilter):
                     "confidence": section_stats.get('confidence', 0.0),
                     "sample_lines": current_section_lines[:3]
                 })
+                
+                if self.debug_mode:
+                    # Debug-Tag statt Entfernung
+                    debug_tag = f"[DEBUG:appendix_end:{section_stats.get('section_type', 'unknown')}]"
+                    cleaned_lines.append(debug_tag)
+                # Else: Section wird nicht hinzugefügt (entfernt)
             else:
                 cleaned_lines.extend(current_section_lines)
         
@@ -940,7 +976,7 @@ class MultiCitationCleaner(BaseFilter):
         stats = {
             "sections_removed": len(removed_sections),
             "lines_removed": total_removed_lines,
-            "length_reduction": total_removed_length,
+            "length_reduction": total_removed_length if not self.debug_mode else 0,
             "removed_sections": removed_sections[:5],  # Store max 5 samples per document
             "doc_id": doc_id or "unknown"
         }

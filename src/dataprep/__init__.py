@@ -16,7 +16,6 @@ from src.dataprep.text_normalizer import TextNormalizer
 ```
 """
 
-from .citation_cleaner import CitationCleaner
 from .multi_citation_cleaner import MultiCitationCleaner
 from .text_normalizer import TextNormalizer
 

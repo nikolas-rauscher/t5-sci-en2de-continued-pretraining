@@ -50,6 +50,7 @@ def main(cfg: DictConfig) -> None:
                     "limit_documents": cfg.cleaning.cleaning.limit_documents,
                     "tasks": cfg.cleaning.cleaning.tasks,
                     "workers": cfg.cleaning.cleaning.workers,
+                    "debug_mode": cfg.cleaning.cleaning.get("debug_mode", False),
                     "citation_pattern": r'\s(?:[\w\-]+(?:\d+)?\s+;\s+)+(?:[\w\-]+(?:\d+)?)(?:\s*;)?\s+',
                     "normalization_enabled": True
                 }
@@ -68,9 +69,9 @@ def main(cfg: DictConfig) -> None:
         
 
         MultiCitationCleaner(
-
             replacement=' ',
             track_changes=True,
+            debug_mode=cfg.cleaning.cleaning.get("debug_mode", True),  # Debug mode from config
             wandb_project="BA-DataTrove",
             wandb_group="multi-citation-cleaning",
             log_to_wandb=bool(wandb_session)  # Nur loggen wenn Session vorhanden
@@ -103,6 +104,14 @@ def main(cfg: DictConfig) -> None:
     log.info(f"   3. Document Statistics")
     log.info(f"   4. Parquet Output")
     log.info(f"🔧 Config: {cfg.cleaning.cleaning.tasks} tasks, {cfg.cleaning.cleaning.workers} workers")
+    
+    # Debug mode info
+    debug_mode = cfg.cleaning.cleaning.get("debug_mode", False)
+    if debug_mode:
+        log.info(f"🐛 DEBUG MODE ENABLED - Text wird mit Debug-Tags markiert statt entfernt")
+    else:
+        log.info(f"🧹 Normal cleaning mode - Text wird entfernt")
+    
     log.info(f"📁 Input: {cfg.cleaning.paths.src_dir}")
     log.info(f"📁 Output: {cfg.cleaning.paths.dst}")
     if wandb_session:
