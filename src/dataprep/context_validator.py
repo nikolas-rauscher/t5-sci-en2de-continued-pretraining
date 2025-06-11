@@ -1,8 +1,19 @@
 """
-Context Validator Module
+context validator module
 
-Analyzes context to distinguish between structural references and citation references
-for figure/table/section patterns in scientific text.
+provides generic text analysis methods to evaluate the context of potential citations.
+it helps determine if a text segment is an actual citation (to be removed) or a
+structural reference, list item, or embedded author-year citation (to be kept).
+
+functions provided:
+- `__init__`: initializes the validator with context window and various indicator lists.
+- `validate_structural_reference`: validates if a figure/table/section reference should be kept or removed based on context.
+- `validate_author_year_citation`: validates author-year citations by assessing their integration into sentence flow.
+- `is_embedded_in_sentence_flow`: checks if a text segment is embedded within sentence flow (letters before and after).
+- `is_alone_in_line`: determines if a text segment is the sole content on its line.
+- `_find_sentence_start`: helper to find the start of the sentence containing a given position.
+- `_assess_sentence_integration`: helper to score how well a citation is integrated into a sentence.
+- `_is_likely_list_item`: helper to check if a match is likely a list item (e.g., (a), 1.).
 """
 
 import re
@@ -204,6 +215,26 @@ class ContextValidator:
         
         # Ensure score stays in bounds
         return max(0.0, min(1.0, score)) 
+
+    def is_embedded_in_sentence_flow(self, start_pos: int, end_pos: int, full_text: str, context_size: int = 15) -> bool:
+        """Check if citation is embedded in sentence flow (letters before AND after)"""
+        text_before = full_text[max(0, start_pos - context_size):start_pos]
+        text_after = full_text[end_pos:min(len(full_text), end_pos + context_size)]
+        
+        has_letter_before = bool(re.search(r'[a-zA-Z]', text_before))
+        has_letter_after = bool(re.search(r'[a-zA-Z]', text_after))
+        
+        return has_letter_before and has_letter_after
+
+    def is_alone_in_line(self, start_pos: int, end_pos: int, match_text: str, full_text: str) -> bool:
+        """Check if citation is alone in its line"""
+        line_start = full_text.rfind('\n', 0, start_pos) + 1
+        line_end = full_text.find('\n', end_pos)
+        if line_end == -1:
+            line_end = len(full_text)
+        
+        line_content = full_text[line_start:line_end]
+        return line_content.strip() == match_text.strip()
 
     def _is_likely_list_item(self, text_before: str, match_text: str) -> bool:
         """
