@@ -318,20 +318,28 @@ class MultiCitationCleaner(BaseFilter):
         # Enhanced validation for page references
         if citation_type == "page_references":
             # Check if it's a simple "p-number" pattern (e.g., "p53", "p. 53", "P 12")
-            simple_p_pattern = re.fullmatch(r"p\.?\s*\d+", match_text, re.IGNORECASE)
+            # Note: match_text might include leading/trailing spaces due to the regex pattern
+            simple_p_pattern = re.search(r"p\.?\s*\d+", match_text.strip(), re.IGNORECASE)
             
             if simple_p_pattern:
-                # Extract immediate context before and after the match
-                context_size = 10  # Small window for immediate context
-                text_before_match = full_text[max(0, start_pos - context_size):start_pos]
-                text_after_match = full_text[end_pos:min(len(full_text), end_pos + context_size)]
+                # Adjust positions to focus on the actual "p53" part, not leading/trailing spaces
+                actual_p_match = simple_p_pattern.group()
+                match_offset_in_full = match_text.find(actual_p_match)
+                actual_start_pos = start_pos + match_offset_in_full
+                actual_end_pos = actual_start_pos + len(actual_p_match)
                 
-                # Check if embedded in sentence flow (letter before AND letter after)
-                ends_with_letter = bool(re.search(r'[a-zA-Z]$', text_before_match))
-                starts_with_letter = bool(re.search(r'^[a-zA-Z]', text_after_match))
+                # Extract immediate context before and after the actual "p53" part
+                context_size = 15  # Window for immediate context
+                text_before_match = full_text[max(0, actual_start_pos - context_size):actual_start_pos]
+                text_after_match = full_text[actual_end_pos:min(len(full_text), actual_end_pos + context_size)]
                 
-                if ends_with_letter and starts_with_letter:
-                    return False, "page_ref_embedded_in_flow"  # KEEP - embedded like "activation of p53 and"
+                # Check if embedded in sentence flow (letters nearby, accounting for spaces)
+                has_letter_before = bool(re.search(r'[a-zA-Z]', text_before_match))
+                has_letter_after = bool(re.search(r'[a-zA-Z]', text_after_match))
+                
+                # If text before AND after → KEEP (like "activation of p53 in tumors")
+                if has_letter_before and has_letter_after:
+                    return False, "page_ref_embedded_in_flow"  # KEEP - embedded in text flow
                 
                 # Not embedded in sentence flow - check if alone in line
                 # Find the line containing the match

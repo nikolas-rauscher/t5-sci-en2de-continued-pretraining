@@ -17,8 +17,8 @@ class ContextValidator:
         
         # Citation indicators - if present, it's a real citation → REMOVE
         self.citation_indicators = [
-            "see", "cf.", "compare", "according to", "as shown in", "as in", 
-            "following", "refer to", "shown in", "presented in", "detailed in", "in", "in the"
+            "see", "cf.", "compare", "according to", "as shown in", 
+            "following", "refer to", "shown in", "presented in", "detailed in"
         ]
         
         # Structural reference indicators - if present, it's structural → KEEP
@@ -67,6 +67,18 @@ class ContextValidator:
         for indicator in self.citation_indicators:
             if indicator in immediate_before or indicator in immediate_after:
                 return False, f"citation_reference_remove ({indicator})"  # REMOVE citations
+        
+        # Specific check for "in", "in the", "as in" immediately before the match
+        immediate_in_patterns = [
+            r" in\s*$",       # e.g., "... in Figure 1"
+            r" in the\s*$",  # e.g., "... in the Table 2"
+            r" as in\s*$"    # e.g., "... as in [3]"
+        ]
+        for pattern in immediate_in_patterns:
+            if re.search(pattern, immediate_before, re.IGNORECASE): # Add IGNORECASE for robustness
+                # Extract the matched pattern for logging clarity
+                matched_specific_indicator = re.search(pattern, immediate_before, re.IGNORECASE).group(0).strip()
+                return False, f"citation_reference_remove (immediate_{matched_specific_indicator.replace(' ', '_')})"
         
         # Check for structural indicators in broader context
         full_context = before_context + after_context
