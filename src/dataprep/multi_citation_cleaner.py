@@ -315,8 +315,51 @@ class MultiCitationCleaner(BaseFilter):
                 match_text, start_pos, end_pos, full_text
             )
         
+        # Enhanced validation for page references
+        if citation_type == "page_references":
+            # Check if it's a simple "p-number" pattern (e.g., "p53", "p. 53", "P 12")
+            simple_p_pattern = re.fullmatch(r"p\.?\s*\d+", match_text, re.IGNORECASE)
+            
+            if simple_p_pattern:
+                # Extract immediate context before and after the match
+                context_size = 10  # Small window for immediate context
+                text_before_match = full_text[max(0, start_pos - context_size):start_pos]
+                text_after_match = full_text[end_pos:min(len(full_text), end_pos + context_size)]
+                
+                # Check if embedded in sentence flow (letter before AND letter after)
+                ends_with_letter = bool(re.search(r'[a-zA-Z]$', text_before_match))
+                starts_with_letter = bool(re.search(r'^[a-zA-Z]', text_after_match))
+                
+                if ends_with_letter and starts_with_letter:
+                    return False, "page_ref_embedded_in_flow"  # KEEP - embedded like "activation of p53 and"
+                
+                # Not embedded in sentence flow - check if alone in line
+                # Find the line containing the match
+                line_start = full_text.rfind('\n', 0, start_pos) + 1
+                line_end = full_text.find('\n', end_pos)
+                if line_end == -1:
+                    line_end = len(full_text)
+                
+                line_content = full_text[line_start:line_end]
+                
+                # Compare cleaned line with cleaned match
+                cleaned_line = line_content.strip()
+                cleaned_match = match_text.strip()
+                
+                if cleaned_line == cleaned_match:
+                    return True, "page_ref_alone_in_line"  # REMOVE - standalone page reference
+                else:
+                    return False, "page_ref_not_alone_in_line"  # KEEP - line has other content
+            
+            else:
+                # Not a simple "p-number" pattern (e.g., "pages 12-15", "pp. 1,3,5")
+                # Use existing context validator logic
+                return self.context_validator.validate_structural_reference(
+                    match_text, start_pos, end_pos, full_text
+                )
+        
         # Context analysis for figure/table/section references
-        if citation_type in ["figure_table_refs", "page_references"]:
+        if citation_type in ["figure_table_refs"]:
             return self.context_validator.validate_structural_reference(
                 match_text, start_pos, end_pos, full_text
             )
