@@ -31,7 +31,7 @@ srun -K \
   --container-mounts=/netscratch:/netscratch,/home/$USER:/home/$USER,/ds-slt:/ds-slt \
   --container-image=/netscratch/$USER/containers/hydra_pytorch_25.05.25-final.sqsh \
   --container-workdir="$(pwd)" \
-  .venv_spacy_stats/bin/python scripts/run_spacy_stats.py \
+  .venv_spacy_stats/bin/python src/dataprep/pipelines/run_spacy_stats.py \
     stats.paths.input_folder=data/statistics_production/enriched_documents_statistics_v1/ \
     stats.paths.output_folder=data/statistics_production2/ \
     stats.tasks=75 \

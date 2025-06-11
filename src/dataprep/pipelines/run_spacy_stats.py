@@ -1,3 +1,9 @@
+#!/usr/bin/env python3
+"""
+Skript für spaCy-basierte DataTrove-Stats.
+Dieses Skript verwendet die separate spaCy-Umgebung mit NumPy 1.x Kompatibilität.
+"""
+
 import os
 import sys
 import logging
@@ -7,17 +13,14 @@ from datetime import datetime
 
 # 1) Projekt-Root und lokale Datatrove-Quelle ins PYTHONPATH
 script_dir = os.path.dirname(__file__)
-proj_root = os.path.abspath(os.path.join(script_dir, '..'))
+proj_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..'))
 sys.path.insert(0, proj_root)
-#sys.path.insert(0, os.path.join(proj_root, "external", "datatrove", "src"))  # Uncommented to add datatrove to PYTHONPATH
-# sys.path.insert(0, os.path.join(proj_root, "external", "datatrove", "src")) # Auskommentiert, falls nicht benötigt
 
 import hydra
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 from datatrove.executor import LocalPipelineExecutor
 from datatrove.pipeline.readers import ParquetReader
-
 
 # Hydra-Logger verwenden
 log = logging.getLogger(__name__)
@@ -105,11 +108,11 @@ def sync_stats_to_central(primary_dir: str, central_dir: str):
 
 @hydra.main(
     version_base="1.3",
-    config_path="../configs",
-    config_name="stats/compute_stats_datatrove"
+    config_path="../../../configs",
+    config_name="stats/compute_spacy_stats_datatrove"
 )
 def main(cfg: DictConfig) -> None:
-    log.info("🚀 Starting Standard Stats Pipeline")
+    log.info("🚀 Starting spaCy Stats Pipeline")
     log.info("Configuration:")
     log.info(f"\n{OmegaConf.to_yaml(cfg)}")
 
@@ -134,11 +137,18 @@ def main(cfg: DictConfig) -> None:
     )
     log.info(f"🌐 Wandb initialized: {wandb_run.url}")
 
+    # Überprüfe, ob die Konfiguration korrekt ist
+    if not hasattr(cfg, 'stats'):
+        raise ValueError("Die Konfiguration enthält keinen 'stats'-Abschnitt")
+    
     # Dual-Output-System einrichten
     primary_stats_dir, central_stats_dir = get_dual_output_dirs(cfg)
     
+    limit_val = cfg.stats.limit_documents
+    log.info(f"📄 Processing limit: {limit_val} documents")
+    
     # Hydra-integriertes Logging-Verzeichnis
-    datatrove_logging_dir = get_datatrove_logging_dir("standard_stats", limit_val)
+    datatrove_logging_dir = get_datatrove_logging_dir("spacy_stats", limit_val)
     
     # Pipeline aufbauen
     pipeline = [
@@ -152,68 +162,41 @@ def main(cfg: DictConfig) -> None:
         ),
     ]
     
-    # Füge die Stats-Module zur Pipeline hinzu
+    # Füge die spaCy-basierten Stats-Module zur Pipeline hinzu
     modules = cfg.stats.pipeline.stats_modules
     added_modules = []
     
-    # DocStats
-    if hasattr(modules, 'doc_stats'):
-        doc_stats = hydra.utils.instantiate(
-            modules.doc_stats,
-            output_folder=os.path.join(primary_stats_dir, modules.doc_stats.output_folder)
+    # SentenceStats
+    if hasattr(modules, 'sentence_stats'):
+        sentence_stats = hydra.utils.instantiate(
+            modules.sentence_stats,
+            output_folder=os.path.join(primary_stats_dir, modules.sentence_stats.output_folder)
         )
-        pipeline.append(doc_stats)
-        added_modules.append("DocStats")
+        pipeline.append(sentence_stats)
+        added_modules.append("SentenceStats")
     
-    # LineStats
-    if hasattr(modules, 'line_stats'):
-        line_stats = hydra.utils.instantiate(
-            modules.line_stats,
-            output_folder=os.path.join(primary_stats_dir, modules.line_stats.output_folder)
+    # WordStats
+    if hasattr(modules, 'word_stats'):
+        word_stats = hydra.utils.instantiate(
+            modules.word_stats,
+            output_folder=os.path.join(primary_stats_dir, modules.word_stats.output_folder)
         )
-        pipeline.append(line_stats)
-        added_modules.append("LineStats")
+        pipeline.append(word_stats)
+        added_modules.append("WordStats")
     
-    # ParagraphStats
-    if hasattr(modules, 'paragraph_stats'):
-        paragraph_stats = hydra.utils.instantiate(
-            modules.paragraph_stats,
-            output_folder=os.path.join(primary_stats_dir, modules.paragraph_stats.output_folder)
+    # LangStats
+    if hasattr(modules, 'lang_stats'):
+        lang_stats = hydra.utils.instantiate(
+            modules.lang_stats,
+            output_folder=os.path.join(primary_stats_dir, modules.lang_stats.output_folder)
         )
-        pipeline.append(paragraph_stats)
-        added_modules.append("ParagraphStats")
+        pipeline.append(lang_stats)
+        added_modules.append("LangStats")
     
-    # TokenStats
-    if hasattr(modules, 'token_stats'):
-        token_stats = hydra.utils.instantiate(
-            modules.token_stats,
-            output_folder=os.path.join(primary_stats_dir, modules.token_stats.output_folder)
-        )
-        pipeline.append(token_stats)
-        added_modules.append("TokenStats")
-    
-    # PerplexityStats - OSCAR (NumPy 2.0 kompatibel, braucht nur KenLM)
-    if hasattr(modules, 'perplexity_stats_oscar'):
-        perplexity_stats_oscar = hydra.utils.instantiate(
-            modules.perplexity_stats_oscar,
-            output_folder=os.path.join(primary_stats_dir, modules.perplexity_stats_oscar.output_folder)
-        )
-        pipeline.append(perplexity_stats_oscar)
-        added_modules.append("PerplexityStats-OSCAR")
-    
-    # PerplexityStats - Wikipedia (NumPy 2.0 kompatibel, braucht nur KenLM)
-    if hasattr(modules, 'perplexity_stats_wikipedia'):
-        perplexity_stats_wikipedia = hydra.utils.instantiate(
-            modules.perplexity_stats_wikipedia,
-            output_folder=os.path.join(primary_stats_dir, modules.perplexity_stats_wikipedia.output_folder)
-        )
-        pipeline.append(perplexity_stats_wikipedia)
-        added_modules.append("PerplexityStats-Wikipedia")
-    
-    # Optional: Enriched documents mit Stats speichern
+    #Enriched documents mit Stats speichern
     if hasattr(cfg.stats, 'save_enriched_docs') and cfg.stats.save_enriched_docs:
         from datatrove.pipeline.writers import ParquetWriter
-        enriched_output = os.path.join(primary_stats_dir, "enriched_documents_statistics_v1")
+        enriched_output = os.path.join(primary_stats_dir, "enriched_documents_statistics_v2")
         pipeline.append(ParquetWriter(enriched_output))
         log.info(f"💾 Enriched documents will be saved to: {enriched_output}")
         added_modules.append("ParquetWriter(enriched)")
@@ -260,7 +243,7 @@ def main(cfg: DictConfig) -> None:
     log.info(f"📁 Primary stats (with history): {primary_stats_dir}")
     log.info(f"📁 Central stats (latest): {central_stats_dir}")
     log.info(f"📋 Logs saved to: {datatrove_logging_dir}")
-    wandb.finish()      
+    wandb.finish()
 
 if __name__ == "__main__":
-    main()
+    main() 

@@ -10,7 +10,7 @@ from datatrove.pipeline.stats import DocStats
 import os, sys
 # Ensure project root is on PYTHONPATH  for src package
 script_dir = os.path.dirname(__file__)
-proj_root = os.path.abspath(os.path.join(script_dir, '..'))
+proj_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..'))
 sys.path.insert(0, proj_root)
 
 # Import modular text cleaning components
@@ -32,7 +32,7 @@ except ImportError:
     log.warning("wandb not available - text cleaning analytics will not be logged")
 
 
-@hydra.main(version_base="1.3", config_path="../configs", config_name="cleaning/datatrove")
+@hydra.main(version_base="1.3", config_path="../../../configs", config_name="cleaning/datatrove")
 def main(cfg: DictConfig) -> None:
     log.info("🚀 Starting Modular Text Cleaning Pipeline")
 

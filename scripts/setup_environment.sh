@@ -37,4 +37,4 @@ python -c "import spacy, fasttext, kenlm, tokenizers, tldextract; print('All dep
 echo "Setup complete!"
 
 echo "Setup complete!"
-echo "Test with: python scripts/run_stats.py stats.limit_documents=10"
+echo "Test with: python src/dataprep/pipelines/run_stats.py stats.limit_documents=10"
