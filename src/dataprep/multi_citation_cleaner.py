@@ -350,14 +350,6 @@ class MultiCitationCleaner(BaseFilter):
             # If ref is isolated or at sentence boundaries → remove (probably citation)
             return True, "isolated_ref_citation"
         
-        # For other citation types: basic validation
-        if citation_type == "autor_jahr_text":
-            # Check for unrealistic years
-            year_match = re.search(r'\((\d{4})[a-z]?\)', match_text)
-            if year_match:
-                year = int(year_match.group(1))
-                if year < 1900 or year > 2030:
-                    return False, f"unrealistic_year ({year})"
         
         # Default: accept if no issues
         return True, "valid_citation"
