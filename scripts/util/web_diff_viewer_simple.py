@@ -18,6 +18,10 @@ import time
 import re
 import random
 from datatrove.pipeline.readers import ParquetReader
+import json
+import duckdb
+import pickle
+import hashlib
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -33,7 +37,9 @@ config = {
     'available_docs': [],
     'loading_status': 'ready',
     'document_metadata': {},
-    'parquet_index': {}
+    'parquet_index': {},
+    'list_categories': {},
+    'current_list_category': None
 }
 
 # Cleaning-Methoden, die als Filter verwendet werden können
@@ -143,42 +149,151 @@ def quick_scan_documents(cleaned_dir: Path, gold_dir: Path, max_files: int = Non
 
 
 def get_document_by_id(directory: Path, doc_id: str):
-    """Simple document retrieval."""
+    """Document retrieval using optimized binary search and DataTrove."""
     cache_key = f"{directory}:{doc_id}"
     if cache_key in config['document_cache']:
         return config['document_cache'][cache_key]
     
     logger.info(f"🔎 Searching for document {doc_id} in {directory}")
+    
+    # Index-Key für dieses Verzeichnis
+    index_key = f"{directory}_index".replace("/", "_").replace("\\", "_")
+    index = config.get(index_key)
+    
+    # Wenn kein Index, erstelle ihn
+    if not index:
+        logger.info(f"Erstelle fehlenden Index für {directory}")
+        config[index_key] = build_optimized_document_index(directory)
+        index = config[index_key]
+    
+    # Effiziente binäre Suche mit Divide-and-Conquer
+    file_path_str = binary_search_document(index, doc_id)
+    
+    if file_path_str:
+        file_path = ensure_valid_path_for_datatrove(file_path_str)
+        logger.info(f"🔍 Binäre Suche: Dokument gefunden in {Path(file_path).name}")
+        
+        try:
+            # Schnelle PyArrow-Suche mit Filter (schneller als DataTrove)
+            doc_id_str = str(doc_id).strip()
+            
+            # Lese mit Filter
+            table = pq.read_table(file_path_str, filters=[('id', '=', doc_id)])
+            
+            if len(table) > 0:
+                df = table.to_pandas()
+                # Exakter String-Vergleich
+                matches = df[df['id'].astype(str).str.strip() == doc_id_str]
+                
+                if not matches.empty:
+                    text = matches.iloc[0]['text']
+                    config['document_cache'][cache_key] = text
+                    logger.info(f"✅ PyArrow-Filter: Dokument gefunden in {Path(file_path).name}")
+                    return text
+            
+            # Falls Filter nicht funktioniert, versuche DataTrove
+            logger.warning(f"PyArrow-Filter fehlgeschlagen, verwende DataTrove")
+            
+            # Mit DataTrove ParquetReader laden
+            from datatrove.pipeline.readers import ParquetReader
+            logger.info(f"Lade Dokument mit DataTrove aus {file_path}")
+            
+            reader = ParquetReader(file_path)
+            
+            # Dokument in der Datei finden
+            for doc in reader.run():
+                if str(doc.id).strip() == doc_id_str:
+                    if hasattr(doc, 'text') and doc.text:
+                        text = doc.text
+                        config['document_cache'][cache_key] = text
+                        logger.info(f"✅ Dokument gefunden mit DataTrove")
+                        return text
+            
+            # Wenn nicht gefunden mit DataTrove, Fallback auf PyArrow Vollscan
+            logger.warning(f"DataTrove konnte Dokument {doc_id} nicht finden, verwende PyArrow Vollscan")
+            
+            # Falls Filter nicht funktioniert, lese spezifisch die wichtigen Zeilen
+            table = pq.read_table(file_path_str)
+            df = table.to_pandas()
+            
+            # Verschiedene Vergleichsmethoden
+            matches = df[df['id'].astype(str).str.strip() == doc_id_str]
+            
+            if matches.empty:
+                # Versuche ohne Leerzeichen
+                matches = df[df['id'].astype(str).str.replace(" ", "") == doc_id_str.replace(" ", "")]
+            
+            if not matches.empty:
+                text = matches.iloc[0]['text']
+                config['document_cache'][cache_key] = text
+                logger.info(f"✅ Dokument gefunden mit PyArrow Vollscan")
+                return text
+                
+        except Exception as e:
+            logger.error(f"Fehler beim Laden des Dokuments aus {file_path}: {e}")
+    
+    # Fallback: Traditionelle Suche in allen Dateien
+    logger.warning(f"Binäre Suche fehlgeschlagen, verwende sequenzielle Suche")
+    
+    # Versuche mit DataTrove alle Dateien zu durchsuchen
+    try:
+        from datatrove.pipeline.readers import ParquetReader
+        logger.info(f"Versuche sequenzielle Suche mit DataTrove")
+        
+        doc_id_str = str(doc_id).strip()
+        parquet_files = list(directory.glob("*.parquet"))
+        
+        for file_path in parquet_files:
+            if file_path.stat().st_size == 0:
+                continue
+                
+            try:
+                reader = ParquetReader(str(file_path))
+                for doc in reader.run():
+                    if str(doc.id).strip() == doc_id_str:
+                        if hasattr(doc, 'text') and doc.text:
+                            text = doc.text
+                            config['document_cache'][cache_key] = text
+                            logger.info(f"✅ Dokument gefunden mit DataTrove sequenziell in {file_path}")
+                            return text
+            except Exception as e:
+                logger.error(f"DataTrove-Fehler bei {file_path}: {e}")
+                continue
+    except Exception as e:
+        logger.error(f"Fehler beim DataTrove-Fallback: {e}")
+    
+    # Wenn DataTrove fehlschlägt, PyArrow als letzten Ausweg
+    logger.warning(f"DataTrove-Suche fehlgeschlagen, verwende PyArrow als letzten Ausweg")
     parquet_files = list(directory.glob("*.parquet"))
-    logger.info(f"Found {len(parquet_files)} parquet files in {directory}")
     
     for file_path in parquet_files:
         try:
             if file_path.stat().st_size == 0:
                 continue
                 
-            # Versuche zuerst mit Filter (schneller wenn der Index funktioniert)
+            # Mit Filter versuchen
             try:
                 table = pq.read_table(file_path, filters=[('id', '=', doc_id)])
                 if len(table) > 0:
                     df = table.to_pandas()
-                    text = df.iloc[0]['text']
-                    config['document_cache'][cache_key] = text
-                    logger.info(f"✅ Found document {doc_id} with filter in {file_path}")
-                    return text
+                    match = df[df['id'].astype(str).str.strip() == str(doc_id).strip()]
+                    if not match.empty:
+                        text = match.iloc[0]['text']
+                        config['document_cache'][cache_key] = text
+                        logger.info(f"✅ Found document {doc_id} with PyArrow filter in {file_path}")
+                        return text
             except Exception as e:
-                # Wenn der Filter nicht funktioniert, lese die gesamte Tabelle
+                # Wenn Filter nicht funktioniert, lese die gesamte Tabelle
                 logger.warning(f"Filter failed, reading whole table for {file_path}: {e}")
                 table = pq.read_table(file_path)
                 df = table.to_pandas()
-                
-                # Suche nach der ID in der Tabelle
+                # Robust: vergleiche als String und strip
                 if 'id' in df.columns:
-                    matching_rows = df[df['id'] == doc_id]
-                    if not matching_rows.empty:
-                        text = matching_rows.iloc[0]['text']
+                    match = df[df['id'].astype(str).str.strip() == str(doc_id).strip()]
+                    if not match.empty:
+                        text = match.iloc[0]['text']
                         config['document_cache'][cache_key] = text
-                        logger.info(f"✅ Found document {doc_id} with full scan in {file_path}")
+                        logger.info(f"✅ Found document {doc_id} with PyArrow full scan in {file_path}")
                         return text
         except Exception as e:
             logger.error(f"Error reading {file_path}: {e}")
@@ -219,8 +334,7 @@ def get_word_diff(old_text, new_text):
 
 
 def create_simple_diff(text1: str, text2: str, doc_id: str):
-    """Create side-by-side Git-style diff with full document view."""
-    
+    """Create side-by-side Git-style diff with full document view. Always align both sides to the same number of rows. Show reduction in percent."""
     if text1 == text2:
         return f"""
 <!DOCTYPE html>
@@ -261,59 +375,47 @@ def create_simple_diff(text1: str, text2: str, doc_id: str):
     lines1 = text1.splitlines()
     lines2 = text2.splitlines()
     
-    # Create line by line diff
+    # Create line by line diff, synchronisiert
     rows = []
-    i1, i2 = 0, 0
     matcher = difflib.SequenceMatcher(None, lines1, lines2)
-    
+    i1, i2 = 0, 0
     for tag, i1start, i1end, i2start, i2end in matcher.get_opcodes():
-        if tag == 'equal':
-            for i in range(i1start, i1end):
-                line1 = html.escape(lines1[i]).replace(" ", "<span class='space'> </span>").replace("\t", "<span class='tab'>\t</span>")
-                rows.append(f"""<tr class="line"><td class="line-num">{i+1}</td><td class="content">{line1}</td><td class="line-num">{i+1}</td><td class="content">{line1}</td></tr>""")
-            i1, i2 = i1end, i2end
-        
-        elif tag == 'replace':
-            max_len = max(i1end - i1start, i2end - i2start)
-            for i in range(max_len):
-                i1idx = i1start + i if i1start + i < i1end else None
-                i2idx = i2start + i if i2start + i < i2end else None
-                
-                if i1idx is not None and i2idx is not None:
+        max_len = max(i1end - i1start, i2end - i2start)
+        for i in range(max_len):
+            l_idx = i1start + i if i1start + i < i1end else None
+            r_idx = i2start + i if i2start + i < i2end else None
+            if tag == 'equal':
+                line = html.escape(lines1[l_idx]).replace(" ", "<span class='space'> </span>").replace("\t", "<span class='tab'>\t</span>")
+                rows.append(f"<tr class='line'><td class='line-num'>{l_idx+1}</td><td class='content'>{line}</td><td class='line-num'>{r_idx+1}</td><td class='content'>{line}</td></tr>")
+            elif tag == 'replace':
+                if l_idx is not None and r_idx is not None:
                     # Wort-für-Wort-Diff für geänderte Zeilen
-                    line1_raw = lines1[i1idx]
-                    line2_raw = lines2[i2idx]
-                    
-                    # Nur Wort-Diff nutzen, wenn Zeilen ähnlich sind
+                    line1_raw = lines1[l_idx]
+                    line2_raw = lines2[r_idx]
                     if difflib.SequenceMatcher(None, line1_raw, line2_raw).ratio() > 0.5:
-                        # Wort-für-Wort-Diff anwenden
                         line1, line2 = get_word_diff(line1_raw, line2_raw)
                     else:
-                        # Andernfalls nur HTML-Escape und Leerzeichen-Formatierung
                         line1 = html.escape(line1_raw).replace(" ", "<span class='space'> </span>").replace("\t", "<span class='tab'>\t</span>")
                         line2 = html.escape(line2_raw).replace(" ", "<span class='space'> </span>").replace("\t", "<span class='tab'>\t</span>")
-                    
-                    rows.append(f"""<tr class="line changed"><td class="line-num">{i1idx+1}</td><td class="content old">{line1}</td><td class="line-num">{i2idx+1}</td><td class="content new">{line2}</td></tr>""")
-                elif i1idx is not None:
-                    line1 = html.escape(lines1[i1idx]).replace(" ", "<span class='space'> </span>").replace("\t", "<span class='tab'>\t</span>")
-                    rows.append(f"""<tr class="line removed"><td class="line-num">{i1idx+1}</td><td class="content">{line1}</td><td class="line-num"></td><td class="content empty"></td></tr>""")
-                elif i2idx is not None:
-                    line2 = html.escape(lines2[i2idx]).replace(" ", "<span class='space'> </span>").replace("\t", "<span class='tab'>\t</span>")
-                    rows.append(f"""<tr class="line added"><td class="line-num"></td><td class="content empty"></td><td class="line-num">{i2idx+1}</td><td class="content">{line2}</td></tr>""")
-            
-            i1, i2 = i1end, i2end
-        
-        elif tag == 'delete':
-            for i in range(i1start, i1end):
-                line1 = html.escape(lines1[i]).replace(" ", "<span class='space'> </span>").replace("\t", "<span class='tab'>\t</span>")
-                rows.append(f"""<tr class="line removed"><td class="line-num">{i+1}</td><td class="content">{line1}</td><td class="line-num"></td><td class="content empty"></td></tr>""")
-            i1 = i1end
-        
-        elif tag == 'insert':
-            for i in range(i2start, i2end):
-                line2 = html.escape(lines2[i]).replace(" ", "<span class='space'> </span>").replace("\t", "<span class='tab'>\t</span>")
-                rows.append(f"""<tr class="line added"><td class="line-num"></td><td class="content empty"></td><td class="line-num">{i+1}</td><td class="content">{line2}</td></tr>""")
-            i2 = i2end
+                    rows.append(f"<tr class='line changed'><td class='line-num'>{l_idx+1}</td><td class='content old'>{line1}</td><td class='line-num'>{r_idx+1}</td><td class='content new'>{line2}</td></tr>")
+                elif l_idx is not None:
+                    line1 = html.escape(lines1[l_idx]).replace(" ", "<span class='space'> </span>").replace("\t", "<span class='tab'>\t</span>")
+                    rows.append(f"<tr class='line removed'><td class='line-num'>{l_idx+1}</td><td class='content'>{line1}</td><td class='line-num'></td><td class='content empty'></td></tr>")
+                elif r_idx is not None:
+                    line2 = html.escape(lines2[r_idx]).replace(" ", "<span class='space'> </span>").replace("\t", "<span class='tab'>\t</span>")
+                    rows.append(f"<tr class='line added'><td class='line-num'></td><td class='content empty'></td><td class='line-num'>{r_idx+1}</td><td class='content'>{line2}</td></tr>")
+            elif tag == 'delete':
+                if l_idx is not None:
+                    line1 = html.escape(lines1[l_idx]).replace(" ", "<span class='space'> </span>").replace("\t", "<span class='tab'>\t</span>")
+                    rows.append(f"<tr class='line removed'><td class='line-num'>{l_idx+1}</td><td class='content'>{line1}</td><td class='line-num'></td><td class='content empty'></td></tr>")
+                else:
+                    rows.append(f"<tr class='line removed'><td class='line-num'></td><td class='content empty'></td><td class='line-num'></td><td class='content empty'></td></tr>")
+            elif tag == 'insert':
+                if r_idx is not None:
+                    line2 = html.escape(lines2[r_idx]).replace(" ", "<span class='space'> </span>").replace("\t", "<span class='tab'>\t</span>")
+                    rows.append(f"<tr class='line added'><td class='line-num'></td><td class='content empty'></td><td class='line-num'>{r_idx+1}</td><td class='content'>{line2}</td></tr>")
+                else:
+                    rows.append(f"<tr class='line added'><td class='line-num'></td><td class='content empty'></td><td class='line-num'></td><td class='content empty'></td></tr>")
 
     # Prepare metadata badges
     metadata_badges = []
@@ -768,7 +870,16 @@ def index():
             <button class="btn btn-secondary" onclick="reloadDocuments()">Aktualisieren</button>
             <button class="btn btn-secondary" onclick="fullScanDocuments()">Vollsuche</button>
             <button class="btn btn-warning" onclick="loadRandomDocuments()">🎲 Random 100</button>
+            <button class="btn btn-info" onclick="showListMode()">📋 Listen-Modus</button>
             <span id="mode" style="margin-left:16px;color:#bf3989;"></span>
+        </div>
+        
+        <div id="listModeControls" class="list-mode-controls" style="display: none; margin: 20px 0; padding: 15px; background: #e8f4fd; border-radius: 4px;">
+            <strong>📋 Listen-Modus:</strong>
+            <select id="categorySelect" onchange="loadListCategory()" style="margin: 0 10px; padding: 5px;">
+                <option value="">Kategorie auswählen...</option>
+            </select>
+            <button class="btn btn-secondary" onclick="exitListMode()">Exit Listen-Modus</button>
         </div>
         
         <div class="filter-section">
@@ -1080,6 +1191,94 @@ def index():
             // Starte vollständigen Scan (wie reloadDocuments, aber explizit)
             loadDocuments();
         }
+        
+        function showListMode() {
+            console.log("Frontend: showListMode() called.");
+            
+            // Show list mode controls
+            document.getElementById('listModeControls').style.display = 'block';
+            
+            // Load categories
+            fetch('/api/list_categories')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const select = document.getElementById('categorySelect');
+                        select.innerHTML = '<option value="">Kategorie auswählen...</option>';
+                        
+                        data.categories.forEach(category => {
+                            const option = document.createElement('option');
+                            option.value = category.name;
+                            option.textContent = `${category.display_name} (${category.count} IDs)`;
+                            select.appendChild(option);
+                        });
+                        
+                        document.getElementById('mode').textContent = '📋 Listen-Modus - Kategorie auswählen';
+                    } else {
+                        console.error('Error loading categories:', data.error);
+                        alert('Error loading categories: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error loading categories');
+                });
+        }
+        
+        function loadListCategory() {
+            const categorySelect = document.getElementById('categorySelect');
+            const selectedCategory = categorySelect.value;
+            
+            if (!selectedCategory) {
+                return;
+            }
+            
+            console.log("Frontend: loadListCategory() called for category:", selectedCategory);
+            
+            // Show loading indicator
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('status-text').textContent = '📋 Loading documents for category "' + selectedCategory + '"...';
+            
+            // Load documents for this category
+            fetch(`/api/list_documents?category=${encodeURIComponent(selectedCategory)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        allDocuments = data.documents;
+                        filteredDocuments = [...allDocuments];
+                        currentPage = 1;
+                        updateTable();
+                        document.getElementById('loading').classList.add('hidden');
+                        document.getElementById('status-text').textContent = '';
+                        document.getElementById('mode').textContent = `📋 Listen-Modus: ${data.category_display_name} (${data.count} documents)`;
+                    } else {
+                        console.error('Error loading list documents:', data.error);
+                        document.getElementById('loading').classList.add('hidden');
+                        document.getElementById('status-text').textContent = 'Error: ' + data.error;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('status-text').textContent = 'Error loading list documents';
+                });
+        }
+        
+        function exitListMode() {
+            console.log("Frontend: exitListMode() called.");
+            
+            // Hide list mode controls
+            document.getElementById('listModeControls').style.display = 'none';
+            
+            // Reset category select
+            document.getElementById('categorySelect').value = '';
+            
+            // Reset mode display
+            document.getElementById('mode').textContent = '';
+            
+            // Load default documents
+            loadDocuments();
+        }
     </script>
 </body>
 </html>
@@ -1389,86 +1588,117 @@ def start_ngrok_tunnel(port, auth_token=None):
 
 
 def get_random_documents(cleaned_dir: Path, gold_dir: Path, sample_size: int = 100, max_files: int = 20):
-    """Effizient: Ziehe zufällig Parquet-Dateien, wähle daraus zufällig IDs, stoppe bei 100."""
-    logger.info(f"Random sample scan (effizient) starting... (size: {sample_size})")
+    """Ultra-schnell: Wähle zufällige Parquet-Datei und nimm alle IDs daraus."""
+    logger.info(f"Ultra-schnelle Random sample scan starting... (size: {sample_size})")
     config['loading_status'] = 'scanning'
-    cleaned_files = list(cleaned_dir.glob('*.parquet'))
-    gold_files = list(gold_dir.glob('*.parquet'))
-    random.shuffle(cleaned_files)
-    random.shuffle(gold_files)
-    found_ids = set()
-    document_metadata = {}
-    # Baue schnellen Index für gold-IDs pro Datei
-    gold_id_map = {}
-    for gfile in gold_files[:max_files]:
-        try:
-            pf = pq.ParquetFile(gfile)
-            ids = set()
-            for rg in range(pf.num_row_groups):
-                ids.update(pf.read_row_group(rg, columns=['id']).to_pandas()['id'].tolist())
-            gold_id_map[str(gfile)] = ids
-        except Exception as e:
-            logger.error(f"Gold-IDs lesen fehlgeschlagen: {gfile}: {e}")
-    # Suche in zufälligen cleaned-Dateien
-    for cfile in cleaned_files[:max_files]:
-        try:
-            pf = pq.ParquetFile(cfile)
-            all_ids = []
-            for rg in range(pf.num_row_groups):
-                all_ids.extend(pf.read_row_group(rg, columns=['id']).to_pandas()['id'].tolist())
-            if not all_ids:
+    
+    # Verwende die optimierten Indizes wenn vorhanden
+    cleaned_index_key = f"{cleaned_dir}_index".replace("/", "_").replace("\\", "_")
+    gold_index_key = f"{gold_dir}_index".replace("/", "_").replace("\\", "_")
+    
+    cleaned_index = config.get(cleaned_index_key, {})
+    gold_index = config.get(gold_index_key, {})
+    
+    # Wenn keine Indizes vorhanden, erstelle sie
+    if not cleaned_index:
+        logger.info("Erstelle cleaned Index für Random-Suche...")
+        cleaned_index = build_optimized_document_index(cleaned_dir)
+        config[cleaned_index_key] = cleaned_index
+    
+    if not gold_index:
+        logger.info("Erstelle gold Index für Random-Suche...")
+        gold_index = build_optimized_document_index(gold_dir)
+        config[gold_index_key] = gold_index
+    
+    # Sammle alle verfügbaren IDs aus beiden Indizes
+    all_cleaned_ids = list(cleaned_index['id_to_file'].keys())
+    all_gold_ids = list(gold_index['id_to_file'].keys())
+    
+    # Finde Schnittmenge
+    intersection_ids = set(all_cleaned_ids) & set(all_gold_ids)
+    logger.info(f"Gefunden: {len(intersection_ids)} IDs in beiden Datasets")
+    
+    if len(intersection_ids) == 0:
+        logger.error("Keine übereinstimmenden IDs gefunden!")
+        config['loading_status'] = 'error'
+        return []
+    
+    # Wähle zufällige Parquet-Datei aus cleaned directory
+    cleaned_files = list(cleaned_dir.glob("*.parquet"))
+    if not cleaned_files:
+        logger.error("Keine Parquet-Dateien im cleaned directory gefunden!")
+        config['loading_status'] = 'error'
+        return []
+    
+    # Wähle zufällige Datei
+    random_file = random.choice(cleaned_files)
+    logger.info(f"Wähle zufällige Datei: {random_file.name}")
+    
+    # Lade alle IDs aus dieser Datei
+    try:
+        # Lade alle IDs und Metadaten aus der zufälligen Datei
+        table = pq.read_table(random_file, columns=['id', 'metadata'])
+        df = table.to_pandas()
+        
+        logger.info(f"Gefunden: {len(df)} Dokumente in {random_file.name}")
+        
+        # Filtere nur IDs, die auch in gold vorhanden sind
+        available_docs = []
+        for idx, row in df.iterrows():
+            doc_id = str(row['id']).strip()
+            
+            # Prüfe ob ID auch in gold vorhanden ist
+            gold_file = binary_search_document(gold_index, doc_id)
+            if not gold_file:
                 continue
-            random.shuffle(all_ids)
-            for doc_id in all_ids:
-                if len(found_ids) >= sample_size:
-                    break
-                # Prüfe, ob ID in irgendeiner gold-Datei vorkommt
-                for g_ids in gold_id_map.values():
-                    if doc_id in g_ids:
-                        found_ids.add(doc_id)
-                        break
-            if len(found_ids) >= sample_size:
+            
+            # Metadaten extrahieren
+            metadata = {}
+            if 'metadata' in row and not pd.isna(row['metadata']):
+                meta = row['metadata']
+                if isinstance(meta, str):
+                    try:
+                        import json
+                        metadata = json.loads(meta)
+                    except:
+                        metadata = {}
+                elif isinstance(meta, dict):
+                    metadata = meta
+            
+            # Dokument-Info erstellen
+            doc_info = {
+                'id': doc_id,
+                'metadata': metadata,
+                'total_citations_removed': 0
+            }
+            
+            # Citations-Removed zählen
+            for key, value in metadata.items():
+                if '_citations_removed' in key:
+                    try:
+                        if isinstance(value, (int, float)):
+                            doc_info['total_citations_removed'] += value
+                        elif isinstance(value, str) and value.isdigit():
+                            doc_info['total_citations_removed'] += int(value)
+                    except (ValueError, TypeError):
+                        pass
+            
+            available_docs.append(doc_info)
+            
+            # Stoppe bei gewünschter Anzahl
+            if len(available_docs) >= sample_size:
                 break
-        except Exception as e:
-            logger.error(f"Cleaned-IDs lesen fehlgeschlagen: {cfile}: {e}")
-    # Metadaten für gefundene IDs (optional, RAM-schonend)
-    available_docs = []
-    for doc_id in list(found_ids)[:sample_size]:
-        meta = {}
-        # Suche Metadaten in einer cleaned-Datei
-        for cfile in cleaned_files:
-            try:
-                pf = pq.ParquetFile(cfile)
-                for rg in range(pf.num_row_groups):
-                    df = pf.read_row_group(rg).to_pandas()
-                    match = df[df['id'] == doc_id]
-                    if not match.empty:
-                        if 'metadata' in df.columns and not pd.isna(match.iloc[0]['metadata']):
-                            import json
-                            m = match.iloc[0]['metadata']
-                            if isinstance(m, str):
-                                meta = json.loads(m)
-                            elif isinstance(m, dict):
-                                meta = m
-                        break
-                if meta:
-                    break
-            except Exception:
-                continue
-        doc_info = {'id': doc_id, 'metadata': meta, 'total_citations_removed': 0}
-        for key, value in meta.items():
-            if '_citations_removed' in key:
-                try:
-                    if isinstance(value, (int, float)):
-                        doc_info['total_citations_removed'] += value
-                    elif isinstance(value, str) and value.isdigit():
-                        doc_info['total_citations_removed'] += int(value)
-                except (ValueError, TypeError):
-                    pass
-        available_docs.append(doc_info)
+        
+        logger.info(f"Gefunden: {len(available_docs)} verfügbare Dokumente aus {random_file.name}")
+        
+    except Exception as e:
+        logger.error(f"Fehler beim Laden aus {random_file}: {e}")
+        config['loading_status'] = 'error'
+        return []
+    
     config['available_docs'] = available_docs
     config['loading_status'] = 'complete'
-    logger.info(f"Random sample: {len(available_docs)} documents ready.")
+    logger.info(f"✅ Ultra-schnelle Random sample: {len(available_docs)} documents ready aus {random_file.name}")
     return available_docs
 
 
@@ -1494,55 +1724,138 @@ def api_random_documents():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+def ensure_valid_path_for_datatrove(file_path):
+    """Ensure the file path is in the correct format for DataTrove's ParquetReader."""
+    # If it's already a Path object, convert to string
+    if isinstance(file_path, Path):
+        return str(file_path)
+    
+    # If it's a string but doesn't exist, try to convert to Path then back to string
+    # This helps normalize paths
+    if isinstance(file_path, str):
+        try:
+            path_obj = Path(file_path)
+            if path_obj.exists():
+                return str(path_obj.absolute())
+        except:
+            pass
+    
+    # Return as is if nothing else works
+    return file_path
+
+
 @app.route('/api/search_documents')
 def api_search_documents():
-    """Effiziente Suche: Nutze Index, um gezielt die richtige Datei zu finden und suche dort mit Datatrove nach der ID."""
+    """Optimierte Suche: Primär Binary Search, dann DataTrove als Fallback."""
     try:
         query = request.args.get('q', '').strip()
         if not query:
             return jsonify({'documents': [], 'total': 0, 'status': 'empty'})
-        parquet_index = config.get('parquet_index', {})
-        cleaned_index = parquet_index.get('cleaned', {})
-        gold_index = parquet_index.get('gold', {})
-        # Finde passende Datei in cleaned
-        cleaned_file = None
-        for file_path, info in cleaned_index.items():
-            if info['min_id'] <= query <= info['max_id']:
-                cleaned_file = file_path
-                break
-        # Finde passende Datei in gold
-        gold_file = None
-        for file_path, info in gold_index.items():
-            if info['min_id'] <= query <= info['max_id']:
-                gold_file = file_path
-                break
+        
+        # Verwende die optimierten Indizes wenn vorhanden
+        cleaned_index_key = f"{config['cleaned_dir']}_index".replace("/", "_").replace("\\", "_")
+        gold_index_key = f"{config['gold_dir']}_index".replace("/", "_").replace("\\", "_")
+        
+        cleaned_index = config.get(cleaned_index_key, {})
+        gold_index = config.get(gold_index_key, {})
+        
+        # Finde passende Datei mit binärer Suche
+        cleaned_file = binary_search_document(cleaned_index, query) if cleaned_index else None
+        gold_file = binary_search_document(gold_index, query) if gold_index else None
+        
         if not cleaned_file or not gold_file:
             return jsonify({'documents': [], 'total': 0, 'status': 'not_found'})
-        # Suche in cleaned_file
-        from datatrove.pipeline.readers import ParquetReader
+        
+        # Stelle sicher, dass die Pfade für DataTrove korrekt formatiert sind
+        cleaned_file = ensure_valid_path_for_datatrove(cleaned_file)
+        gold_file = ensure_valid_path_for_datatrove(gold_file)
+        
+        # Schnelle PyArrow-Suche mit Filter (schneller als DataTrove)
         found_cleaned = None
         found_metadata = {}
+        
         try:
-            reader = ParquetReader(cleaned_file, glob_pattern=None, limit=-1)
-            for doc in reader():
-                if str(doc.id) == query:
-                    found_cleaned = doc.id
+            logger.info(f"Schnelle PyArrow-Suche in cleaned: {cleaned_file}")
+            
+            # PyArrow mit Filter (sehr schnell)
+            table = pq.read_table(cleaned_file, filters=[('id', '=', query)])
+            
+            if len(table) > 0:
+                df = table.to_pandas()
+                matches = df[df['id'].astype(str).str.strip() == query]
+                
+                if not matches.empty:
+                    found_cleaned = query
                     # Metadaten extrahieren
-                    if hasattr(doc, 'metadata') and doc.metadata:
-                        found_metadata = doc.metadata if isinstance(doc.metadata, dict) else {}
-                    break
+                    if 'metadata' in matches.columns and not pd.isna(matches.iloc[0]['metadata']):
+                        metadata = matches.iloc[0]['metadata']
+                        if isinstance(metadata, str):
+                            try:
+                                import json
+                                found_metadata = json.loads(metadata)
+                            except:
+                                found_metadata = {}
+                        elif isinstance(metadata, dict):
+                            found_metadata = metadata
+                    
+                    logger.info(f"✅ PyArrow-Suche erfolgreich in cleaned")
+                    
         except Exception as e:
-            logger.error(f"Fehler bei Suche in cleaned: {e}")
-        # Suche in gold_file
+            logger.error(f"PyArrow-Suche fehlgeschlagen, verwende DataTrove: {e}")
+            
+            # Fallback auf DataTrove
+            try:
+                from datatrove.pipeline.readers import ParquetReader
+                reader = ParquetReader(cleaned_file)
+                
+                for doc in reader.run():
+                    if str(doc.id).strip() == query:
+                        found_cleaned = doc.id
+                        # Metadaten extrahieren
+                        if hasattr(doc, 'metadata') and doc.metadata:
+                            if isinstance(doc.metadata, dict):
+                                found_metadata = doc.metadata
+                            elif isinstance(doc.metadata, str):
+                                try:
+                                    import json
+                                    found_metadata = json.loads(doc.metadata)
+                                except:
+                                    found_metadata = {}
+                        break
+            except Exception as e2:
+                logger.error(f"Auch DataTrove-Fallback fehlgeschlagen: {e2}")
+        
+        # Schnelle PyArrow-Suche in gold (nur prüfen ob vorhanden)
         found_gold = None
         try:
-            reader = ParquetReader(gold_file, glob_pattern=None, limit=-1)
-            for doc in reader():
-                if str(doc.id) == query:
-                    found_gold = doc.id
-                    break
+            logger.info(f"Schnelle PyArrow-Suche in gold: {gold_file}")
+            
+            # PyArrow mit Filter (sehr schnell)
+            table = pq.read_table(gold_file, filters=[('id', '=', query)])
+            
+            if len(table) > 0:
+                df = table.to_pandas()
+                matches = df[df['id'].astype(str).str.strip() == query]
+                
+                if not matches.empty:
+                    found_gold = query
+                    logger.info(f"✅ PyArrow-Suche erfolgreich in gold")
+                    
         except Exception as e:
-            logger.error(f"Fehler bei Suche in gold: {e}")
+            logger.error(f"PyArrow-Suche in gold fehlgeschlagen, verwende DataTrove: {e}")
+            
+            # Fallback auf DataTrove
+            try:
+                from datatrove.pipeline.readers import ParquetReader
+                reader = ParquetReader(gold_file)
+                
+                for doc in reader.run():
+                    if str(doc.id).strip() == query:
+                        found_gold = doc.id
+                        break
+            except Exception as e2:
+                logger.error(f"Auch DataTrove-Fallback in gold fehlgeschlagen: {e2}")
+        
         # Nur wenn in beiden gefunden
         docs = []
         if found_cleaned and found_gold:
@@ -1561,10 +1874,82 @@ def api_search_documents():
                     except (ValueError, TypeError):
                         pass
             docs.append(doc_info)
+        
         return jsonify({'documents': docs, 'total': len(docs), 'status': 'ok'})
     except Exception as e:
-        logger.error(f"Error in indexed search: {e}")
+        logger.error(f"Error in optimized search: {e}")
         return jsonify({'documents': [], 'total': 0, 'status': 'error', 'error': str(e)})
+
+
+@app.route('/api/list_categories')
+def api_list_categories():
+    """API endpoint to get available list categories."""
+    try:
+        # Load categories if not already loaded
+        if not config['list_categories']:
+            load_list_categories()
+        
+        # Format for frontend
+        categories = []
+        for category_name, category_data in config['list_categories'].items():
+            categories.append({
+                'name': category_name,
+                'display_name': category_data['display_name'],
+                'count': category_data['count']
+            })
+        
+        return jsonify({
+            'success': True,
+            'categories': categories
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting list categories: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/list_documents')
+def api_list_documents():
+    """API endpoint to get documents for a specific list category."""
+    try:
+        category_name = request.args.get('category', '').strip()
+        
+        if not category_name:
+            return jsonify({
+                'success': False,
+                'error': 'Category parameter required'
+            }), 400
+        
+        logger.info(f"📋 List documents request for category: {category_name}")
+        
+        # Load categories if not already loaded
+        if not config['list_categories']:
+            load_list_categories()
+        
+        # Get documents for this category
+        documents = get_list_documents_for_category(category_name)
+        
+        config['current_list_category'] = category_name
+        config['available_docs'] = documents
+        config['loading_status'] = 'complete'
+        
+        return jsonify({
+            'success': True,
+            'documents': documents,
+            'count': len(documents),
+            'category': category_name,
+            'category_display_name': config['list_categories'][category_name]['display_name']
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting list documents: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 def get_min_max_id_from_metadata(file_path):
@@ -1625,6 +2010,462 @@ def build_parquet_index(cleaned_dir: Path, gold_dir: Path):
     logger.info("Ultraschneller Parquet-Index fertig.")
 
 
+def load_list_categories():
+    """Load all document IDs from the JSON tables, grouped by category."""
+    logger.info("📋 Loading list categories from JSON tables...")
+    
+    # Define the JSON table files and their display names
+    table_files = {
+        'top_semicolon_blocks': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_semicolon_blocks_documents_762153_504bad13379f3c14e9ee.table.json',
+        'top_page_references': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_page_references_documents_762173_729df18578e72c95f499.table.json',
+        'top_autor_jahr_eckig_einzel': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_autor_jahr_eckig_einzel_documents_762167_d62e21a74b2dba2b3f96.table.json',
+        'top_autor_jahr_klammer_einzel': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_autor_jahr_klammer_einzel_documents_762165_7a7cb633ebf379499338.table.json',
+        'top_autor_jahr_multi_klammer': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_autor_jahr_multi_klammer_documents_762163_34d98346c9d320c4e0dc.table.json',
+        'top_combined_reduction': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_combined_reduction_documents_762181_0380d0bfd4adaa11c076.table.json',
+        'top_consecutive_numeric_citations': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_consecutive_numeric_citations_documents_762158_35a5d33e81496cef646b.table.json',
+        'top_eckige_klammern_numerisch': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_eckige_klammern_numerisch_documents_762156_c69b5bc70406b3f661fc.table.json',
+        'top_figure_line_removal': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_figure_line_removal_documents_762180_68322fb758017a0a126d.table.json',
+        'top_figure_table_refs': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_figure_table_refs_documents_762176_ba1d9d436d0eadb046c6.table.json',
+        'top_isolated_numeric_citations': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_isolated_numeric_citations_documents_762160_074eac1439239bd642dd.table.json',
+        'top_ref_nummer': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_ref_nummer_documents_762171_21ec0516ec90921147be.table.json'
+    }
+    
+    categories = {}
+    
+    for category_name, file_path in table_files.items():
+        try:
+            if not Path(file_path).exists():
+                logger.warning(f"Table file not found: {file_path}")
+                continue
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+            # Find the index of the Doc ID column
+            columns = data.get('columns', [])
+            if 'Doc ID' in columns:
+                docid_idx = columns.index('Doc ID')
+            else:
+                logger.warning(f"No 'Doc ID' column in {category_name}")
+                continue
+            # Extract document IDs from the correct column
+            doc_ids = []
+            for row in data.get('data', []):
+                if len(row) > docid_idx:
+                    doc_id = row[docid_idx]
+                    if doc_id and isinstance(doc_id, str):
+                        doc_ids.append(doc_id)
+            if doc_ids:
+                categories[category_name] = {
+                    'display_name': category_name.replace('_', ' ').title(),
+                    'doc_ids': doc_ids,
+                    'count': len(doc_ids)
+                }
+                logger.info(f"📋 Loaded {len(doc_ids)} IDs for category: {category_name}")
+            else:
+                logger.warning(f"No document IDs found in {category_name}")
+        except Exception as e:
+            logger.error(f"Error loading category {category_name}: {e}")
+            continue
+    
+    config['list_categories'] = categories
+    logger.info(f"📋 Loaded {len(categories)} list categories")
+    return categories
+
+
+def get_list_documents_for_category(category_name: str):
+    """Get documents for a specific category using optimized binary search and PyArrow filters."""
+    if category_name not in config['list_categories']:
+        logger.error(f"Category {category_name} not found")
+        return []
+    
+    category_data = config['list_categories'][category_name]
+    all_doc_ids = category_data['doc_ids']
+    
+    logger.info(f"📋 Getting documents for category '{category_name}' ({len(all_doc_ids)} total IDs)")
+    
+    # Optimierte Indizes laden/erstellen
+    cleaned_index_key = f"{config['cleaned_dir']}_index".replace("/", "_").replace("\\", "_")
+    gold_index_key = f"{config['gold_dir']}_index".replace("/", "_").replace("\\", "_")
+    
+    # Indizes initialisieren, falls noch nicht vorhanden
+    if cleaned_index_key not in config:
+        logger.info(f"Erstelle optimierten Index für cleaned directory...")
+        config[cleaned_index_key] = build_optimized_document_index(config['cleaned_dir'])
+    
+    if gold_index_key not in config:
+        logger.info(f"Erstelle optimierten Index für gold directory...")
+        config[gold_index_key] = build_optimized_document_index(config['gold_dir'])
+    
+    cleaned_index = config[cleaned_index_key]
+    gold_index = config[gold_index_key]
+    
+    # Dokumente mit binärer Suche finden
+    available_docs = []
+    found_count = 0
+    
+    logger.info(f"Führe optimierte Suche für {len(all_doc_ids)} Dokument-IDs durch...")
+    
+    # Optimierter Prozess: Primär PyArrow Filter, dann DataTrove als Fallback
+    for i, doc_id in enumerate(all_doc_ids):
+        if i % 10 == 0:
+            logger.info(f"Fortschritt: {i+1}/{len(all_doc_ids)} IDs verarbeitet...")
+        
+        # 1. Binäre Suche für die Datei
+        cleaned_file_path = binary_search_document(cleaned_index, doc_id)
+        if not cleaned_file_path:
+            continue
+            
+        # 2. In gold vorhanden?
+        gold_file_path = binary_search_document(gold_index, doc_id)
+        if not gold_file_path:
+            continue
+        
+        # 3. Schnelle PyArrow-Suche für Metadaten
+        doc_id_str = str(doc_id).strip()
+        metadata = {}
+        found = False
+        
+        try:
+            # PyArrow mit Filter (sehr schnell)
+            table = pq.read_table(cleaned_file_path, filters=[('id', '=', doc_id)])
+            
+            if len(table) > 0:
+                df = table.to_pandas()
+                matches = df[df['id'].astype(str).str.strip() == doc_id_str]
+                
+                if not matches.empty:
+                    # Metadaten extrahieren
+                    if 'metadata' in matches.columns and not pd.isna(matches.iloc[0]['metadata']):
+                        meta = matches.iloc[0]['metadata']
+                        if isinstance(meta, str):
+                            try:
+                                import json
+                                metadata = json.loads(meta)
+                            except:
+                                metadata = {}
+                        elif isinstance(meta, dict):
+                            metadata = meta
+                    
+                    found = True
+                    logger.debug(f"✅ PyArrow-Suche erfolgreich für {doc_id}")
+                    
+        except Exception as e:
+            logger.warning(f"PyArrow-Suche fehlgeschlagen für {doc_id}: {e}")
+        
+        # 4. Fallback auf DataTrove wenn PyArrow fehlschlägt
+        if not found:
+            try:
+                from datatrove.pipeline.readers import ParquetReader
+                cleaned_path = ensure_valid_path_for_datatrove(cleaned_file_path)
+                
+                logger.debug(f"DataTrove-Fallback für {doc_id}")
+                reader = ParquetReader(cleaned_path)
+                
+                for doc in reader.run():
+                    if str(doc.id).strip() == doc_id_str:
+                        # Metadaten extrahieren
+                        if hasattr(doc, 'metadata') and doc.metadata:
+                            if isinstance(doc.metadata, dict):
+                                metadata = doc.metadata
+                            elif isinstance(doc.metadata, str):
+                                try:
+                                    import json
+                                    metadata = json.loads(doc.metadata)
+                                except:
+                                    metadata = {}
+                        found = True
+                        break
+                        
+            except Exception as e:
+                logger.error(f"DataTrove-Fallback fehlgeschlagen für {doc_id}: {e}")
+        
+        # 5. Dokument zum Ergebnis hinzufügen wenn gefunden
+        if found:
+            doc_info = {
+                'id': doc_id,
+                'metadata': metadata,
+                'total_citations_removed': 0
+            }
+            
+            # Citations-Removed zählen
+            for key, value in metadata.items():
+                if '_citations_removed' in key:
+                    try:
+                        if isinstance(value, (int, float)):
+                            doc_info['total_citations_removed'] += value
+                        elif isinstance(value, str) and value.isdigit():
+                            doc_info['total_citations_removed'] += int(value)
+                    except (ValueError, TypeError):
+                        pass
+            
+            available_docs.append(doc_info)
+            found_count += 1
+    
+    # Ergebnisse sortieren
+    available_docs = sorted(available_docs, key=lambda x: x['id'])
+    
+    logger.info(f"📋 Category '{category_name}': {len(available_docs)}/{len(all_doc_ids)} Dokumente gefunden mit optimierter Suche")
+    return available_docs
+
+
+def build_fast_document_index(directory: Path):
+    """
+    Erstellt einen schnellen Index aller Dokument-IDs und ihrer Dateipfade.
+    Liest nur die ID-Spalte für maximale Geschwindigkeit.
+    """
+    logger.info(f"Erstelle schnellen Dokument-Index für {directory}...")
+    start_time = time.time()
+    
+    # Ergebnis-Index: {str(doc_id): file_path}
+    doc_index = {}
+    
+    # Alle Parquet-Dateien scannen
+    parquet_files = list(directory.glob("*.parquet"))
+    total_files = len(parquet_files)
+    
+    # Batch-Verarbeitung mit Fortschrittsanzeige
+    for i, file_path in enumerate(parquet_files):
+        if i % 10 == 0:
+            logger.info(f"Indexiere Datei {i+1}/{total_files} ({(i+1)/total_files*100:.1f}%)...")
+        
+        try:
+            # Nur ID-Spalte einlesen (schnell)
+            table = pq.read_table(file_path, columns=['id'])
+            df = pd.DataFrame({'id': table['id'].to_numpy()})
+            
+            # Alle IDs als Strings speichern
+            for doc_id in df['id']:
+                doc_id_str = str(doc_id).strip()
+                doc_index[doc_id_str] = file_path
+                
+        except Exception as e:
+            logger.error(f"Fehler beim Indexieren von {file_path}: {e}")
+    
+    elapsed = time.time() - start_time
+    logger.info(f"✅ Index für {directory} erstellt: {len(doc_index):,} Dokumente in {elapsed:.2f}s")
+    return doc_index
+
+
+def get_document_by_id_indexed(directory: Path, doc_id: str, file_index=None):
+    """Sucht ein Dokument mit dem optimierten Index-Lookup."""
+    cache_key = f"{directory}:{doc_id}"
+    if cache_key in config['document_cache']:
+        return config['document_cache'][cache_key]
+    
+    # Normalisierten ID-String erstellen
+    doc_id_str = str(doc_id).strip()
+    
+    # Index verwenden, wenn verfügbar
+    if file_index and doc_id_str in file_index:
+        file_path = file_index[doc_id_str]
+        logger.info(f"🔍 Direkter Index-Lookup für '{doc_id}' in {file_path.name}")
+        
+        try:
+            # Zuerst mit Filter versuchen (schnell)
+            table = pq.read_table(file_path, filters=[('id', '=', doc_id)])
+            if len(table) > 0:
+                # Robust: Stringvergleich mit strip()
+                df = table.to_pandas()
+                matches = df[df['id'].astype(str).str.strip() == doc_id_str]
+                
+                if not matches.empty:
+                    text = matches.iloc[0]['text']
+                    config['document_cache'][cache_key] = text
+                    logger.info(f"✅ Index-Lookup: Dokument gefunden in {file_path.name}")
+                    return text
+            
+            # Wenn Filter nicht funktioniert, ganzen Datensatz lesen (mit ID-Filterung)
+            table = pq.read_table(file_path)
+            df = table.to_pandas()
+            matches = df[df['id'].astype(str).str.strip() == doc_id_str]
+            
+            if not matches.empty:
+                text = matches.iloc[0]['text']
+                config['document_cache'][cache_key] = text
+                logger.info(f"✅ Index-Lookup (Volldatei): Dokument gefunden in {file_path.name}")
+                return text
+                
+        except Exception as e:
+            logger.error(f"Fehler bei Index-Lookup für {doc_id} in {file_path}: {e}")
+    
+    # Fallback: Standard-Suche
+    logger.info(f"🔍 Index-Lookup fehlgeschlagen für {doc_id}, verwende Standardsuche")
+    return get_document_by_id(directory, doc_id)
+
+
+def build_optimized_document_index(directory: Path):
+    """
+    Erstellt einen hochoptimierten, sortierten Index aller Dokument-IDs für binäre Suche.
+    Speichert pro Datei:
+    1. Sortierte Liste aller IDs 
+    2. Min/Max ID für schnelles Ausschließen
+    """
+    logger.info(f"Erstelle optimierten Divide-and-Conquer-Index für {directory}...")
+    start_time = time.time()
+    
+    # Ergebnis-Struktur:
+    # {
+    #   'by_file': {file_path: {'ids': sorted_ids, 'min': min_id, 'max': max_id}},
+    #   'id_to_file': {id_str: file_path}
+    # }
+    result = {'by_file': {}, 'id_to_file': {}}
+    
+    # Alle Parquet-Dateien scannen
+    parquet_files = list(directory.glob("*.parquet"))
+    total_files = len(parquet_files)
+    total_ids = 0
+    
+    # Für jede Datei
+    for i, file_path in enumerate(parquet_files):
+        if i % 10 == 0 or i == total_files - 1:
+            logger.info(f"Indexiere Datei {i+1}/{total_files} ({(i+1)/total_files*100:.1f}%)...")
+        
+        try:
+            # Nur ID-Spalte einlesen (sehr schnell)
+            table = pq.read_table(file_path, columns=['id'])
+            ids = table['id'].to_numpy()
+            
+            # Alle IDs als normalisierte Strings
+            id_strings = [str(id_val).strip() for id_val in ids]
+            
+            # Sortieren für binäre Suche
+            sorted_ids = sorted(id_strings)
+            
+            if sorted_ids:
+                # Pro Datei speichern
+                result['by_file'][str(file_path)] = {
+                    'ids': sorted_ids,
+                    'min': sorted_ids[0],
+                    'max': sorted_ids[-1]
+                }
+                
+                # Lookup-Index für schnellen Zugriff
+                for id_str in id_strings:
+                    result['id_to_file'][id_str] = str(file_path)
+                    
+                total_ids += len(id_strings)
+                
+        except Exception as e:
+            logger.error(f"Fehler beim Indexieren von {file_path}: {e}")
+    
+    elapsed = time.time() - start_time
+    logger.info(f"✅ Optimierter Index erstellt: {total_ids:,} Dokumente in {len(parquet_files)} Dateien in {elapsed:.2f}s")
+    
+    # Index persistent speichern
+    save_optimized_index(result, directory)
+    
+    return result
+
+
+def binary_search_document(index, doc_id: str):
+    """
+    Effiziente Suche mit Divide-and-Conquer-Strategie:
+    1. Direkter Lookup über id_to_file-Map
+    2. Wenn nicht gefunden, überprüfe jede Datei mit Min/Max-Filter
+    3. Binäre Suche in der sortierten ID-Liste jeder relevanten Datei
+    """
+    # Normalisierte ID
+    doc_id_str = str(doc_id).strip()
+    
+    # 1. Direkter Lookup (O(1))
+    if doc_id_str in index['id_to_file']:
+        return index['id_to_file'][doc_id_str]
+    
+    # 2. Min/Max-Filterung mit binärer Suche in jeder Datei
+    for file_path, file_data in index['by_file'].items():
+        # Schneller Min/Max-Check
+        if doc_id_str < file_data['min'] or doc_id_str > file_data['max']:
+            continue
+        
+        # Binäre Suche in der sortierten ID-Liste
+        sorted_ids = file_data['ids']
+        left, right = 0, len(sorted_ids) - 1
+        
+        while left <= right:
+            mid = (left + right) // 2
+            mid_id = sorted_ids[mid]
+            
+            if mid_id == doc_id_str:
+                return file_path
+            elif mid_id < doc_id_str:
+                left = mid + 1
+            else:
+                right = mid - 1
+                
+        # Noch ein linearer Scan für ähnliche IDs (Toleranz für Formatunterschiede)
+        # Dies ist nur ein Backup, sollte selten genutzt werden
+        for id_str in sorted_ids:
+            if id_str.replace(" ", "") == doc_id_str.replace(" ", ""):
+                return file_path
+    
+    # Nichts gefunden
+    return None
+
+
+def get_index_filename(directory: Path):
+    """Generate a unique filename for the index based on directory path and content."""
+    # Create a hash of the directory path to avoid filename conflicts
+    dir_hash = hashlib.md5(str(directory.absolute()).encode()).hexdigest()[:8]
+    return f"index_{dir_hash}.pkl"
+
+def save_optimized_index(index, directory: Path):
+    """Save the optimized index to disk."""
+    try:
+        index_file = Path("data") / "indexes" / get_index_filename(directory)
+        index_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        with open(index_file, 'wb') as f:
+            pickle.dump(index, f)
+        
+        logger.info(f"✅ Index gespeichert: {index_file}")
+        return True
+    except Exception as e:
+        logger.error(f"Fehler beim Speichern des Index: {e}")
+        return False
+
+def load_optimized_index(directory: Path):
+    """Load the optimized index from disk if it exists."""
+    try:
+        index_file = Path("data") / "indexes" / get_index_filename(directory)
+        
+        if not index_file.exists():
+            logger.info(f"Kein gespeicherter Index gefunden: {index_file}")
+            return None
+        
+        # Check if index is still valid (directory hasn't changed significantly)
+        if not is_index_valid(index_file, directory):
+            logger.info(f"Index veraltet, wird neu erstellt: {index_file}")
+            return None
+        
+        with open(index_file, 'rb') as f:
+            index = pickle.load(f)
+        
+        logger.info(f"✅ Index geladen: {index_file}")
+        return index
+    except Exception as e:
+        logger.error(f"Fehler beim Laden des Index: {e}")
+        return None
+
+def is_index_valid(index_file: Path, directory: Path):
+    """Check if the saved index is still valid by comparing file counts and modification times."""
+    try:
+        # Get current parquet files
+        current_files = set(f.name for f in directory.glob("*.parquet"))
+        
+        # Get index file modification time
+        index_mtime = index_file.stat().st_mtime
+        
+        # Check if any parquet files are newer than the index
+        for parquet_file in directory.glob("*.parquet"):
+            if parquet_file.stat().st_mtime > index_mtime:
+                logger.info(f"Parquet file {parquet_file.name} ist neuer als Index")
+                return False
+        
+        return True
+    except Exception as e:
+        logger.error(f"Fehler bei Index-Validierung: {e}")
+        return False
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Simple Web-based document diff viewer")
     
@@ -1636,6 +2477,7 @@ if __name__ == '__main__':
     parser.add_argument("--auth-token", default=os.environ.get('NGROK_AUTH_TOKEN'))
     parser.add_argument("--max-files", type=int, default=100, help="Maximum number of parquet files to scan")
     parser.add_argument("--max-docs", type=int, default=2000, help="Maximum number of documents to load")
+    parser.add_argument("--skip-index", action="store_true", help="Skip building the optimized index")
     
     args = parser.parse_args()
     
@@ -1651,10 +2493,60 @@ if __name__ == '__main__':
         print(f"❌ Cleaned directory not found: {config['cleaned_dir']}")
         exit(1)
     
-    print(f"🚀 Starting Simple Document Diff Viewer")
+    print(f"🚀 Starting Document Diff Viewer with Divide-and-Conquer Search")
     print(f"Gold data: {config['gold_dir']}")
     print(f"Cleaned data: {config['cleaned_dir']}")
     print(f"Local server: http://{args.host}:{args.port}")
+    
+    # Build optimized index (optional, can be skipped with --skip-index)
+    if not args.skip_index:
+        print(f"\n🚀 Lade oder erstelle optimierte Divide-and-Conquer-Indizes...")
+        try:
+            # Parallel index building for both directories
+            def build_cleaned_index():
+                cleaned_index_key = f"{config['cleaned_dir']}_index".replace("/", "_").replace("\\", "_")
+                # Versuche zuerst gespeicherten Index zu laden
+                saved_index = load_optimized_index(config['cleaned_dir'])
+                if saved_index:
+                    config[cleaned_index_key] = saved_index
+                    print(f"✅ Gespeicherter Index für cleaned geladen")
+                else:
+                    config[cleaned_index_key] = build_optimized_document_index(config['cleaned_dir'])
+                
+            def build_gold_index():
+                gold_index_key = f"{config['gold_dir']}_index".replace("/", "_").replace("\\", "_")
+                # Versuche zuerst gespeicherten Index zu laden
+                saved_index = load_optimized_index(config['gold_dir'])
+                if saved_index:
+                    config[gold_index_key] = saved_index
+                    print(f"✅ Gespeicherter Index für gold geladen")
+                else:
+                    config[gold_index_key] = build_optimized_document_index(config['gold_dir'])
+                
+            cleaned_thread = threading.Thread(target=build_cleaned_index)
+            gold_thread = threading.Thread(target=build_gold_index)
+            
+            cleaned_thread.start()
+            gold_thread.start()
+            
+            # Wait for both threads to complete
+            cleaned_thread.join()
+            gold_thread.join()
+            
+            print(f"✅ Optimierte Indizes erfolgreich geladen/erstellt!")
+            
+        except Exception as e:
+            print(f"⚠️ Warnung: Konnte optimierte Indizes nicht erstellen: {e}")
+    else:
+        print(f"\n⚠️ Indexierung übersprungen (--skip-index)")
+    
+    # Load list categories at startup
+    print(f"\n📋 Loading list categories...")
+    try:
+        load_list_categories()
+        print(f"✅ Loaded {len(config['list_categories'])} list categories")
+    except Exception as e:
+        print(f"⚠️ Warning: Could not load list categories: {e}")
     
     if args.ngrok:
         print(f"\n🚀 Starting ngrok tunnel...")
@@ -1669,14 +2561,7 @@ if __name__ == '__main__':
     
     print(f"\n🚀 Starting server...")
     
-    # Index automatisch beim Start bauen
-    build_parquet_index(config['cleaned_dir'], config['gold_dir'])
-    # Kein Full-Scan beim Start!
-    # scan_thread = threading.Thread(target=background_scan)
-    # scan_thread.daemon = True
-    # scan_thread.start()
-    
     try:
         app.run(host=args.host, port=args.port, debug=False)
     except KeyboardInterrupt:
-        print(f"\n👋 Simple viewer shutting down...")
+        print(f"\n👋 Viewer shutting down...")

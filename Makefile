@@ -93,4 +93,4 @@ web-diff-custom: ## Start web diff viewer with custom directories
 	.venv/bin/python scripts/util/web_diff_viewer_fast.py --gold-dir $(GOLD_DIR) --cleaned-dir $(CLEANED_DIR)
 
 web-diff-test: ## Start web diff viewer with test data directories
-	.venv/bin/python scripts/util/web_diff_viewer_simple.py --gold-dir data/statistics_test/enriched_documents_statistics_v2 --cleaned-dir data/cleaned --ngrok
+	.venv/bin/python scripts/util/web_diff_viewer_simple.py --gold-dir data/statistics_data_gold/enriched_documents_statistics_v2 --cleaned-dir data/cleaned --ngrok
