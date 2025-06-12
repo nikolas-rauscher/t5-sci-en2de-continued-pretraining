@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=hydra-stats-H100
+#SBATCH --job-name=data_cleaning 
 #SBATCH --time=23:00:00
 #SBATCH --cpus-per-task=76   # 75 CPUs auf dem H100-Node nutzen
 #SBATCH --mem=100G            # 100G RAM (angepasst für 75 CPUs, H100 hat viel)
