@@ -1,0 +1,242 @@
+\include{expose.preambel}
+\usepackage{booktabs}
+\usepackage{array} 
+
+\subject{Bachelor Thesis Exposé}
+\title{Adapting a Continually Pre-Trained T5 Model on Scientific Data to German Using Cross-Lingual Pre-Training Transfer}
+\author{
+Nikolas Ching-Pu Rauscher (470228)\textsuperscript{1,2}, 
+Fabio Barth\textsuperscript{2} \\
+\vspace{-0.5em}
+Prof. Dr. Sebastian Möller\textsuperscript{1,2}, 
+Prof. Dr. Georg Rehm\textsuperscript{2,3} \\
+%\vspace{1.5em}
+{\fontsize{11.5pt}{12pt}\selectfont
+\textsuperscript{1}Technische Universität Berlin, Quality and Usability, Ernst-Reuter-Platz 7, 10587 Berlin, Germany \\
+\textsuperscript{2}DFKI Lab Berlin, Alt-Moabit 91c, 10559 Berlin, Germany\\
+\textsuperscript{3}Humboldt Universität Berlin, Unter den Linden 6, 10099 Berlin, Germany
+}
+}
+\date{\today}
+
+
+\begin{document}
+
+\maketitle
+
+
+\section{Introduction}
+Transformer models have revolutionized Natural Language Processing (NLP), achieving remarkable results across various tasks. Models such as GPT-3 and T5 have been predominantly pre-trained on large-scale, general-purpose datasets consisting of web crawls, including Common Crawl (CC) and its refined variants like the Colossal Clean Crawled Corpus (C4) or OSCAR \cite{brackCommunityOSCARCommunity2024, abadjiCleanerDocumentOrientedMultilingual2022}. This data-intensive pre-training approach enables models to learn diverse linguistic patterns and features present in the training data.
+\\
+
+However, relying on web crawls presents specific challenges. Web-mined corpora are characterized by substantial noise. For example, datasets often include redundant content such as repeated HTML boilerplate, including headers, footers, and navigation menus, as well as templated text such as legal disclaimers and privacy policies \cite{perelkiewiczReviewChallengesMassive2024,penedoFineWebDatasetsDecanting2024}. They also exhibit documented biases and stereotypes. For example, web-mined corpora may disproportionately reflect dominant languages or cultural perspectives, which can skew the overall representation of views and topics \cite{baeza-yatesQualityEfficiencyTradeoffsMachine2017}. Despite sophisticated filtering techniques, these quality issues remain largely unavoidable when working with web-scale data. For example, the RedPajama-V2 project found that approximately 40\% of the data in 84 Common Crawl archives were exact duplicates \cite{perelkiewiczReviewChallengesMassive2024}.
+\\
+
+Scientific texts, in contrast, offer a valuable alternative to generic web data. Scientific literature features inherently higher data quality, the use of precise and domain-specific terminology, and the incorporation of deep expertise. Furthermore, scientific publications typically undergo rigorous peer-review processes, ensuring a high degree of validity and reliability.
+\\
+
+The trade-off between data quantity and quality is a central theme in contemporary LLM research \cite{taylorGalacticaLargeLanguage2022,phanSciFiveTexttotextTransformer2021,oladipoBetterQualityPretraining2023a}. Studies involving domain-specific datasets, such as SciFive \cite{phanSciFiveTexttotextTransformer2021} for biomedical literature or Galactica \cite{taylorGalacticaLargeLanguage2022}, indicate that focused, high-quality data can lead to more refined learning processes and improved performance in specialized tasks. While sheer data volume has been a driving force behind the success of many models, this work suggests that data quality can have a significant impact, even with smaller datasets.
+\\
+
+However, a significant challenge lies in the limited availability of scientific texts in languages other than English. For example, in German, the lack of high-quality scientific texts often leads to supplementing data with less curated sources, such as web crawls, and using machine-translated content to obtain sufficiently large datasets. Consequently, this can introduce noise, inaccuracies, and inconsistencies, thereby hindering model performance \cite{ibrahimSimpleScalableStrategies2024,brackCommunityOSCARCommunity2024,perelkiewiczReviewChallengesMassive2024}.
+\\
+
+To address these challenges, transfer learning techniques offer promising solutions by leveraging knowledge from resource-rich languages (like English) and efficiently transferring it to resource-constrained languages (like German) \cite{ostendorffEfficientLanguageModel2023}. Cross-Lingual Pre-training (CLP-Transfer) enables adaptation to new languages by transferring Transformer architectures and token embeddings, potentially preserving the domain-specific knowledge acquired during pre-training \cite{ostendorffEfficientLanguageModel2023}.
+\\
+
+Given the limited resources, especially for computationally intensive Large Language Models (LLMs), this thesis focuses on the T5 Text-to-Text Transfer Transformer model and pursues two central hypotheses. 
+
+\begin{enumerate}
+    \item First, it investigates whether an English T5 model pre-trained on a self-compiled, high-quality dataset of scientific books and articles (based on Unpaywall\footnote{https://unpaywall.org \label{fn:unpaywall}} data) achieves better performance than models based on generic web data.
+    \item Second, it evaluates the effectiveness of CLP-Transfer \cite{ostendorffEfficientLanguageModel2023} to transfer the knowledge acquired in the English model to a lower resource language like  German.
+\end{enumerate}
+
+This thesis explores how the advantages of pre-training on high-quality data and efficient transfer learning can be combined to advance language model development in resource-constrained contexts, providing insights into building robust models for such languages.
+
+\section{Problem Statement and Research Questions} % Geänderter Titel
+The challenges associated with web-mined data quality and the scarcity of high-quality scientific resources in languages like German motivate the core research questions of this thesis:
+
+\begin{enumerate}
+    \item[\textbf{Q1:}] \textbf{Assessing the Benefit of High-Quality Scientific Pre-training:} Does an English T5 model, pre-trained on a high-quality English dataset of scientific books and articles (Unpaywall data), achieve superior performance compared to models pre-trained on generic web crawl data? Performance will be assessed based on training metrics (perplexity, loss curve) and downstream task evaluation (accuracy, F1 scores) on scientific question-answering and the Massive Multitask Language Understanding (MMLU) benchmark \cite{hendrycksMeasuringMassiveMultitask2021}.
+
+    \item[\textbf{Q2:}] \textbf{Effectiveness of Cross-Lingual Transfer:} Can Cross-Lingual Pre-training Transfer (CLP-Transfer) techniques effectively leverage the knowledge acquired by the scientifically pre-trained English T5 model for adaptation to German? Will the resulting German T5 model outperform standard monolingual German models trained on general-purpose corpora (like CC variants) or limited German scientific data?
+\end{enumerate}
+
+
+\subsection{Data Basis}
+
+The dataset consists of scientific books and articles collected via Unpaywall\footnotemark{\ref{fn:unpaywall}} and provided by the German Research Center for Artificial Intelligence (DFKI). The total size is 414.5~GB. The language distribution is shown below. Only languages with at least 0.5\% are listed separately; the remaining languages are summarized.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lcc}
+\toprule
+Language    & Size (GB) & Percentage (\%) \\
+\midrule
+eng\_Latn   & 306.48    & 73.95           \\
+por\_Latn   & 25.30     & 6.10            \\
+spa\_Latn   & 14.55     & 3.51            \\
+jpn\_Jpan   & 10.71     & 2.59            \\
+rus\_Cyrl   & 9.05      & 2.18            \\
+deu\_Latn   & 8.25      & 1.99            \\
+fra\_Latn   & 7.95      & 1.92            \\
+ind\_Latn   & 5.16      & 1.24            \\
+ukr\_Cyrl   & 3.19      & 0.77            \\
+tur\_Latn   & 2.53      & 0.61            \\
+pol\_Latn   & 2.46      & 0.59            \\
+\midrule
+Other languages & 7.11  & 1.71            \\
+\bottomrule
+\end{tabular}
+\caption{Language distribution in the dataset (only languages with at least 0.5\% are listed separately).}
+\label{tab:language_distribution}
+\end{table}
+
+\subsection{Related Work}
+
+\paragraph{Transformer Models and T5:}
+Transformer models are fundamental to modern NLP. T5 (Text-to-Text Transfer Transformer), developed by Google \cite{raffelExploringLimitsTransfer2023}, is a Transformer that uses the encoder and decoder architecture, known for its "text-to-text" approach and suitability for transfer learning. This thesis focuses on T5 due to its NLP capabilities and moderate resource demands compared to larger LLMs, considering efficient training strategies explored with T5 \cite{suryakusumaInvestigatingT5Generation2023}.
+
+\paragraph{Common Crawl (CC) and Web-based Datasets:}
+Common Crawl (CC) is a public archive of web crawls providing vast amounts of text data. Many large language models, including early GPT-3 and T5 versions, were pre-trained on datasets based on CC. These datasets offer broad linguistic patterns and general knowledge but are known for noise and biases \cite{baeza-yatesQualityEfficiencyTradeoffsMachine2017}. Recent research has shown that web data contains a considerable proportion of machine-translated content, raising concerns about data quality for LLM pre-training \cite{thompsonShockingAmountWeb2024}.
+
+\paragraph{Colossal Clean Crawled Corpus (C4) and OSCAR:}
+
+C4 (Colossal Clean Crawled Corpus) and OSCAR are curated versions of Common Crawl, designed to enhance data quality through filtering. C4, which was specifically created as a cleaned dataset for pre-training the T5 model, improves data quality by removing noisy and low-quality content. Community OSCAR \cite{brackCommunityOSCARCommunity2024} expands upon OSCAR by providing a larger dataset with optimized processing pipelines, while efforts toward cleaner, document-oriented multilingual web corpora \cite{abadjiCleanerDocumentOrientedMultilingual2022} further refine dataset quality. Despite these improvements, web-based datasets continue to face quality challenges, particularly in specialized domains. This issue is evident in the context of African languages \cite{oladipoBetterQualityPretraining2023a}, highlighting the trade-offs between data quantity and quality in machine learning for text processing \cite{baeza-yatesQualityEfficiencyTradeoffsMachine2017a}. Community OSCAR \cite{brackCommunityOSCARCommunity2024} specifically addresses data availability for multilingual models, making it relevant to the multilingual focus of this thesis.
+
+
+\paragraph{Training on Domain-Specific High-Quality Data:}
+Research indicates the benefits of training language models on domain-specific, high-quality datasets for specialized tasks \cite{taylorGalacticaLargeLanguage2022,phanSciFiveTexttotextTransformer2021}. For instance, SciFive demonstrates enhanced performance in the biomedical domain by pre-training T5-based models on biomedical literature, outperforming current state-of-the-art methods in tasks such as named entity recognition, relation extraction, natural language inference, and question-answering \cite{phanSciFiveTexttotextTransformer2021}. Similarly, Galactica highlights the potential of scientific data by training a large language model on an extensive scientific corpus, achieving state-of-the-art results on various benchmarks, including LaTeX equations, mathematical MMLU, MATH, PubMedQA, MedMCQA, and BIG-bench \cite{taylorGalacticaLargeLanguage2022}. These examples suggest that focused, high-quality data can lead to more effective learning in specialized areas compared to generic web data, resulting in higher accuracy, improved reasoning capabilities, and enhanced performance in domain-specific tasks.
+
+\paragraph{Multilingual vs. Monolingual Language Models:}
+Monolingual models like BERT \cite{devlin_bert_2019} are trained primarily on a single language, in this case English, and offer high performance on language-specific tasks such as text classification and Named Entity Recognition \cite{devlin_bert_2019}. In contrast, multilingual models, like BLOOM \cite{scaoBLOOM176BParameterOpenAccess} and mT5 \cite{xueMT5MassivelyMultilingual2021}, are pre-trained on many languages, enabling cross-lingual knowledge transfer and better suitability for transfer learning. This work explores transfer learning to leverage multilingual advantages for German models, drawing from cross-lingual transfer learning methods \cite{ostendorffEfficientLanguageModel2023}, multilingual models \cite{xueMT5MassivelyMultilingual2021, scaoBLOOM176BParameterOpenAccess}, and multilingual web data research \cite{brackCommunityOSCARCommunity2024}.
+
+\paragraph{Cross-Lingual Pre-training Transfer (CLP-Transfer):}
+Cross-Lingual Pre-training Transfer (CLP-Transfer) is an efficient transfer learning method for adapting knowledge from a resource-rich language, such as English, to a target language with fewer pre-training resources, such as German \cite{ostendorffEfficientLanguageModel2023}. This approach involves replacing token embeddings while retaining the Transformer architecture, enabling rapid adaptation to target languages and efficient updates to large language models.
+
+\paragraph{MUSE Embedding Alignment:}
+MUSE (Multilingual Unsupervised and Supervised Embeddings) Embedding Alignment aligns word embedding spaces across languages, bringing semantically similar words in different languages closer \cite{ramirezNovelApplicationWassersteinProcrustes2024}. With CLP-Transfer, MUSE can improve knowledge transfer quality by aligning target language token representations with the source language model's knowledge.
+%\newpage
+
+\section{Concrete plans for realization}
+\subsection{Maximizing Data Quality and Pre-training}
+We will perform continued pre-training on an existing English T5-Base model using the English portion of our self-compiled scientific dataset.  This pre-training phase is designed to leverage knowledge of the scientific dataset with high data quality.
+The core hypothesis is that this scientifically pre-trained T5 model will outperform models trained on generic datasets.
+
+\subsection{Implementation of Cross-Lingual Pre-training Transfer (CLP-Transfer)}
+We will implement CLP-Transfer as the primary knowledge transfer strategy to efficiently adapt the English model to German. This involves adopting the Transformer architecture and exchanging token embeddings for rapid adaptation to German.
+
+\subsection{Optional Extension: MUSE Embedding Alignment}
+If time and resources permit, we will explore an optional extension by incorporating MUSE Embedding Alignment techniques in combination with CLP-Transfer. This combined approach aims to refine the token embedding space, potentially leading to a more precise semantic alignment with the German scientific context and further optimizing transfer effectiveness.
+
+
+\subsection{Model Evaluation and Validation}
+We will evaluate and validate our models, starting with the T5-base architecture, by quantifying the benefits of scientific pre-training and the CLP-Transfer approach using:
+
+\begin{itemize}
+    \item Performance evaluation against baseline models (e.g., German-T5, T5-base).
+    \item Demonstration of progress and methodology validity using these baselines.
+    \item Evaluation of model capabilities using the MMMLU benchmark and potentially  other downstream tasks (see Experimental Setup \ref{Experimental_Setup})
+\end{itemize}
+
+
+\section{Methodology and Experimental Procedure}
+\subsection{Data Preparation}
+In the data preparation step, we develop a pipeline to process the scientific dataset, which was initially gathered using GROBID\footnote{https://github.com/kermitt2/grobid}. The pipeline refines the data by deduplicating it and removing noise, such as incorrectly detected languages and formatting issues like unnecessary line breaks and PDF artifacts. We implement text-cleaning procedures to standardize the dataset and explore scientific tokenization techniques to achieve optimal representation. Additionally, we conduct an extensive analysis of the dataset by examining text distribution, performing domain analysis using topic modeling and clustering techniques, and implementing anomaly identification methods to detect erroneous documents. 
+
+\subsection{Pre-training (English T5)}
+In the pre-training step for the English T5 model, we develop a dedicated pre-training pipeline.  This pipeline trains the model exclusively on the English scientific dataset. We monitor progress using perplexity and the loss.  Hyperparameter tuning is performed within the pipeline. Sequential pre-training strategies may be considered.  Pre-training starts with the T5-Base architecture.
+
+\subsection{Tokenizer Training (German)}
+We develop a German tokenizer using SentencePiece\footnote{https://github.com/google/sentencepiece} or BPE algorithms\footnote{https://huggingface.co/learn/nlp-course/en/chapter6/5}. We will either use a large German text corpus (non-scientific dataset) for the German tokenizer or use an already established German tokenizer.  This tokenizer will be used for transfer learning and fine-tuning.
+
+\subsection{Transfer Learning}
+\textbf{CLP-Transfer (Embedding Exchange):}
+For the transfer experiment, the CLP-Transfer methodology will be implemented. This approach involves adopting the pre-trained Transformer weights from the English model.  The core of CLP-Transfer will be the direct exchange of token embeddings to adapt the model to the German language domain.\\
+
+\textbf{(Optional) CLP+MUSE (Embedding Alignment):}
+In an optional second experiment, the CLP+MUSE approach will be explored. This experiment also starts with the adoption of Transformer weights. It extends CLP-Transfer by aligning token embeddings using the MUSE methodology. This advanced transfer technique aims to enhance embeddings to achieve a refined semantic alignment with the German scientific context.
+
+\subsection{Fine-tuning}
+In this step, we fine-tune the transferred models via CLP-Transfer (and optionally CLP+MUSE).  
+
+\subsection{Evaluation}
+The evaluation will assess the performance of the pre-trained and transferred models, focusing on scientific understanding and cross-lingual knowledge transfer. We will use the Massive Multitask Language Understanding (MMMLU) benchmark \cite{hendrycksMeasuringMassiveMultitask2021}, covering 57 subjects including scientific fields like biology and physics, to evaluate both English and German models. Its multilingual version, supporting 26 languages including German, ensures a consistent comparison for assessing Cross-Lingual Pre-training Transfer (CLP-Transfer). \\
+
+Optionally, the English model may be evaluated with the SciQA benchmark \cite{lehmann_large_2024} for scientific question-answering, based on nearly 15,000 articles from the Open Research Knowledge Graph. Lacking a German equivalent, MMMLU will be the primary benchmark for the German model. Performance will be measured with accuracy for MMMLU’s multiple-choice questions, and optionally F1-score and exact match ratio for SciQA. The GermanQuAD dataset \cite{noauthor_papers_nodate} may supplement general language evaluation for German.\\
+
+Results will be compared to baselines from Section \ref{Experimental_Setup}, quantifying the benefits of scientific pre-training and CLP-Transfer efficiency.
+
+\subsubsection{Experimental Setup} \label{Experimental_Setup}
+To investigate the added value of our approach, we will train and compare the following models and scenarios against the current state of research:
+
+\begin{enumerate}
+    \item \textbf{English Baseline Model (T5-base):} An existing pre-trained English T5-base\footnote{https://huggingface.co/google-t5/t5-base} model, serving as a standard reference.
+    \item \textbf{Self-trained English T5 Model (T5-base-w-en):} Our model, pre-trained on our scientific English dataset.
+    \item \textbf{Plain German T5 Model (German-T5-Bases-hf):} A German T5\footnote{https://huggingface.co/GermanT5/t5-efficient-gc4-german-base-nl36} model trained with an existing German tokenizer and dataset.
+    \item \textbf{Transferred German T5 Model (T5-base-w-en-to-de-clp):} Our English scientifically pre-trained T5-base model, adapted to German via CLP-Transfer.
+    \item \textbf{(Optional)} Transferred German T5 Model with MUSE + CLP: The English pre-trained model transferred to German using CLP-Transfer combined with MUSE embedding alignment, kept as an optional extension.
+\end{enumerate}
+
+These models allow us to assess the impact of scientific pre-training and the efficiency of cross-lingual transfer.
+
+\subsubsection{Evaluation Setup}
+The performance of the above models will be evaluated using benchmarks and metrics from the Evaluation section to quantify improvements over baselines:
+
+\begin{itemize}
+    \item \textbf{English Models (T5-base, T5-base-w-en):} Evaluated on MMMLU (accuracy) and optionally SciQA (accuracy, F1-score, exact match ratio).
+    \item \textbf{German Models (German-T5-Bases-hf, T5-base-w-en-to-de-clp, optional MUSE variant):} Evaluated on the multilingual MMMLU (accuracy) and optionally GermanQuAD (accuracy, F1-score).
+\end{itemize}
+
+This setup ensures a direct comparison across models, testing the hypotheses of superior scientific pre-training and effective CLP-Transfer.
+
+
+\section{Timeline}
+\begin{table}[h]
+    \centering
+    \begin{tabular}{p{0.1\textwidth}p{0.75\textwidth}}
+        \toprule
+        \textbf{Month} & \textbf{Tasks} \\
+        \midrule
+        Month 1         & Literature research, data preparation and analysis of the scientific dataset \\ \hline
+        Month 2         & Pre-training of the English T5 model (scientific), analysis of training metrics \\ \hline
+        Month 3         & Implementation of CLP-Transfer, weight transfer \& embedding initialization\\ \hline
+        Month 4         & Fine-tuning of the transferred models (German), execution of downstream experiments, results analysis (both experiments \& baseline comparison), evaluations \\ \hline
+        Month 5         & Documentation, writing phase, reserve, potential fine-tuning of evaluation \\
+        \bottomrule
+    \end{tabular}
+    \caption{Project Timeline}
+    \label{tab:timeline}
+\end{table}
+\newpage
+\section{Expected Outcomes}
+This thesis aims to achieve the following outcomes:
+
+\begin{itemize}
+    \item \textbf{Improved Training Metrics through Scientific Pre-training:} We expect the T5 model pre-trained on the scientific dataset to demonstrate measurable improvements in training metrics compared to models trained on generic web data. Specifically, we anticipate lower perplexity and a steeper drop in the loss curve during pre-training.
+
+    \item \textbf{Enhanced Performance in Downstream Tasks for the English Model:} We anticipate that the scientifically pre-trained English model will achieve quantitatively better results in various downstream tasks. We expect higher accuracy and F1 scores in scientific question-answering tasks, as well as in the MMMLU benchmark, compared to baseline models.
+
+    \item \textbf{Improved Understanding of Scientific Concepts:} We assume that scientific pre-training will enhance the model's ability to capture and process scientific concepts and terminology. This should be reflected in improved performance in tasks requiring deeper scientific understanding, such as scientific question-answering and scientific article classification.
+
+    \item \textbf{Effective and Resource-Efficient Transfer to German through CLP-Transfer:} We expect the CLP-Transfer approach to enable effective and resource-efficient knowledge transfer to the German language domain. We anticipate that the transferred German T5 models will outperform monolingual German T5 models trained on generic or limited German scientific data. This would demonstrate the added value of cross-lingual transfer in combination with high-quality English pre-training.
+
+    \item \textbf{Potential for Improved Language Model Development in Low-Resource Contexts:} Beyond quantitative metrics, we expect the results of this thesis to provide valuable insights and recommendations for developing robust language models in low-resource language contexts. This could be particularly significant for scientific domains with limited high-quality data resources.
+\end{itemize}
+
+\section{Potential Problems}
+
+The practical execution of this project may encounter several challenges:
+\begin{itemize}
+    \item \textbf{Computational Limitations:} Training multiple T5 models may exceed available GPU resources, potentially forcing compromises.
+    \item \textbf{Data Scarcity:} The limited volume of high-quality German scientific texts could result in inadequate language representation, affecting transfer learning effectiveness.
+    \item \textbf{Model Constraints:} The underlying design of the T5 architecture may restrict the benefits achievable solely through improved data quality compared to decoder-only models.
+    \item \textbf{Evaluation Overhead:} Thorough testing of various model configurations will require extensive computing time, which could slow down the overall experimentation process.
+    \item \textbf{Reproducibility Issues:} Variations in training setups and data splits may lead to inconsistent outcomes.
+\end{itemize}
+
+
+\printbibliography
+
+
+\end{document}
