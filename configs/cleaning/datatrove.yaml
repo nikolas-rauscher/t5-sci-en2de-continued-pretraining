@@ -7,21 +7,21 @@ logger:
   wandb:
     project: "BA-DataTrove"
     group: "citation-cleaning"
-    tags: ["citation-cleaning", "datatrove", "text-preprocessing"]
+    tags: ["citation-cleaning", "datatrove", "text-preprocessing", "testing"]
     job_type: "data-cleaning"
-    save_code: true
-    notes: "Citation cleaning with regex pattern"
+    save_code: false
+    notes: "TESTING: Citation cleaning with regex pattern"
 
 paths:
   # (Basisordner)
   src_dir: /netscratch/nrauscher/projects/BA-hydra/data/statistics_data_gold/enriched_documents_statistics_v2
   src_pattern: "*.parquet"
   # Ziel-Ordner
-  dst: /netscratch/nrauscher/projects/BA-hydra/data/cleaned/
+  dst: /netscratch/nrauscher/projects/BA-hydra/data/cleaned-testing/
 
 cleaning:
   # Parameter für die Begrenzung der Dokumente für Testläufe (-1 = keine Begrenzung)
-  limit_documents: 100 # limit pro task 
+  limit_documents: 1000 # limit pro task 
   # URL-Filter-Parameter
   
   # Debug Mode - zeigt Debug-Tags statt Text zu entfernen
