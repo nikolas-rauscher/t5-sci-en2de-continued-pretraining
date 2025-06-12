@@ -80,3 +80,17 @@ stats-production-chained: ## Run production chained pipeline with high-performan
 # Stats analysis commands
 analyze: ## Basic stats analysis with plots and CSV export
 	.venv_spacy_stats/bin/python scripts/analyze_stats.py
+
+# Web diff viewer commands
+web-diff: ## Start web diff viewer with default settings
+	.venv/bin/python scripts/util/web_diff_viewer_fast.py
+
+web-diff-ngrok: ## Start web diff viewer with ngrok tunnel for external access
+	.venv/bin/python scripts/util/web_diff_viewer_fast.py --ngrok
+
+web-diff-custom: ## Start web diff viewer with custom directories
+	@echo "Usage: make web-diff-custom GOLD_DIR=path/to/gold CLEANED_DIR=path/to/cleaned"
+	.venv/bin/python scripts/util/web_diff_viewer_fast.py --gold-dir $(GOLD_DIR) --cleaned-dir $(CLEANED_DIR)
+
+web-diff-test: ## Start web diff viewer with test data directories
+	.venv/bin/python scripts/util/web_diff_viewer_simple.py --gold-dir data/statistics_test/enriched_documents_statistics_v2 --cleaned-dir data/cleaned --ngrok

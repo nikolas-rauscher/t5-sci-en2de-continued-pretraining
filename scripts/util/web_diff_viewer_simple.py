@@ -16,6 +16,8 @@ import os
 import threading
 import time
 import re
+import random
+from datatrove.pipeline.readers import ParquetReader
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -30,7 +32,8 @@ config = {
     'document_cache': {},
     'available_docs': [],
     'loading_status': 'ready',
-    'document_metadata': {}
+    'document_metadata': {},
+    'parquet_index': {}
 }
 
 # Cleaning-Methoden, die als Filter verwendet werden können
@@ -52,104 +55,70 @@ CLEANING_METHODS = [
 ]
 
 
-def quick_scan_documents(cleaned_dir: Path, gold_dir: Path, max_files: int = 50, max_docs: int = 1000):
-    """Quick document discovery with metadata extraction."""
-    logger.info(f"Quick scan starting...")
+def quick_scan_documents(cleaned_dir: Path, gold_dir: Path, max_files: int = None, max_docs: int = None):
+    """Scan all parquet files and all IDs for full search, wie im Random-Mode."""
+    logger.info(f"Full scan (alle Dateien/IDs) starting...")
     config['loading_status'] = 'scanning'
-    
     try:
-        cleaned_files = list(cleaned_dir.glob("*.parquet"))[:max_files]
-        gold_files = list(gold_dir.glob("*.parquet"))[:max_files]
-        
+        cleaned_files = list(cleaned_dir.glob("*.parquet"))
+        gold_files = list(gold_dir.glob("*.parquet"))
         cleaned_ids = set()
         gold_ids = set()
         document_metadata = {}
-        
-        # Fast ID collection with metadata from cleaned files
+        # Collect all cleaned IDs and metadata
         for file_path in cleaned_files:
             try:
                 if file_path.stat().st_size == 0:
                     continue
-                
                 logger.info(f"Scanning cleaned file: {file_path}")
-                
-                # Read table with metadata columns
                 table = pq.read_table(file_path)
                 df = table.to_pandas()
-                
                 for _, row in df.iterrows():
                     doc_id = row['id']
                     if not doc_id:
                         continue
-                    
                     cleaned_ids.add(doc_id)
-                    
-                    # Store metadata for citation stats
                     metadata = {}
-                    
-                    # Check if there's a 'metadata' column that contains JSON string
                     if 'metadata' in df.columns and not pd.isna(row['metadata']):
                         try:
                             import json
-                            # Try to parse metadata as JSON
                             if isinstance(row['metadata'], str):
                                 metadata = json.loads(row['metadata'])
                             elif isinstance(row['metadata'], dict):
                                 metadata = row['metadata']
-                            
-                            # Debug: Log the metadata to check what we found
-                            logger.info(f"Found metadata for {doc_id}: {str(metadata)[:100]}...")
-                        except Exception as e:
-                            logger.error(f"Error parsing metadata JSON: {e}: {str(row['metadata'])[:100]}")
-                    
-                    # If no metadata found or parsing failed, look for individual columns
+                        except Exception:
+                            pass
                     if not metadata:
-                        citation_cols = [col for col in df.columns if any(typ in col for typ in 
-                                        ['citations_found', 'citations_removed', 'citations_rejected', 
-                                        'length_reduction', 'had_'])]
-                        
+                        citation_cols = [col for col in df.columns if any(typ in col for typ in ['citations_found', 'citations_removed', 'citations_rejected', 'length_reduction', 'had_'])]
                         for col in citation_cols:
                             if col in row and not pd.isna(row[col]):
                                 metadata[col] = row[col]
-                    
                     document_metadata[doc_id] = metadata
-                
-                if len(cleaned_ids) > max_docs:
-                    break
             except Exception as e:
                 logger.error(f"Error reading cleaned file {file_path}: {e}")
                 continue
-        
-        # ID collection from gold files
+        # Collect all gold IDs
         for file_path in gold_files:
             try:
                 if file_path.stat().st_size == 0:
                     continue
-                
                 logger.info(f"Scanning gold file: {file_path}")
-                
                 table = pq.read_table(file_path, columns=['id'])
-                file_ids = [id for id in table['id'].to_pylist()[:100] if id]
+                file_ids = [id for id in table['id'].to_pylist() if id]
                 gold_ids.update(file_ids)
-                if len(gold_ids) > max_docs:
-                    break
             except Exception as e:
                 logger.error(f"Error reading gold file {file_path}: {e}")
                 continue
-        
         # Find intersection
         available_doc_ids = list(cleaned_ids & gold_ids)
-        logger.info(f"Found {len(available_doc_ids)} document IDs in both gold and cleaned")
-        
+        logger.info(f"Found {len(available_doc_ids)} document IDs in both gold and cleaned (full scan)")
         # Create document objects with metadata
         available_docs = []
-        for doc_id in available_doc_ids[:max_docs]:
+        for doc_id in available_doc_ids:
             doc_info = {
                 'id': doc_id,
                 'metadata': document_metadata.get(doc_id, {})
             }
-            
-            # Calculate total citations removed (all types)
             total_removed = 0
             for key, value in doc_info['metadata'].items():
                 if '_citations_removed' in key:
@@ -160,20 +129,15 @@ def quick_scan_documents(cleaned_dir: Path, gold_dir: Path, max_files: int = 50,
                             total_removed += int(value)
                     except (ValueError, TypeError):
                         pass
-            
             doc_info['total_citations_removed'] = total_removed
             available_docs.append(doc_info)
-        
-        # Store in global config
         config['available_docs'] = available_docs
         config['document_metadata'] = document_metadata
         config['loading_status'] = 'complete'
-        
-        logger.info(f"Found {len(available_docs)} documents with metadata")
+        logger.info(f"Full scan: {len(available_docs)} documents with metadata")
         return available_docs
-        
     except Exception as e:
-        logger.error(f"Scan error: {e}")
+        logger.error(f"Full scan error: {e}")
         config['loading_status'] = 'error'
         return []
 
@@ -660,6 +624,11 @@ def index():
             border: 1px solid #d0d7de;
         }
         
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        
         .loading {
             display: flex;
             padding: 24px;
@@ -792,11 +761,14 @@ def index():
                     <option value="desc">Absteigend</option>
                     <option value="asc">Aufsteigend</option>
                 </select>
-        </div>
-        
+            </div>
+            
             <input type="text" id="search-input" placeholder="Suche nach ID, Titel oder Autoren..." style="flex-grow: 1;">
             
             <button class="btn btn-secondary" onclick="reloadDocuments()">Aktualisieren</button>
+            <button class="btn btn-secondary" onclick="fullScanDocuments()">Vollsuche</button>
+            <button class="btn btn-warning" onclick="loadRandomDocuments()">🎲 Random 100</button>
+            <span id="mode" style="margin-left:16px;color:#bf3989;"></span>
         </div>
         
         <div class="filter-section">
@@ -1030,46 +1002,84 @@ def index():
             loadDocuments();
         }
         
+        function loadRandomDocuments() {
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('status-text').textContent = 'Lade 100 zufällige Dokumente...';
+            document.getElementById('mode').textContent = '🎲 Random 100 mode - loading...';
+            fetch('/api/random_documents?size=100')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        monitorRandomLoading();
+                    } else {
+                        document.getElementById('status-text').textContent = 'Fehler beim Laden der Zufallsdokumente';
+                        document.getElementById('mode').textContent = '';
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('status-text').textContent = 'Fehler beim Laden der Zufallsdokumente';
+                    document.getElementById('mode').textContent = '';
+                });
+        }
+        
+        function monitorRandomLoading() {
+            function checkStatus() {
+                fetch('/api/status')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'complete') {
+                            loadDocuments();
+                            document.getElementById('mode').textContent = '🎲 Random 100 mode';
+                        } else if (data.status === 'scanning') {
+                            setTimeout(checkStatus, 500);
+                        } else if (data.status === 'error') {
+                            document.getElementById('status-text').textContent = 'Fehler beim Laden der Zufallsdokumente';
+                            document.getElementById('mode').textContent = '';
+                        }
+                    })
+                    .catch(() => setTimeout(checkStatus, 1000));
+            }
+            checkStatus();
+        }
+        
         // Suche
         document.getElementById('search-input').addEventListener('input', function() {
             const searchTerm = this.value.toLowerCase();
-            
             if (!searchTerm) {
                 filteredDocuments = [...allDocuments];
+                currentPage = 1;
+                updateTable();
             } else {
-                filteredDocuments = allDocuments.filter(doc => 
-                    doc.id.toLowerCase().includes(searchTerm) ||
-                    (doc.metadata.title && doc.metadata.title.toLowerCase().includes(searchTerm)) ||
-                    (doc.metadata.authors && doc.metadata.authors.toLowerCase().includes(searchTerm))
-                );
+                // Globale Suche über alle Parquet-Dateien
+                document.getElementById('loading').classList.remove('hidden');
+                document.getElementById('status-text').textContent = 'Globale Suche läuft...';
+                fetch(`/api/search_documents?q=${encodeURIComponent(searchTerm)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        filteredDocuments = data.documents;
+                        currentPage = 1;
+                        updateTable();
+                        document.getElementById('loading').classList.add('hidden');
+                        document.getElementById('status-text').textContent = data.total === 0 ? 'Keine Treffer gefunden.' : '';
+                    })
+                    .catch(error => {
+                        document.getElementById('loading').classList.add('hidden');
+                        document.getElementById('status-text').textContent = 'Fehler bei der Suche.';
+                    });
             }
-            
-            currentPage = 1;
-            updateTable();
         });
         
         // Sortierung ändern
         document.getElementById('sort-by').addEventListener('change', loadDocuments);
         document.getElementById('sort-order').addEventListener('change', loadDocuments);
-        
-        // Status prüfen und Dokumente laden
-        function checkStatus() {
-                fetch('/api/status')
-                    .then(response => response.json())
-                    .then(data => {
-                    if (data.status === 'scanning') {
-                        document.getElementById('loading').classList.remove('hidden');
-                        document.getElementById('status-text').textContent = 'Dokumente werden gescannt...';
-                        setTimeout(checkStatus, 1000);
-                    } else {
-                        document.getElementById('loading').classList.add('hidden');
-                        loadDocuments();
-                    }
-                });
+
+        function fullScanDocuments() {
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('status-text').textContent = 'Vollsuche: Alle Parquet-Dateien und IDs werden geladen...';
+            document.getElementById('mode').textContent = 'Vollsuche (alle Dokumente)';
+            // Starte vollständigen Scan (wie reloadDocuments, aber explizit)
+            loadDocuments();
         }
-        
-        // Beim Laden starten
-        checkStatus();
     </script>
 </body>
 </html>
@@ -1378,6 +1388,243 @@ def start_ngrok_tunnel(port, auth_token=None):
         return None
 
 
+def get_random_documents(cleaned_dir: Path, gold_dir: Path, sample_size: int = 100, max_files: int = 20):
+    """Effizient: Ziehe zufällig Parquet-Dateien, wähle daraus zufällig IDs, stoppe bei 100."""
+    logger.info(f"Random sample scan (effizient) starting... (size: {sample_size})")
+    config['loading_status'] = 'scanning'
+    cleaned_files = list(cleaned_dir.glob('*.parquet'))
+    gold_files = list(gold_dir.glob('*.parquet'))
+    random.shuffle(cleaned_files)
+    random.shuffle(gold_files)
+    found_ids = set()
+    document_metadata = {}
+    # Baue schnellen Index für gold-IDs pro Datei
+    gold_id_map = {}
+    for gfile in gold_files[:max_files]:
+        try:
+            pf = pq.ParquetFile(gfile)
+            ids = set()
+            for rg in range(pf.num_row_groups):
+                ids.update(pf.read_row_group(rg, columns=['id']).to_pandas()['id'].tolist())
+            gold_id_map[str(gfile)] = ids
+        except Exception as e:
+            logger.error(f"Gold-IDs lesen fehlgeschlagen: {gfile}: {e}")
+    # Suche in zufälligen cleaned-Dateien
+    for cfile in cleaned_files[:max_files]:
+        try:
+            pf = pq.ParquetFile(cfile)
+            all_ids = []
+            for rg in range(pf.num_row_groups):
+                all_ids.extend(pf.read_row_group(rg, columns=['id']).to_pandas()['id'].tolist())
+            if not all_ids:
+                continue
+            random.shuffle(all_ids)
+            for doc_id in all_ids:
+                if len(found_ids) >= sample_size:
+                    break
+                # Prüfe, ob ID in irgendeiner gold-Datei vorkommt
+                for g_ids in gold_id_map.values():
+                    if doc_id in g_ids:
+                        found_ids.add(doc_id)
+                        break
+            if len(found_ids) >= sample_size:
+                break
+        except Exception as e:
+            logger.error(f"Cleaned-IDs lesen fehlgeschlagen: {cfile}: {e}")
+    # Metadaten für gefundene IDs (optional, RAM-schonend)
+    available_docs = []
+    for doc_id in list(found_ids)[:sample_size]:
+        meta = {}
+        # Suche Metadaten in einer cleaned-Datei
+        for cfile in cleaned_files:
+            try:
+                pf = pq.ParquetFile(cfile)
+                for rg in range(pf.num_row_groups):
+                    df = pf.read_row_group(rg).to_pandas()
+                    match = df[df['id'] == doc_id]
+                    if not match.empty:
+                        if 'metadata' in df.columns and not pd.isna(match.iloc[0]['metadata']):
+                            import json
+                            m = match.iloc[0]['metadata']
+                            if isinstance(m, str):
+                                meta = json.loads(m)
+                            elif isinstance(m, dict):
+                                meta = m
+                        break
+                if meta:
+                    break
+            except Exception:
+                continue
+        doc_info = {'id': doc_id, 'metadata': meta, 'total_citations_removed': 0}
+        for key, value in meta.items():
+            if '_citations_removed' in key:
+                try:
+                    if isinstance(value, (int, float)):
+                        doc_info['total_citations_removed'] += value
+                    elif isinstance(value, str) and value.isdigit():
+                        doc_info['total_citations_removed'] += int(value)
+                except (ValueError, TypeError):
+                    pass
+        available_docs.append(doc_info)
+    config['available_docs'] = available_docs
+    config['loading_status'] = 'complete'
+    logger.info(f"Random sample: {len(available_docs)} documents ready.")
+    return available_docs
+
+
+@app.route('/api/random_documents')
+def api_random_documents():
+    """API endpoint to get a random sample of documents."""
+    try:
+        sample_size = request.args.get('size', 100, type=int)
+        logger.info(f"Random documents API request: {sample_size} docs")
+        def background_random_scan():
+            gold_dir = Path(config['gold_dir']) if isinstance(config['gold_dir'], str) else config['gold_dir']
+            cleaned_dir = Path(config['cleaned_dir']) if isinstance(config['cleaned_dir'], str) else config['cleaned_dir']
+            get_random_documents(cleaned_dir, gold_dir, sample_size=sample_size)
+        threading.Thread(target=background_random_scan).start()
+        config['loading_status'] = 'scanning'
+        return jsonify({
+            'success': True,
+            'message': f'Loading {sample_size} random documents...',
+            'status': 'scanning'
+        })
+    except Exception as e:
+        logger.error(f"Error in random documents API: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/search_documents')
+def api_search_documents():
+    """Effiziente Suche: Nutze Index, um gezielt die richtige Datei zu finden und suche dort mit Datatrove nach der ID."""
+    try:
+        query = request.args.get('q', '').strip()
+        if not query:
+            return jsonify({'documents': [], 'total': 0, 'status': 'empty'})
+        parquet_index = config.get('parquet_index', {})
+        cleaned_index = parquet_index.get('cleaned', {})
+        gold_index = parquet_index.get('gold', {})
+        # Finde passende Datei in cleaned
+        cleaned_file = None
+        for file_path, info in cleaned_index.items():
+            if info['min_id'] <= query <= info['max_id']:
+                cleaned_file = file_path
+                break
+        # Finde passende Datei in gold
+        gold_file = None
+        for file_path, info in gold_index.items():
+            if info['min_id'] <= query <= info['max_id']:
+                gold_file = file_path
+                break
+        if not cleaned_file or not gold_file:
+            return jsonify({'documents': [], 'total': 0, 'status': 'not_found'})
+        # Suche in cleaned_file
+        from datatrove.pipeline.readers import ParquetReader
+        found_cleaned = None
+        found_metadata = {}
+        try:
+            reader = ParquetReader(cleaned_file, glob_pattern=None, limit=-1)
+            for doc in reader():
+                if str(doc.id) == query:
+                    found_cleaned = doc.id
+                    # Metadaten extrahieren
+                    if hasattr(doc, 'metadata') and doc.metadata:
+                        found_metadata = doc.metadata if isinstance(doc.metadata, dict) else {}
+                    break
+        except Exception as e:
+            logger.error(f"Fehler bei Suche in cleaned: {e}")
+        # Suche in gold_file
+        found_gold = None
+        try:
+            reader = ParquetReader(gold_file, glob_pattern=None, limit=-1)
+            for doc in reader():
+                if str(doc.id) == query:
+                    found_gold = doc.id
+                    break
+        except Exception as e:
+            logger.error(f"Fehler bei Suche in gold: {e}")
+        # Nur wenn in beiden gefunden
+        docs = []
+        if found_cleaned and found_gold:
+            doc_info = {
+                'id': query,
+                'metadata': found_metadata,
+                'total_citations_removed': 0
+            }
+            for key, value in found_metadata.items():
+                if '_citations_removed' in key:
+                    try:
+                        if isinstance(value, (int, float)):
+                            doc_info['total_citations_removed'] += value
+                        elif isinstance(value, str) and value.isdigit():
+                            doc_info['total_citations_removed'] += int(value)
+                    except (ValueError, TypeError):
+                        pass
+            docs.append(doc_info)
+        return jsonify({'documents': docs, 'total': len(docs), 'status': 'ok'})
+    except Exception as e:
+        logger.error(f"Error in indexed search: {e}")
+        return jsonify({'documents': [], 'total': 0, 'status': 'error', 'error': str(e)})
+
+
+def get_min_max_id_from_metadata(file_path):
+    pf = pq.ParquetFile(file_path)
+    min_id = None
+    max_id = None
+    try:
+        # Try to get min/max from statistics (fast, no data read)
+        for i in [0, pf.num_row_groups - 1]:
+            row_group = pf.metadata.row_group(i)
+            col_idx = pf.schema_arrow.get_field_index('id')
+            col_chunk = row_group.column(col_idx)
+            stats = col_chunk.statistics
+            if stats and stats.has_min_max:
+                if i == 0:
+                    min_id = stats.min
+                else:
+                    max_id = stats.max
+    except Exception:
+        pass
+    # Fallback: read first/last row if stats not available
+    if min_id is None:
+        try:
+            min_id = pf.read_row_group(0, columns=['id']).to_pandas()['id'].iloc[0]
+        except Exception:
+            min_id = None
+    if max_id is None:
+        try:
+            max_id = pf.read_row_group(pf.num_row_groups-1, columns=['id']).to_pandas()['id'].iloc[-1]
+        except Exception:
+            max_id = None
+    return str(min_id) if min_id is not None else None, str(max_id) if max_id is not None else None
+
+
+def build_parquet_index(cleaned_dir: Path, gold_dir: Path):
+    """Effizient: Nutze Parquet-Metadaten (Min/Max), sonst nur erste/letzte Zeile lesen."""
+    logger.info("Starte ultraschnellen Parquet-Index-Build...")
+    index = {'cleaned': {}, 'gold': {}}
+    # Cleaned
+    for file_path in cleaned_dir.glob('*.parquet'):
+        try:
+            min_id, max_id = get_min_max_id_from_metadata(file_path)
+            if min_id and max_id:
+                index['cleaned'][str(file_path)] = {'min_id': min_id, 'max_id': max_id}
+                logger.info(f"Index cleaned: {file_path.name}: {min_id} ... {max_id}")
+        except Exception as e:
+            logger.error(f"Index-Fehler cleaned {file_path}: {e}")
+    # Gold
+    for file_path in gold_dir.glob('*.parquet'):
+        try:
+            min_id, max_id = get_min_max_id_from_metadata(file_path)
+            if min_id and max_id:
+                index['gold'][str(file_path)] = {'min_id': min_id, 'max_id': max_id}
+                logger.info(f"Index gold: {file_path.name}: {min_id} ... {max_id}")
+        except Exception as e:
+            logger.error(f"Index-Fehler gold {file_path}: {e}")
+    config['parquet_index'] = index
+    logger.info("Ultraschneller Parquet-Index fertig.")
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Simple Web-based document diff viewer")
     
@@ -1422,16 +1669,12 @@ if __name__ == '__main__':
     
     print(f"\n🚀 Starting server...")
     
-    # Starte Scan im Hintergrund, damit die API sofort verfügbar ist
-    def background_scan():
-        time.sleep(1)
-        print(f"\n🔍 Starting document scan in background...")
-        quick_scan_documents(config['cleaned_dir'], config['gold_dir'], 
-                             max_files=args.max_files, max_docs=args.max_docs)
-    
-    scan_thread = threading.Thread(target=background_scan)
-    scan_thread.daemon = True
-    scan_thread.start()
+    # Index automatisch beim Start bauen
+    build_parquet_index(config['cleaned_dir'], config['gold_dir'])
+    # Kein Full-Scan beim Start!
+    # scan_thread = threading.Thread(target=background_scan)
+    # scan_thread.daemon = True
+    # scan_thread.start()
     
     try:
         app.run(host=args.host, port=args.port, debug=False)
