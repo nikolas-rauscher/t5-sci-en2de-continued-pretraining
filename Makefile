@@ -82,15 +82,16 @@ analyze: ## Basic stats analysis with plots and CSV export
 	.venv_spacy_stats/bin/python scripts/analyze_stats.py
 
 # Web diff viewer commands
+# Note: ngrok warning page is automatically bypassed with ngrok-skip-browser-warning header
 web-diff: ## Start web diff viewer with default settings
-	.venv/bin/python scripts/util/web_diff_viewer_fast.py
+	.venv/bin/python scripts/util/web_diff_viewer_simple.py --gold-dir data/statistics_data_gold/enriched_documents_statistics_v2 --cleaned-dir data/cleaned-production --ngrok --list-categories-dir wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables
 
 web-diff-ngrok: ## Start web diff viewer with ngrok tunnel for external access
-	.venv/bin/python scripts/util/web_diff_viewer_fast.py --ngrok
+	.venv/bin/python scripts/util/web_diff_viewer_simple.py --gold-dir data/statistics_data_gold/enriched_documents_statistics_v2 --cleaned-dir data/cleaned-production --ngrok
 
 web-diff-custom: ## Start web diff viewer with custom directories
-	@echo "Usage: make web-diff-custom GOLD_DIR=path/to/gold CLEANED_DIR=path/to/cleaned"
-	.venv/bin/python scripts/util/web_diff_viewer_fast.py --gold-dir $(GOLD_DIR) --cleaned-dir $(CLEANED_DIR)
+	@echo "Usage: make web-diff-custom GOLD_DIR=path/to/gold CLEANED_DIR=path/to/cleaned LIST_CATEGORIES_DIR=path/to/categories"
+	.venv/bin/python scripts/util/web_diff_viewer_simple.py --gold-dir $(GOLD_DIR) --cleaned-dir $(CLEANED_DIR) --list-categories-dir $(LIST_CATEGORIES_DIR)
 
 web-diff-test: ## Start web diff viewer with test data directories
-	.venv/bin/python scripts/util/web_diff_viewer_simple.py --gold-dir data/statistics_data_gold/enriched_documents_statistics_v2 --cleaned-dir data/cleaned --ngrok
+	.venv/bin/python scripts/util/web_diff_viewer_simple.py --gold-dir data/statistics_data_gold/enriched_documents_statistics_v2 --cleaned-dir data/cleaned --ngrok --list-categories-dir wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables

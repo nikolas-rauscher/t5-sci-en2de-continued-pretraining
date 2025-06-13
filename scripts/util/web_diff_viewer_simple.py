@@ -29,6 +29,14 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
+# Add ngrok-skip-browser-warning header to all responses
+@app.after_request
+def add_ngrok_headers(response):
+    """Add ngrok-skip-browser-warning header to bypass warning page."""
+    # This header tells ngrok to skip the browser warning page
+    response.headers['ngrok-skip-browser-warning'] = 'true'
+    return response
+
 # Global configuration
 config = {
     'gold_dir': None,
@@ -1289,16 +1297,6 @@ def index():
 @app.route('/api/documents')
 def api_documents():
     """API endpoint to get documents list."""
-    if config['loading_status'] == 'ready' and not config['available_docs']:
-        # Trigger background scan if no documents loaded yet
-        def background_scan():
-            gold_dir = Path(config['gold_dir']) if isinstance(config['gold_dir'], str) else config['gold_dir']
-            cleaned_dir = Path(config['cleaned_dir']) if isinstance(config['cleaned_dir'], str) else config['cleaned_dir']
-            quick_scan_documents(cleaned_dir, gold_dir)
-        
-        threading.Thread(target=background_scan).start()
-        config['loading_status'] = 'scanning'
-    
     # Handle sorting and filtering
     sort_by = request.args.get('sort_by', 'id')
     sort_order = request.args.get('sort_order', 'asc')
@@ -2014,21 +2012,43 @@ def load_list_categories():
     """Load all document IDs from the JSON tables, grouped by category."""
     logger.info("📋 Loading list categories from JSON tables...")
     
-    # Define the JSON table files and their display names
-    table_files = {
-        'top_semicolon_blocks': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_semicolon_blocks_documents_762153_504bad13379f3c14e9ee.table.json',
-        'top_page_references': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_page_references_documents_762173_729df18578e72c95f499.table.json',
-        'top_autor_jahr_eckig_einzel': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_autor_jahr_eckig_einzel_documents_762167_d62e21a74b2dba2b3f96.table.json',
-        'top_autor_jahr_klammer_einzel': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_autor_jahr_klammer_einzel_documents_762165_7a7cb633ebf379499338.table.json',
-        'top_autor_jahr_multi_klammer': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_autor_jahr_multi_klammer_documents_762163_34d98346c9d320c4e0dc.table.json',
-        'top_combined_reduction': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_combined_reduction_documents_762181_0380d0bfd4adaa11c076.table.json',
-        'top_consecutive_numeric_citations': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_consecutive_numeric_citations_documents_762158_35a5d33e81496cef646b.table.json',
-        'top_eckige_klammern_numerisch': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_eckige_klammern_numerisch_documents_762156_c69b5bc70406b3f661fc.table.json',
-        'top_figure_line_removal': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_figure_line_removal_documents_762180_68322fb758017a0a126d.table.json',
-        'top_figure_table_refs': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_figure_table_refs_documents_762176_ba1d9d436d0eadb046c6.table.json',
-        'top_isolated_numeric_citations': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_isolated_numeric_citations_documents_762160_074eac1439239bd642dd.table.json',
-        'top_ref_nummer': 'wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables/top_ref_nummer_documents_762171_21ec0516ec90921147be.table.json'
-    }
+    # Get the list categories directory from config or use default
+    list_categories_dir = config.get('list_categories_dir', Path('wandb'))
+    if isinstance(list_categories_dir, str):
+        list_categories_dir = Path(list_categories_dir)
+    
+    logger.info(f"📋 Searching for list categories in: {list_categories_dir}")
+    
+    if not list_categories_dir.exists():
+        logger.warning(f"List categories directory not found: {list_categories_dir}, falling back to default 'wandb'")
+        # fallback to default root wandb directory
+        fallback_dir = Path('wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables')
+        if fallback_dir.exists():
+            list_categories_dir = fallback_dir
+            config['list_categories_dir'] = fallback_dir
+        else:
+            logger.error(f"Default list categories directory not found: {fallback_dir}")
+            config['list_categories'] = {}
+            return {}
+    
+    # Dynamically find all JSON files that contain "table" in their path
+    table_files = {}
+    
+    # Search recursively for JSON files in the directory
+    for json_file in list_categories_dir.rglob("*.json"):
+        if "table" in str(json_file) and "top_" in json_file.name:
+            # Extract category name from filename
+            filename = json_file.name
+            if filename.startswith("top_") and filename.endswith(".table.json"):
+                # Remove "top_" prefix and ".table.json" suffix
+                category_name = filename[4:-12]  # Remove "top_" and ".table.json"
+                table_files[category_name] = str(json_file)
+                logger.info(f"📋 Found category file: {category_name} -> {json_file}")
+    
+    if not table_files:
+        logger.warning(f"No table JSON files found in {list_categories_dir}")
+        config['list_categories'] = {}
+        return {}
     
     categories = {}
     
@@ -2471,6 +2491,7 @@ if __name__ == '__main__':
     
     parser.add_argument("--gold-dir", default="data/statistics_data_gold/enriched_documents_statistics_v2")
     parser.add_argument("--cleaned-dir", default="data/cleaned")
+    parser.add_argument("--list-categories-dir", default="wandb", help="Directory to search for list category JSON files")
     parser.add_argument("--port", "-p", type=int, default=5000)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--ngrok", action="store_true")
@@ -2484,6 +2505,7 @@ if __name__ == '__main__':
     # Konvertiere Strings in Path-Objekte
     config['gold_dir'] = Path(args.gold_dir)
     config['cleaned_dir'] = Path(args.cleaned_dir)
+    config['list_categories_dir'] = Path(args.list_categories_dir)
     
     if not config['gold_dir'].exists():
         print(f"❌ Gold directory not found: {config['gold_dir']}")
