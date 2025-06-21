@@ -160,7 +160,7 @@ class MultiCitationCleaner(BaseFilter):
                 "consecutive_numeric_citations": r"(?:\(\s*\d+\s*\)){2,}",  # (1)(2)(3) patterns
                 "isolated_numeric_citations": r"\(\s*\d{1,3}\s*\)(?!\s*[A-Za-z°%])",  # (1), (23) but not (25°C) or (100%)
                 
-                # Autor-Jahr Citation-Patterns - REMOVED autor_jahr_text (important for text flow)
+                # Autor-Jahr Citation-Patterns -  autor_jahr_text (important for text flow)
                 "autor_jahr_multi_klammer": r"\((?:[A-Z][A-Za-z'-]+(?:\s+(?:and|et)\s+[A-Z][A-Za-z'-]+)?(?:,\s*Jr\.?)?(?: et al\.)?,\s*\d{4}[a-z]?\s*;\s*)+[A-Z][A-Za-z'-]+(?:\s+(?:and|et)\s+[A-Z][A-Za-z'-]+)?(?:,\s*Jr\.?)?(?: et al\.)?,\s*\d{4}[a-z]?\)",
                 "autor_jahr_klammer_einzel": r"\([A-Z][A-Za-z'-]+(?:\s+(?:and|et)\s+[A-Z][A-Za-z'-]+)?(?:,\s*Jr\.?)?(?: et al\.)?,\s*\d{4}[a-z]?\)",
                 
@@ -171,7 +171,7 @@ class MultiCitationCleaner(BaseFilter):
                 # Referenz-Nummern
                 "ref_nummer": r"\b(?:ref|refs)\.?\s*\d+(?:,\s*\d+)*(?:-\s*\d+)?\b",
                 
-                # Zusätzliche häufige Citation-Patterns - REMOVED chapter_section (important for structure)
+                # Zusätzliche häufige Citation-Patterns -  chapter_section (important for structure)
                 "page_references": r"(?:^|\s)(?:p|pp|page|pages)\.?\s*\d+(?:-\d+)?(?:,\s*\d+(?:-\d+)?)*(?=\s|$)", # Only standalone page refs, not in citations
                 "figure_table_refs": r"(?:\(\s*)?(?:fig|figure|tab|table|tbl)\.?\s*\d+(?:[a-z])?(?:,\s*\d+(?:[a-z])?)*(?:\s*[;:]\s*[^)]+)?(?:\s*\))?", # Capture complete figure citations with additional content
             }

@@ -57,3 +57,4 @@ tldextract      # required for BaseStats (extracting top-level domains from URLs
 # dask-cudf==23.12.*
 
 python-dotenv
+pyarrow>=14.0.0

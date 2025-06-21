@@ -69,9 +69,9 @@ def main(cfg: DictConfig) -> None:
         
 
         MultiCitationCleaner(
-            replacement=' ',
+            replacement='',
             track_changes=True,
-            debug_mode=cfg.cleaning.cleaning.get("debug_mode", True),  # Debug mode from config
+            debug_mode=cfg.cleaning.cleaning.get("debug_mode", False),  # Debug mode from config
             wandb_project="BA-DataTrove",
             wandb_group="multi-citation-cleaning",
             log_to_wandb=bool(wandb_session)  # Nur loggen wenn Session vorhanden
