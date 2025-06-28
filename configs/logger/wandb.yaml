@@ -9,13 +9,13 @@ wandb:
   id: null # pass correct id to resume experiment!
   anonymous: null # enable anonymous logging
   api_key: ${oc.env:WANDB_API_KEY} # API-Key aus Umgebungsvariable
-  project: "BA"  # dein projekt name
+  project: "BA-T5-Pretraining"
   log_model: False # upload lightning ckpts
   prefix: "" # a string to put at the beginning of metric keys
   # entity: "" # set to name of your wandb team
-  group: ""
-  tags: []
-  job_type: ""
+  group: "en-pretraining"
+  tags: ["t5-base", "scientific-data", "continued-pretraining"]
+  job_type: "pretraining"
 
 # Basis-Config für alle DataTrove Pipelines
 datatrove:

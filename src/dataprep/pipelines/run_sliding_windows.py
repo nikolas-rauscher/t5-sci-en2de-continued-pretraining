@@ -15,7 +15,7 @@ from omegaconf import DictConfig, OmegaConf
 from datatrove.executor import LocalPipelineExecutor
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import ParquetWriter
-from datatrove.pipeline.stats import DocStats
+# from datatrove.pipeline.stats import DocStats  # Not needed for sliding window preprocessing
 
 # Import sliding window processor
 from src.dataprep.sliding_window_processor import SlidingWindowProcessor
@@ -84,11 +84,6 @@ def main(cfg: DictConfig) -> None:
             log_to_wandb=cfg.sliding_windows.get("log_to_wandb", False) and bool(wandb_session),
             wandb_project=cfg.sliding_windows.wandb.project,
             wandb_group=cfg.sliding_windows.wandb.group
-        ),
-        
-        DocStats(
-            output_folder=cfg.sliding_windows.paths.output_folder + "/stats",
-            groups_to_compute=["summary"]
         ),
         
         ParquetWriter(cfg.sliding_windows.paths.output_folder)
