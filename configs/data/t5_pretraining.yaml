@@ -3,7 +3,7 @@ _target_: src.data.t5_datamodule.T5DataModule
 # we use the data where added the sliding windows metadata
 data_dir: data/pretraining_windowed
 
-tokenizer_path: data/tokenizer
+tokenizer_name_or_path: t5-base
 
 batch_size: 8
 num_workers: 4

@@ -24,7 +24,7 @@ sliding_windows:
 
   # Tokenizer Configuration
   tokenizer:
-    name_or_path: "data/tokenizer"
+    name_or_path: "t5-base"
 
   window_config:
     max_length: 512

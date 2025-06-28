@@ -96,7 +96,7 @@ class T5DataModule(LightningDataModule):
     def __init__(
         self,
         data_dir: str,
-        tokenizer_path: str,
+        tokenizer_name_or_path: str = "t5-base",  # Use pretrained T5 tokenizer 
         batch_size: int = 8,
         num_workers: int = 4,
         pin_memory: bool = True,
@@ -114,72 +114,20 @@ class T5DataModule(LightningDataModule):
         self.save_hyperparameters(logger=False)
 
         self.data_dir = Path(data_dir)
-        self.tokenizer_path = Path(tokenizer_path)
-        # Ensure the tokenizer directory exists
-        self.tokenizer_path.mkdir(parents=True, exist_ok=True)
+        self.tokenizer_name_or_path = tokenizer_name_or_path
 
         self.train_dataset = None
         self.val_dataset = None
 
 
-    # Tokenizer utilities
+    # Tokenizer utilities old 
     def prepare_data(self): 
-        if not (self.tokenizer_path / "sentencepiece.model").exists():
-            self._train_sentencepiece_tokenizer()
-
-    def _train_sentencepiece_tokenizer(self):
-        """Train a SentencePiece tokenizer on the *text* column of the corpus."""
-        from sentencepiece import SentencePieceTrainer
-
-        parquet_files = list(self.data_dir.rglob("*.parquet"))
-        if not parquet_files:
-            raise RuntimeError(f"No Parquet files found in {self.data_dir!s}")
-
-        # Extract raw text into a temporary file for sentencepiece training.
-        tmp_txt = self.tokenizer_path / "train_data.txt"
-        with tmp_txt.open("w", encoding="utf-8") as out_f:
-            for pf in parquet_files:
-                import pyarrow.parquet as pq
-
-                parquet_file = pq.ParquetFile(pf)
-                for batch in parquet_file.iter_batches(batch_size=10_000, columns=["text"]):
-                    chunk = batch.to_pandas()
-                    for line in chunk["text"].astype(str):
-                        out_f.write(line.replace("\n", " ") + "\n")
-
-        model_prefix = str(self.tokenizer_path / "sentencepiece")
-        SentencePieceTrainer.train(
-            input=str(tmp_txt),
-            model_prefix=model_prefix,
-            vocab_size=32_000,
-            model_type="unigram",
-            character_coverage=0.9995,
-            unk_id=0,
-            pad_id=1,
-            bos_id=-1,
-            eos_id=2,
-            user_defined_symbols=[f"<extra_id_{i}>" for i in range(100)],
-        )
-
-        # Create tokenizer.json file for compatibility with T5TokenizerFast
-        self._create_tokenizer_json_files(model_prefix)
-
-    def _create_tokenizer_json_files(self, model_prefix: str):
-        """Create additional files needed for T5TokenizerFast compatibility."""
-        import json
-        
-        # Create a simple tokenizer config file
-        config = {
-            "model_type": "t5",
-            "tokenizer_class": "T5TokenizerFast",
-        }
-        
-        with open(self.tokenizer_path / "config.json", "w") as f:
-            json.dump(config, f)
+        # skip 
+        pass
             
             
     def _load_tokenizer(self) -> PreTrainedTokenizerFast:
-        tokenizer = T5TokenizerFast.from_pretrained(str(self.tokenizer_path))
+        tokenizer = T5TokenizerFast.from_pretrained(self.tokenizer_name_or_path)
         tokenizer.model_max_length = self.hparams.max_length
         return tokenizer
     
