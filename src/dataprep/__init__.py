@@ -1,26 +1,21 @@
 """
-DataTrove Text Preprocessing Modules
+DataTrove-based Data Preprocessing Components
 
-Modular text cleaning components für DataTrove Pipeline:
-- CitationCleaner: Einfacher Citation Cleaner (legacy)
-- MultiCitationCleaner: Multi-Type Citation Cleaner
-- TextNormalizer: Whitespace/Newline Normalisierung
+Contains modular text cleaning components and pipeline steps for data preprocessing:
 
-Usage:
-```python
-from src.dataprep import CitationCleaner, TextNormalizer
+Components:
+- MultiCitationCleaner: Removes academic citations with smart validation
+- TextNormalizer: Normalizes whitespace and newlines  
+- SlidingWindowProcessor: Precomputes sliding windows for T5 training
 
-# Or individual imports:
-from src.dataprep.citation_cleaner import CitationCleaner
-from src.dataprep.text_normalizer import TextNormalizer
-```
 """
 
 from .multi_citation_cleaner import MultiCitationCleaner
 from .text_normalizer import TextNormalizer
+from .sliding_window_processor import SlidingWindowProcessor
 
 __all__ = [
-    "CitationCleaner",
     "MultiCitationCleaner",
     "TextNormalizer",
+    "SlidingWindowProcessor"
 ] 

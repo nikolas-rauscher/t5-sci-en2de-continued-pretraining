@@ -25,7 +25,7 @@ except ImportError:  # pragma: no cover
         from .components.span_masking import apply_span_corruption  
 
         class DataCollatorForT5MLM:  
-            """Simple re-implementation of DataCollatorForT5MLM."""
+            """T5 Data Collator with support for pre-tokenized sequences."""
 
             def __init__(
                 self,
@@ -54,13 +54,20 @@ except ImportError:  # pragma: no cover
                 label_tensors: List[torch.Tensor] = []
 
                 for item in batch:
-                    ids: List[int] = self.tokenizer.encode(
+                    # Check if we have pre-tokenized sequences (from T5SlidingWindowDataset)
+                    if "tokens" in item and item["tokens"]:
+                        # Pre-tokenized sequence - use directly
+                        ids = item["tokens"]
+                    else:
+                        # Regular text - tokenize with truncation
+                        ids: List[int] = self.tokenizer.encode(
                         item["text"],
                         add_special_tokens=False,
                         truncation=True,
                         max_length=self.input_length,
                     )
 
+                    # Apply span corruption
                     inp_ids, lbl_ids = apply_span_corruption(
                         ids,
                         self.tokenizer,
@@ -82,7 +89,7 @@ except ImportError:  # pragma: no cover
                     "labels": batch_labels,
                 }
 
-from .components.t5_dataset import T5ParquetDataset
+from .components.t5_dataset import T5ParquetDataset, T5TokenCountDataset, T5PrecomputedWindowDataset
 
 
 class T5DataModule(LightningDataModule):
@@ -98,6 +105,9 @@ class T5DataModule(LightningDataModule):
         corruption_rate: float = 0.15,
         mean_span_length: int = 3,
         shuffle_buffer_size: int = 10_000,
+        # DEPRECATED: Use preprocessing pipeline instead
+        window_overlap: int = 256,  # Kept for config compatibility
+        use_precomputed_windows: bool = True,  # Use precomputed windows by default
     ) -> None:
         super().__init__()
 
@@ -182,7 +192,35 @@ class T5DataModule(LightningDataModule):
         if not parquet_files:
             raise RuntimeError(f"No Parquet files found in {self.data_dir!s}")
 
-        full_dataset = T5ParquetDataset(parquet_files)
+        # Load tokenizer first (needed for dataset)
+        self.tokenizer = self._load_tokenizer()
+
+        # Use token count based sliding windows by default
+        if self.hparams.use_precomputed_windows:
+            from src.utils.pylogger import RankedLogger
+            log = RankedLogger(__name__, rank_zero_only=True)
+            
+            log.info("🔤 Using T5TokenCountDataset with T5 SentencePiece token count preprocessing")
+            log.info(f"📁 Looking for preprocessed data in: {self.data_dir}")
+            log.info("💡 If you get errors, make sure to run T5 SentencePiece token count preprocessing first:")
+            log.info("   python src/dataprep/pipelines/run_sliding_windows.py")
+            log.info("🪟 Windows will be computed on-the-fly from stored T5 SentencePiece token counts")
+            
+            # Create dataset with token count based windows
+            full_dataset = T5TokenCountDataset(
+                parquet_files=parquet_files,
+                tokenizer=self.tokenizer,
+                max_length=self.hparams.max_length,
+                overlap_size=self.hparams.window_overlap,
+                verify_config=True
+            )
+        else:
+            # Fallback to simple dataset without sliding windows
+            log.warning("⚠️ Using simple T5ParquetDataset without sliding windows")
+            log.warning("   This will truncate documents to 512 tokens and waste data")
+            log.warning("   Consider using sliding window preprocessing for better data utilization")
+            
+            full_dataset = T5ParquetDataset(parquet_files=parquet_files)
 
         # Compute split lengths
         train_ratio, val_ratio = self.hparams.train_val_split
@@ -192,7 +230,7 @@ class T5DataModule(LightningDataModule):
             full_dataset, [train_len, val_len], generator=torch.Generator().manual_seed(42)
         )
 
-        self.tokenizer = self._load_tokenizer()
+        # Create collator
         self.collator = DataCollatorForT5MLM(
             tokenizer=self.tokenizer,
             noise_density=self.hparams.corruption_rate,

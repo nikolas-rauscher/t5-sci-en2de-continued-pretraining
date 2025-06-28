@@ -1,13 +1,7 @@
 _target_: src.data.t5_datamodule.T5DataModule
 
-data_dir: data/cleaned_pretraining
-# path to directory where tokenizer files will be saved / loaded
-# this directory should contain sentencepiece.model, config.json etc.
-# directory will be created if it doesn't exist
-
-# use cleaned dataset path defined above
-
-# ensure to export PROJECT_ROOT env var or set paths.root_dir to '.'
+# we use the data where added the sliding windows metadata
+data_dir: data/pretraining_windowed
 
 tokenizer_path: data/tokenizer
 
@@ -20,3 +14,6 @@ corruption_rate: 0.15
 mean_span_length: 3
 
 train_val_split: [0.95, 0.05] 
+
+use_precomputed_windows: true 
+window_overlap: 256  # 50% overlap

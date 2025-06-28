@@ -42,6 +42,12 @@ setup-spacy-env: ## Setup separate spaCy environment for stats
 clean-data: ## Run data cleaning pipeline  
 	.venv/bin/python src/dataprep/pipelines/clean_data.py
 
+preprocess-windows: ## Preprocess T5 SentencePiece token counts for T5 training (windows computed on-the-fly)
+	.venv/bin/python src/dataprep/pipelines/run_sliding_windows.py
+
+preprocess-windows-test: ## Preprocess T5 SentencePiece token counts (test mode - limit_documents=100)
+	.venv/bin/python src/dataprep/pipelines/run_sliding_windows.py sliding_windows.limit_documents=100
+
 stats_p1: ## Run standard stats (NumPy 2.0 compatible)
 	.venv/bin/python src/dataprep/pipelines/run_stats.py
 
