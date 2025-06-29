@@ -38,7 +38,7 @@ except ImportError:
 
 @hydra.main(version_base="1.3", config_path="../../../configs", config_name="preprocessing/sliding_windows")
 def main(cfg: DictConfig) -> None:
-    log.info("Starting T5 SentencePiece Token Count Preprocessing Pipeline")
+    log.info("Starting T5 Sliding Window Materialization Pipeline")
     log.info("Configuration:")
     log.info(f"\n{OmegaConf.to_yaml(cfg)}")
 
@@ -58,8 +58,8 @@ def main(cfg: DictConfig) -> None:
                 project=cfg.sliding_windows.wandb.project,
                 group=cfg.sliding_windows.wandb.group,
                 tags=tags,
-                job_type="sliding-window-preprocessing",
-                notes="Precompute T5 SentencePiece token counts for on-the-fly sliding windows",
+                job_type="sliding-window-materialization",
+                notes="Materialize T5 sliding windows as separate parquet entries for fast training",
                 config=OmegaConf.to_container(cfg, resolve=True)
             )
             log.info(f"W&B session initialized: {wandb_session.url}")

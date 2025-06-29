@@ -89,7 +89,7 @@ except ImportError:  # pragma: no cover
                     "labels": batch_labels,
                 }
 
-from .components.t5_dataset import T5ParquetDataset, T5TokenCountDataset, T5PrecomputedWindowDataset
+from .components.t5_dataset import T5ParquetDataset, T5TokenCountDataset, T5PrecomputedWindowDataset, T5MaterializedWindowDataset
 
 
 class T5DataModule(LightningDataModule):
@@ -107,8 +107,9 @@ class T5DataModule(LightningDataModule):
         shuffle_buffer_size: int = 10_000,
         # DEPRECATED: Use preprocessing pipeline instead
         window_overlap: int = 256,  # Kept for config compatibility
-        use_precomputed_windows: bool = True,  # Use precomputed windows by default
-        limit_files: int = -1,  # -1 = no limit, positive number = limit files for testing
+        use_precomputed_windows: bool = False,  # DEPRECATED: Use materialized windows instead
+        use_materialized_windows: bool = True,  # Use materialized windows by default 
+        limit_files: int = -1,  
     ) -> None:
         super().__init__()
 
@@ -148,16 +149,25 @@ class T5DataModule(LightningDataModule):
         # Load tokenizer first (needed for dataset)
         self.tokenizer = self._load_tokenizer()
 
-        # Use token count based sliding windows by default
-        if self.hparams.use_precomputed_windows:
+        # Choose dataset type based on configuration
+        if self.hparams.use_materialized_windows:
             from src.utils.pylogger import RankedLogger
             log = RankedLogger(__name__, rank_zero_only=True)
             
-            log.info("🔤 Using T5TokenCountDataset with T5 SentencePiece token count preprocessing")
-            log.info(f"📁 Looking for preprocessed data in: {self.data_dir}")
-            log.info("💡 If you get errors, make sure to run T5 SentencePiece token count preprocessing first:")
+            log.info("🚀 Using T5MaterializedWindowDataset with pre-tokenized windows")
+            log.info(f"📁 Looking for materialized window data in: {self.data_dir}")
+            log.info("💡 If you get errors, make sure to run sliding window materialization first:")
             log.info("   python src/dataprep/pipelines/run_sliding_windows.py")
-            log.info("🪟 Windows will be computed on-the-fly from stored T5 SentencePiece token counts")
+            log.info("⚡ Maximum performance: O(1) access to pre-tokenized windows")
+            
+            # Create dataset with materialized windows
+            full_dataset = T5MaterializedWindowDataset(parquet_files=parquet_files)
+            
+        elif self.hparams.use_precomputed_windows:
+            from src.utils.pylogger import RankedLogger
+            log = RankedLogger(__name__, rank_zero_only=True)
+            
+            log.info(f"Using T5TokenCountDataset with precomputed token counts from {self.data_dir}")
             
             # Create dataset with token count based windows
             full_dataset = T5TokenCountDataset(
@@ -169,9 +179,9 @@ class T5DataModule(LightningDataModule):
             )
         else:
             # Fallback to simple dataset without sliding windows
-            log.warning("⚠️ Using simple T5ParquetDataset without sliding windows")
-            log.warning("   This will truncate documents to 512 tokens and waste data")
-            log.warning("   Consider using sliding window preprocessing for better data utilization")
+            log.warning("Using simple T5ParquetDataset without sliding windows")
+            log.warning("This will truncate documents to 512 tokens and waste data")
+            log.warning("Consider using sliding window preprocessing for better data utilization")
             
             full_dataset = T5ParquetDataset(parquet_files=parquet_files)
 

@@ -282,24 +282,133 @@ class T5PrecomputedWindowDataset(Dataset):
         )
 
 
+class T5MaterializedWindowDataset(Dataset):
+    """
+    Fast dataset for loading pre-materialized sliding windows.
+    
+    Expects parquet files with materialized windows created by SlidingWindowProcessor:
+    - text: space-separated token IDs (e.g. "1 23 456 789 2")
+    - metadata.document_type: "t5_sliding_window"
+    - metadata.preprocessing_version: "v2_materialized_windows"
+    
+    Provides O(1) access to pre-tokenized windows without tokenization overhead.
+    """
+    
+    def __init__(self, parquet_files: List[str | Path]):
+        super().__init__()
+        
+        # Create base dataset for document access
+        self.base_dataset = T5ParquetDataset(parquet_files)
+        
+        # Verify that this is materialized window data
+        self._verify_materialized_windows()
+        
+        log.info(f"T5MaterializedWindowDataset created with {len(self.base_dataset)} pre-tokenized windows")
+        
+    def _verify_materialized_windows(self):
+        """Verify that parquet files contain materialized windows."""
+        if len(self.base_dataset) == 0:
+            raise ValueError("No data found in parquet files")
+        
+        # Check first few documents to verify format
+        sample_size = min(5, len(self.base_dataset))
+        materialized_count = 0
+        
+        for i in range(sample_size):
+            doc_data = self.base_dataset[i]
+            metadata = doc_data.get("metadata", {})
+            
+            # Check for materialized window markers
+            doc_type = metadata.get("document_type")
+            version = metadata.get("preprocessing_version")
+            
+            if doc_type == "t5_sliding_window" and version == "v2_materialized_windows":
+                materialized_count += 1
+            
+            # Verify text format (should be space-separated token IDs)
+            text = doc_data.get("text", "")
+            if text and not self._is_token_sequence(text):
+                log.warning(f"Document {i} text doesn't look like token sequence: {text[:50]}...")
+        
+        if materialized_count == 0:
+            raise ValueError(
+                "No materialized windows found! "
+                "Expected metadata.document_type='t5_sliding_window' and "
+                "metadata.preprocessing_version='v2_materialized_windows'. "
+                "Run sliding window materialization first: "
+                "python src/dataprep/pipelines/run_sliding_windows.py"
+            )
+        
+        materialized_ratio = materialized_count / sample_size
+        log.info(f"✅ Verified materialized windows: {materialized_count}/{sample_size} ({materialized_ratio:.1%})")
+        
+        if materialized_ratio < 1.0:
+            log.warning(f"⚠️ Only {materialized_ratio:.1%} of documents are materialized windows. "
+                       f"Consider filtering or re-running materialization.")
+    
+    def _is_token_sequence(self, text: str) -> bool:
+        """Check if text looks like space-separated token IDs."""
+        parts = text.strip().split()
+        if len(parts) < 10:  # Too short to be a meaningful token sequence
+            return False
+        
+        # Check if first 10 parts are integers
+        try:
+            for part in parts[:10]:
+                int(part)
+            return True
+        except ValueError:
+            return False
+    
+    def __len__(self):
+        return len(self.base_dataset)
+    
+    def __getitem__(self, idx: int) -> dict:
+        """Get pre-tokenized window with O(1) access."""
+        
+        if idx >= len(self.base_dataset):
+            raise IndexError(f"Index {idx} out of range for dataset of size {len(self.base_dataset)}")
+        
+        # Get window data
+        doc_data = self.base_dataset[idx]
+        text = doc_data.get("text", "")
+        metadata = doc_data.get("metadata", {})
+        
+        # Parse pre-tokenized sequence
+        try:
+            tokens = [int(x) for x in text.split()]
+        except ValueError as e:
+            log.error(f"Failed to parse tokens from text: {text[:100]}...")
+            raise ValueError(f"Invalid token sequence in document {idx}: {e}")
+        
+        return {
+            "tokens": tokens,  # Pre-tokenized sequence ready for training
+            "type": "t5_materialized_window",
+            "doc_id": doc_data.get("id", f"unknown_{idx}"),
+            "original_doc_id": metadata.get("original_doc_id"),
+            "window_idx": metadata.get("window_idx", 0),
+            "original_metadata": metadata.get("original_metadata", {})
+        }
+
+
 class T5SlidingWindowDataset(Dataset):
     """
-    DEPRECATED: Use T5PrecomputedWindowDataset with preprocessing pipeline instead.
+    DEPRECATED: Use T5MaterializedWindowDataset with preprocessing pipeline instead.
     
     This class is kept for backwards compatibility but should not be used for new implementations.
     Instead, use:
-    1. SlidingWindowProcessor to precompute windows
-    2. T5PrecomputedWindowDataset to read precomputed windows
+    1. SlidingWindowProcessor to materialize windows
+    2. T5MaterializedWindowDataset to read materialized windows
     """
     
     def __init__(self, *args, **kwargs):
-        log.warning("⚠️ T5SlidingWindowDataset is DEPRECATED. Use T5PrecomputedWindowDataset with preprocessing pipeline instead.")
+        log.warning("⚠️ T5SlidingWindowDataset is DEPRECATED. Use T5MaterializedWindowDataset with preprocessing pipeline instead.")
         log.warning("   1. Run: python src/dataprep/pipelines/run_sliding_windows.py")
-        log.warning("   2. Use: T5PrecomputedWindowDataset for training")
+        log.warning("   2. Use: T5MaterializedWindowDataset for training")
         
         # Fallback to simple implementation for backwards compatibility
         super().__init__()
         raise NotImplementedError(
             "T5SlidingWindowDataset is deprecated. "
-            "Use token count preprocessing pipeline + T5TokenCountDataset instead."
+            "Use materialized window preprocessing pipeline + T5MaterializedWindowDataset instead."
         ) 

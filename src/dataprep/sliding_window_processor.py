@@ -15,22 +15,26 @@ except ImportError:
 
 class SlidingWindowProcessor(PipelineStep):
     """
-    computes token counts with t5 sentencepiece
-    stores token count in document.metadata
-    windows computed on-the-fly during training
+    Materializes sliding windows as separate documents for efficient training.
+    
+    Input: 1 document 
+    Output: N documents (one per window) with pre-tokenized sequences
+    
+    Eliminates 100ms tokenization delay per document during training.
+    Each window becomes a separate parquet entry with tokenized content.
     """
     
-    type = "token_counts"
-    name = "token-count-processor"
+    type = "sliding_window_materializer"
+    name = "sliding-window-materializer"
     
     def __init__(
         self,
-        tokenizer_name_or_path: str = "t5-small",
+        tokenizer_name_or_path: str = "t5-base",
         max_length: int = 512,
         overlap_size: int = 256,
         log_to_wandb: bool = False,
         wandb_project: str = "BA-DataTrove",
-        wandb_group: str = "token-count-preprocessing"
+        wandb_group: str = "sliding-window-materialization"
     ):
         super().__init__()
         
@@ -53,20 +57,15 @@ class SlidingWindowProcessor(PipelineStep):
         
         # metrics tracking
         self.processed_docs = 0
-        self.total_tokens = 0
+        self.total_input_tokens = 0
+        self.total_output_windows = 0
         self.short_docs = 0
         self.long_docs = 0
-        self.total_windows = 0
         
         # w&b init
         self.wandb_run = None
         if self.log_to_wandb:
             logger.info("w&b will be initialized per worker rank")
-    
-    def _compute_token_count(self, text: str) -> int:
-        """compute token count with t5 sentencepiece tokenizer"""
-        tokens = self.tokenizer.encode(text, add_special_tokens=False)
-        return len(tokens)
     
     def _compute_window_count(self, token_count: int) -> int:
         """compute number of windows based on token count"""
@@ -75,44 +74,118 @@ class SlidingWindowProcessor(PipelineStep):
         else:
             return max(1, (token_count - self.overlap_size) // self.stride + 1)
     
-    def _update_document_metadata(self, doc: Document, token_count: int) -> None:
-        """update document metadata with token count and window config"""
+    def _tokenize_and_create_windows(self, doc: Document) -> List[Document]:
+        """
+        Tokenize document and create separate Document for each sliding window.
         
-        if not hasattr(doc, 'metadata') or doc.metadata is None:
-            doc.metadata = {}
+        Returns:
+            List of Documents, each containing one window's tokens as text
+        """
+        # Get text content
+        text = doc.text
         
+        # Tokenize full document once
+        full_tokens = self.tokenizer.encode(text, add_special_tokens=False)
+        token_count = len(full_tokens)
+        
+        # Compute windows
         window_count = self._compute_window_count(token_count)
+        windows = []
         
-        doc.metadata.update({
-            "t5_sentencepiece_token_count": token_count,
-            "t5_sentencepiece_tokenizer_path": str(self.tokenizer.name_or_path),
+        for window_idx in range(window_count):
+            if token_count <= self.max_length:
+                # Short document: single window
+                window_tokens = full_tokens
+                start_pos = 0
+                end_pos = token_count
+            else:
+                # Long document: extract window with sliding overlap
+                start_pos = window_idx * self.stride
+                end_pos = min(start_pos + self.max_length, token_count)
+                window_tokens = full_tokens[start_pos:end_pos]
             
-            "t5_sliding_window_config": {
+            # Pad to max_length for consistent batch processing
+            if len(window_tokens) < self.max_length:
+                pad_count = self.max_length - len(window_tokens)
+                window_tokens.extend([self.tokenizer.pad_token_id or 0] * pad_count)
+            
+            # Ensure exactly max_length
+            window_tokens = window_tokens[:self.max_length]
+            
+            # Create window document
+            window_doc = self._create_window_document(
+                doc, window_idx, window_tokens, start_pos, end_pos, token_count
+            )
+            windows.append(window_doc)
+        
+        return windows
+    
+    def _create_window_document(
+        self, 
+        original_doc: Document, 
+        window_idx: int, 
+        tokens: List[int],
+        start_pos: int,
+        end_pos: int,
+        original_token_count: int
+    ) -> Document:
+        """Create new Document containing window data."""
+        
+        # Generate unique window ID
+        window_id = f"{original_doc.id}_window_{window_idx:04d}"
+        
+        # Store tokens as space-separated string for Parquet compatibility
+        token_text = " ".join(map(str, tokens))
+        
+        # Create window metadata
+        window_metadata = {
+            # Original document reference
+            "original_doc_id": original_doc.id,
+            "window_idx": window_idx,
+            
+            # Window positioning
+            "start_pos": start_pos,
+            "end_pos": end_pos,
+            "window_length": len(tokens),
+            
+            # Document statistics
+            "original_token_count": original_token_count,
+            "original_window_count": self._compute_window_count(original_token_count),
+            
+            # Window configuration
+            "window_config": {
                 "max_length": self.max_length,
                 "overlap_size": self.overlap_size,
                 "stride": self.stride,
-                "tokenizer_class": str(self.tokenizer.__class__.__name__),
-                "tokenizer_path": str(self.tokenizer.name_or_path)
+                "tokenizer": str(self.tokenizer.name_or_path)
             },
             
-            "t5_estimated_window_count": window_count,
-            "t5_document_type": "short" if window_count == 1 else "long",
-            
-            "t5_estimated_total_window_tokens": window_count * self.max_length,
-            "t5_data_utilization": min(1.0, token_count / (window_count * self.max_length))
-        })
+            # Window type for dataset filtering
+            "document_type": "t5_sliding_window",
+            "preprocessing_version": "v2_materialized_windows"
+        }
+        
+        # Preserve original metadata if present
+        if hasattr(original_doc, 'metadata') and original_doc.metadata:
+            window_metadata["original_metadata"] = original_doc.metadata
+        
+        # Create window document
+        window_doc = Document(
+            text=token_text,  # Token sequence as space-separated string
+            id=window_id,
+            metadata=window_metadata
+        )
+        
+        return window_doc
     
-    def _log_document_metrics(self, doc: Document, token_count: int) -> None:
+    def _log_document_metrics(self, doc: Document, window_count: int, token_count: int):
         """log metrics for processed document"""
         
-        window_count = self._compute_window_count(token_count)
-        is_short = window_count == 1
-        
         self.processed_docs += 1
-        self.total_tokens += token_count
-        self.total_windows += window_count
+        self.total_input_tokens += token_count
+        self.total_output_windows += window_count
         
-        if is_short:
+        if window_count == 1:
             self.short_docs += 1
         else:
             self.long_docs += 1
@@ -120,34 +193,34 @@ class SlidingWindowProcessor(PipelineStep):
         # log to w&b periodically
         if self.log_to_wandb and self.processed_docs % 1000 == 0 and hasattr(self, 'wandb_run') and self.wandb_run:
             try:
-                avg_windows_per_doc = self.total_windows / self.processed_docs
-                avg_tokens_per_doc = self.total_tokens / self.processed_docs
+                avg_windows_per_doc = self.total_output_windows / self.processed_docs
+                avg_tokens_per_doc = self.total_input_tokens / self.processed_docs
                 
                 wandb.log({
                     "processed_documents": self.processed_docs,
-                    "total_estimated_windows": self.total_windows,
+                    "total_materialized_windows": self.total_output_windows,
                     "short_documents": self.short_docs,
                     "long_documents": self.long_docs,
                     "avg_windows_per_doc": avg_windows_per_doc,
                     "avg_tokens_per_doc": avg_tokens_per_doc,
-                    "short_doc_ratio": self.short_docs / self.processed_docs,
-                    "data_utilization": self.total_tokens / (self.total_windows * self.max_length)
+                    "compression_ratio": self.total_output_windows / self.processed_docs,
+                    "long_doc_ratio": self.long_docs / self.processed_docs
                 })
             except Exception as e:
                 logger.warning(f"w&b logging failed: {e}")
                 self.log_to_wandb = False
     
     def run(self, data, rank: int = 0, world_size: int = 1):
-        """main processing loop for token count computation"""
+        """main processing loop for window materialization"""
         
         # init w&b only in rank 0 process
         if self.log_to_wandb and rank == 0 and self.wandb_run is None:
             try:
                 self.wandb_run = wandb.init(
                     project="BA-DataTrove",
-                    group="token-count-preprocessing", 
-                    job_type=f"token-count-preprocessing-rank-{rank}",
-                    tags=["preprocessing", "token-counts", "t5-sentencepiece"],
+                    group="sliding-window-materialization", 
+                    job_type=f"window-materialization-rank-{rank}",
+                    tags=["preprocessing", "materialization", "sliding-windows", "t5"],
                     config={
                         "max_length": self.max_length,
                         "overlap_size": self.overlap_size,
@@ -164,23 +237,26 @@ class SlidingWindowProcessor(PipelineStep):
         elif rank != 0:
             self.log_to_wandb = False
             
-        logger.info(f"starting token count preprocessing (rank {rank}/{world_size})")
+        logger.info(f"starting sliding window materialization (rank {rank}/{world_size})")
         logger.info(f"window config: max_length={self.max_length}, overlap={self.overlap_size}, stride={self.stride}")
-        logger.info(f"windows will be computed on-the-fly during training")
+        logger.info(f"output: materialized windows as separate documents")
         
         for doc in data:
-            self.stat_update("total_docs")
+            self.stat_update("input_documents")
             
             with self.track_time():
                 try:
-                    token_count = self._compute_token_count(doc.text)
+                    # create windows for this document
+                    window_docs = self._tokenize_and_create_windows(doc)
                     
-                    self._update_document_metadata(doc, token_count)
+                    # update metrics
+                    token_count = len(self.tokenizer.encode(doc.text, add_special_tokens=False))
+                    window_count = len(window_docs)
                     
-                    self._log_document_metrics(doc, token_count)
+                    self._log_document_metrics(doc, window_count, token_count)
                     
-                    window_count = self._compute_window_count(token_count)
-                    self.stat_update("windows_estimated", window_count)
+                    # update stats
+                    self.stat_update("output_windows", window_count)
                     self.stat_update("tokens_processed", token_count)
                     
                     if window_count == 1:
@@ -188,7 +264,9 @@ class SlidingWindowProcessor(PipelineStep):
                     else:
                         self.stat_update("long_documents")
                     
-                    yield doc
+                    # yield all windows for this document
+                    for window_doc in window_docs:
+                        yield window_doc
                     
                 except Exception as e:
                     logger.warning(f"error processing document {doc.id}: {e}")
@@ -197,29 +275,28 @@ class SlidingWindowProcessor(PipelineStep):
         
         # final summary
         if self.processed_docs > 0:
-            avg_windows = self.total_windows / self.processed_docs
-            avg_tokens = self.total_tokens / self.processed_docs
-            data_utilization = self.total_tokens / (self.total_windows * self.max_length)
+            avg_windows = self.total_output_windows / self.processed_docs
+            avg_tokens = self.total_input_tokens / self.processed_docs
+            compression_ratio = self.total_output_windows / self.processed_docs
             
-            logger.info(f"token count preprocessing completed")
-            logger.info(f"processed {self.processed_docs} documents")
-            logger.info(f"token count preprocessing completed!")
-            logger.info(f"processed {self.processed_docs} documents")
-            logger.info(f"processed {self.total_tokens} tokens ({avg_tokens:.0f} per doc)")
-            logger.info(f"estimated {self.total_windows} windows ({avg_windows:.1f} per doc)")
-            logger.info(f"data utilization: {data_utilization:.1%}")
+            logger.info(f"sliding window materialization completed!")
+            logger.info(f"processed {self.processed_docs} input documents")
+            logger.info(f"generated {self.total_output_windows} output windows")
+            logger.info(f"compression ratio: {compression_ratio:.1f}x (windows per document)")
+            logger.info(f"average tokens per document: {avg_tokens:.0f}")
+            logger.info(f"average windows per document: {avg_windows:.1f}")
             logger.info(f"short docs: {self.short_docs} ({self.short_docs/self.processed_docs:.1%})")
-            logger.info(f"windows will be computed on-the-fly during training")
+            logger.info(f"long docs: {self.long_docs} ({self.long_docs/self.processed_docs:.1%})")
             
             # final w&b log
             if self.log_to_wandb and hasattr(self, 'wandb_run') and self.wandb_run and rank == 0:
                 try:
                     wandb.log({
-                        "final_processed_documents": self.processed_docs,
-                        "final_total_estimated_windows": self.total_windows,
+                        "final_input_documents": self.processed_docs,
+                        "final_output_windows": self.total_output_windows,
+                        "final_compression_ratio": compression_ratio,
                         "final_avg_windows_per_doc": avg_windows,
                         "final_avg_tokens_per_doc": avg_tokens,
-                        "final_data_utilization": data_utilization,
                         "final_short_doc_ratio": self.short_docs / self.processed_docs
                     })
                     wandb.finish()

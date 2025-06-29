@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=sliding_windows_preprocessing_t5_tokencount
 #SBATCH --time=11:00:00
-#SBATCH --cpus-per-task=76   # 75 CPUs auf dem H100-Node nutzen
-#SBATCH --mem=135G            # 100G RAM (angepasst für 75 CPUs, H100 hat viel)
+#SBATCH --cpus-per-task=77   # 75 CPUs auf dem H100-Node nutzen
+#SBATCH --mem=160G            # 100G RAM (angepasst für 75 CPUs, H100 hat viel)
 #SBATCH --partition=H100     # H100: 224 CPUs, wenig Queue, fast idle node!
 #SBATCH --gres=gpu:0         # Explizit keine GPUs
 #SBATCH --mail-type=BEGIN,END,FAIL

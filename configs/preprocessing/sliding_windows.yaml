@@ -13,8 +13,8 @@ sliding_windows:
   paths:
     input_folder: "data/cleaned_pretraining" # Cleaned documents input
     input_pattern: "*.parquet" # Parquet file pattern
-    output_folder: "data/pretraining_windowed_2" # Output with sliding window metadata
-    logging_dir: "logs/sliding_windows_2" # DataTrove logging directory
+    output_folder: "data/pretraining_windowed_3" # Output with sliding window metadata
+    logging_dir: "logs/sliding_windows_3" # DataTrove logging directory
 
   # Reader Configuration
   reader:
@@ -43,6 +43,7 @@ sliding_windows:
   wandb:
     project: "BA-DataTrove"
     group: "sliding-window-preprocessing"
+    tags: ["sliding-windows", "preprocessing", "t5-tokenization", "production", "all-data"]
 
 # Hydra configuration
 hydra:
