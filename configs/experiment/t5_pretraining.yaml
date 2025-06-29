@@ -1,5 +1,6 @@
 # @package _global_
 
+# defaults
 defaults:
   - override /paths: default
   - override /model: t5_base
@@ -11,6 +12,7 @@ experiment_name: t5_base_scientific_pretraining
 
 seed: 42
 
+# training settings
 trainer:
   max_epochs: 5
 

@@ -9,7 +9,7 @@ from transformers import T5Config, T5ForConditionalGeneration
 
 
 class T5Model(nn.Module):
-    """Thin wrapper around :class:`~transformers.T5ForConditionalGeneration`."""
+    """T5 model wrapper."""
 
     def __init__(
         self,
@@ -47,8 +47,7 @@ class T5Model(nn.Module):
         if enable_gradient_checkpointing:
             self.model.gradient_checkpointing_enable()
 
-    def forward(self, **kwargs):  # type: ignore[override]
-        """Proxy to underlying *T5ForConditionalGeneration* forward."""
+    def forward(self, **kwargs):
         return self.model(**kwargs)
 
     @property
@@ -56,9 +55,7 @@ class T5Model(nn.Module):
         return self.model.config
 
     def resize_token_embeddings(self, new_num_tokens: int) -> None:
-        """Resize the embedding matrix (useful after tokenizer training)."""
         self.model.resize_token_embeddings(new_num_tokens)
 
-    def generate(self, *args, **kwargs):  # noqa: D401, ANN001
-        """Short-cut to *self.model.generate()*."""
+    def generate(self, *args, **kwargs):
         return self.model.generate(*args, **kwargs) 

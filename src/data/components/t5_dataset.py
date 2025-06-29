@@ -94,12 +94,14 @@ class T5MaterializedWindowDataset(Dataset):
             doc_data = self.base_dataset[i]
             metadata = doc_data.get("metadata", {})
             
+            # Check for materialized window markers
             doc_type = metadata.get("document_type")
             version = metadata.get("preprocessing_version")
             
             if doc_type == "t5_sliding_window" and version == "v2_materialized_windows":
                 materialized_count += 1
             
+            # Verify text format 
             text = doc_data.get("text", "")
             if text and not self._is_token_sequence(text):
                 log.warning(f"Document {i} text doesn't look like token sequence: {text[:50]}...")
@@ -123,9 +125,10 @@ class T5MaterializedWindowDataset(Dataset):
     
     def _is_token_sequence(self, text: str) -> bool:
         parts = text.strip().split()
-        if len(parts) < 10:
+        if len(parts) < 10:  # Too short to be a meaningful token sequence
             return False
         
+        # Check if first 10 parts are integers
         try:
             for part in parts[:10]:
                 int(part)
@@ -137,10 +140,12 @@ class T5MaterializedWindowDataset(Dataset):
         return len(self.base_dataset)
     
     def __getitem__(self, idx: int) -> dict:
+        """Get pre-tokenized window."""
         
         if idx >= len(self.base_dataset):
             raise IndexError(f"Index {idx} out of range for dataset of size {len(self.base_dataset)}")
         
+        # Get window data
         doc_data = self.base_dataset[idx]
         text = doc_data.get("text", "")
         metadata = doc_data.get("metadata", {})

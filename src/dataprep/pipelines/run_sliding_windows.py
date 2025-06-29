@@ -15,15 +15,11 @@ from omegaconf import DictConfig, OmegaConf
 from datatrove.executor import LocalPipelineExecutor
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import ParquetWriter
-# from datatrove.pipeline.stats import DocStats  # Not needed for sliding window preprocessing
 
-# Import sliding window processor
 from src.dataprep.sliding_window_processor import SlidingWindowProcessor
 
-# Setup logging
 log = logging.getLogger(__name__)
 
-# Load environment variables from .env file
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -42,11 +38,9 @@ def main(cfg: DictConfig) -> None:
     log.info("Configuration:")
     log.info(f"\n{OmegaConf.to_yaml(cfg)}")
 
-    # W&B Session initialisieren
     wandb_session = None
     if WANDB_AVAILABLE and cfg.sliding_windows.get("log_to_wandb", False):
         try:
-            # Generate automatic tags based on configuration
             tags = ["sliding-windows", "preprocessing", "tokenization"]
             
             if cfg.sliding_windows.limit_documents != -1:
@@ -125,7 +119,6 @@ def main(cfg: DictConfig) -> None:
         log.info("Pipeline completed!")
         log.info(f"Time: {execution_time:.1f}s")
         
-        # Log execution metrics to W&B
         if wandb_session:
             wandb.log({
                 "pipeline_execution_time": execution_time,
@@ -137,7 +130,6 @@ def main(cfg: DictConfig) -> None:
                 "tokenizer": cfg.sliding_windows.tokenizer.name_or_path
             })
         
-        # W&B Session beenden
         if wandb_session:
             try:
                 wandb.finish()
@@ -147,7 +139,6 @@ def main(cfg: DictConfig) -> None:
             
     except Exception as e:
         log.error(f"Pipeline failed: {e}")
-        # W&B Session auch bei Fehler beenden
         if wandb_session:
             try:
                 wandb.finish()
