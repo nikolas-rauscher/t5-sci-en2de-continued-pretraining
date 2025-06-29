@@ -1,7 +1,7 @@
 _target_: src.data.t5_datamodule.T5DataModule
 
 # we use the data where added the sliding windows metadata
-data_dir: data/pretraining_windowed
+data_dir: data/pretraining_windowed_2
 
 tokenizer_name_or_path: t5-base
 

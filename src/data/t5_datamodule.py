@@ -108,6 +108,7 @@ class T5DataModule(LightningDataModule):
         # DEPRECATED: Use preprocessing pipeline instead
         window_overlap: int = 256,  # Kept for config compatibility
         use_precomputed_windows: bool = True,  # Use precomputed windows by default
+        limit_files: int = -1,  # -1 = no limit, positive number = limit files for testing
     ) -> None:
         super().__init__()
 
@@ -139,6 +140,10 @@ class T5DataModule(LightningDataModule):
         parquet_files = list(self.data_dir.rglob("*.parquet"))
         if not parquet_files:
             raise RuntimeError(f"No Parquet files found in {self.data_dir!s}")
+
+        # Apply file limit if specified
+        if self.hparams.limit_files > 0:
+            parquet_files = parquet_files[:self.hparams.limit_files]
 
         # Load tokenizer first (needed for dataset)
         self.tokenizer = self._load_tokenizer()
