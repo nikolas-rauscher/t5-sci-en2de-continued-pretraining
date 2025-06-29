@@ -1,12 +1,10 @@
 _target_: src.models.t5_module.T5LitModule
 
-# single model config used by LitModule
 t5_model:
   _target_: src.models.components.t5_model.T5Model
   pretrained_model_name_or_path: t5-base
   enable_gradient_checkpointing: true
 
-# optimizer settings
 optimizer:
   _target_: torch.optim.AdamW
   lr: 1e-4
@@ -14,5 +12,4 @@ optimizer:
   weight_decay: 0.01
   _partial_: true
 
-# scheduler (optional) – constant lr for quick tests
 scheduler: null 

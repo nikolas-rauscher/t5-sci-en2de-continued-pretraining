@@ -1,6 +1,5 @@
 # @package _global_
 
-# Base defaults
 defaults:
   - override /paths: default
   - override /model: t5_base
@@ -8,16 +7,13 @@ defaults:
   - override /trainer: default
   - override /logger: wandb
 
-# general experiment tags / metadata
 experiment_name: t5_base_scientific_pretraining
 
 seed: 42
 
-# training settings
 trainer:
   max_epochs: 5
 
-# optionally turn off logger/callbacks for first test
 callbacks: null
 
 test: false

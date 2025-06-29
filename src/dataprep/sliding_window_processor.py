@@ -14,15 +14,7 @@ except ImportError:
 
 
 class SlidingWindowProcessor(PipelineStep):
-    """
-    Materializes sliding windows as separate documents for efficient training.
-    
-    Input: 1 document 
-    Output: N documents (one per window) with pre-tokenized sequences
-    
-    Eliminates 100ms tokenization delay per document during training.
-    Each window becomes a separate parquet entry with tokenized content.
-    """
+    """Materializes sliding windows as separate documents."""
     
     type = "sliding_window_materializer"
     name = "sliding-window-materializer"
@@ -40,7 +32,7 @@ class SlidingWindowProcessor(PipelineStep):
         
         self.max_length = max_length
         self.overlap_size = overlap_size
-        self.stride = max_length - overlap_size
+        self.stride = max_length - overlap_size  # step size between windows
         self.log_to_wandb = log_to_wandb and WANDB_AVAILABLE
         
         # init tokenizer
@@ -77,18 +69,15 @@ class SlidingWindowProcessor(PipelineStep):
     def _tokenize_and_create_windows(self, doc: Document) -> List[Document]:
         """
         Tokenize document and create separate Document for each sliding window.
-        
         Returns:
             List of Documents, each containing one window's tokens as text
         """
         # Get text content
         text = doc.text
-        
-        # Tokenize full document once
         full_tokens = self.tokenizer.encode(text, add_special_tokens=False)
         token_count = len(full_tokens)
         
-        # Compute windows
+        # create sliding windows
         window_count = self._compute_window_count(token_count)
         windows = []
         
@@ -104,7 +93,7 @@ class SlidingWindowProcessor(PipelineStep):
                 end_pos = min(start_pos + self.max_length, token_count)
                 window_tokens = full_tokens[start_pos:end_pos]
             
-            # Pad to max_length for consistent batch processing
+            # pad to max_length
             if len(window_tokens) < self.max_length:
                 pad_count = self.max_length - len(window_tokens)
                 window_tokens.extend([self.tokenizer.pad_token_id or 0] * pad_count)
@@ -129,30 +118,24 @@ class SlidingWindowProcessor(PipelineStep):
         end_pos: int,
         original_token_count: int
     ) -> Document:
-        """Create new Document containing window data."""
         
-        # Generate unique window ID
+        # unique window ID
         window_id = f"{original_doc.id}_window_{window_idx:04d}"
         
-        # Store tokens as space-separated string for Parquet compatibility
+        # tokens as space-separated string
         token_text = " ".join(map(str, tokens))
         
-        # Create window metadata
         window_metadata = {
-            # Original document reference
             "original_doc_id": original_doc.id,
             "window_idx": window_idx,
             
-            # Window positioning
             "start_pos": start_pos,
             "end_pos": end_pos,
             "window_length": len(tokens),
             
-            # Document statistics
             "original_token_count": original_token_count,
             "original_window_count": self._compute_window_count(original_token_count),
             
-            # Window configuration
             "window_config": {
                 "max_length": self.max_length,
                 "overlap_size": self.overlap_size,
@@ -160,18 +143,17 @@ class SlidingWindowProcessor(PipelineStep):
                 "tokenizer": str(self.tokenizer.name_or_path)
             },
             
-            # Window type for dataset filtering
             "document_type": "t5_sliding_window",
             "preprocessing_version": "v2_materialized_windows"
         }
         
-        # Preserve original metadata if present
+        # preserve original metadata
         if hasattr(original_doc, 'metadata') and original_doc.metadata:
             window_metadata["original_metadata"] = original_doc.metadata
         
         # Create window document
         window_doc = Document(
-            text=token_text,  # Token sequence as space-separated string
+            text=token_text,
             id=window_id,
             metadata=window_metadata
         )
@@ -179,7 +161,6 @@ class SlidingWindowProcessor(PipelineStep):
         return window_doc
     
     def _log_document_metrics(self, doc: Document, window_count: int, token_count: int):
-        """log metrics for processed document"""
         
         self.processed_docs += 1
         self.total_input_tokens += token_count
@@ -211,9 +192,7 @@ class SlidingWindowProcessor(PipelineStep):
                 self.log_to_wandb = False
     
     def run(self, data, rank: int = 0, world_size: int = 1):
-        """main processing loop for window materialization"""
         
-        # init w&b only in rank 0 process
         if self.log_to_wandb and rank == 0 and self.wandb_run is None:
             try:
                 self.wandb_run = wandb.init(
@@ -264,7 +243,6 @@ class SlidingWindowProcessor(PipelineStep):
                     else:
                         self.stat_update("long_documents")
                     
-                    # yield all windows for this document
                     for window_doc in window_docs:
                         yield window_doc
                     

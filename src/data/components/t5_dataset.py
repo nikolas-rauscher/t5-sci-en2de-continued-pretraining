@@ -13,7 +13,7 @@ log = RankedLogger(__name__, rank_zero_only=True)
 
 
 class _ParquetTextFile:
-    """Lightweight wrapper providing random access to parquet file with text, id, and metadata."""
+    """Random access to parquet file."""
 
     def __init__(self, path: Path):
         self.file = pq.ParquetFile(path)
@@ -23,7 +23,7 @@ class _ParquetTextFile:
         return self.num_rows
 
     def __getitem__(self, idx: int) -> dict:
-        # Find row group and local index
+        # find row group and local index
         row_group, row_index = self._locate(idx)
         batch: pa.Table = self.file.read_row_group(row_group, columns=["text", "id", "metadata"])
         row = batch.slice(row_index, 1).to_pylist()[0]
@@ -40,7 +40,7 @@ class _ParquetTextFile:
 
 
 class T5ParquetDataset(Dataset):
-    """Concat multiple Parquet files containing text, id, and metadata columns into one dataset."""
+    """Concatenated parquet files dataset."""
 
     def __init__(self, parquet_files: List[str | Path]):
         super().__init__()
@@ -64,253 +64,29 @@ class T5ParquetDataset(Dataset):
     def __getitem__(self, idx: int):
         file_idx, local_idx = self._find_file(idx)
         row_data = self.files[file_idx][local_idx]
-        return row_data  # Now returns full row with text, id, metadata
+        return row_data
 
 
-class T5TokenCountDataset(Dataset):
-    """
-    T5 Dataset that computes sliding windows on-the-fly from stored T5 SentencePiece token counts.
-    
-    Expects documents processed with T5 SentencePiece token counts in metadata:
-    - metadata.t5_sentencepiece_token_count: Number of tokens with T5 SentencePiece
-    - metadata.t5_sliding_window_config: Window configuration for T5
-    
-    Computes windows deterministically:
-    - window_count = max(1, (token_count - overlap_size) // stride + 1)
-    - start_pos = window_idx * stride  
-    - end_pos = min(start_pos + max_length, token_count)
-    """
-    
-    def __init__(
-        self, 
-        parquet_files: List[str | Path], 
-        tokenizer, 
-        max_length: int = 512,
-        overlap_size: int = 256,  # 50% overlap
-        verify_config: bool = True
-    ):
-        super().__init__()
-        
-        self.tokenizer = tokenizer
-        self.max_length = max_length
-        self.overlap_size = overlap_size
-        self.stride = max_length - overlap_size
-        self.verify_config = verify_config
-        
-        # Create base dataset for document access
-        self.base_dataset = T5ParquetDataset(parquet_files)
-        
-        log.info(f"Building window index from token counts for {len(self.base_dataset)} documents")
-        log.info(f"Window config: max_length={max_length}, overlap={overlap_size}, stride={self.stride}")
-        
-        # Build index from token counts
-        self._build_token_count_index()
-        
-        log.info(f"Created index for {len(self.window_index)} windows from token counts")
-        
-    def _verify_window_config(self, config: dict) -> bool:
-        """Verify that stored window config matches expected configuration."""
-        
-        if not config:
-            log.warning("No sliding window config found in metadata")
-            return False
-        
-        expected_max_length = config.get("max_length", 0)
-        expected_overlap = config.get("overlap_size", 0)
-        
-        if expected_max_length != self.max_length:
-            log.warning(f"Max length mismatch: expected {self.max_length}, got {expected_max_length}")
-            return False
-        
-        expected_overlap_ratio = expected_overlap / expected_max_length if expected_max_length > 0 else 0
-        if abs(expected_overlap_ratio - 0.5) > 0.01:  # Allow 1% tolerance
-            log.warning(f"Overlap ratio mismatch: expected ~50%, got {expected_overlap_ratio:.1%}")
-            return False
-        
-        return True
-    
-    def _compute_window_count(self, token_count: int) -> int:
-        """Compute number of windows for given token count."""
-        if token_count <= self.max_length:
-            return 1
-        else:
-            return max(1, (token_count - self.overlap_size) // self.stride + 1)
-        
-    def _build_token_count_index(self):
-        """Build index from token count metadata."""
-        
-        self.window_index = []
-        verified_config = None
-        total_windows = 0
-        docs_with_token_counts = 0
-        
-        for doc_idx in range(len(self.base_dataset)):
-            # Get document to access metadata
-            doc_data = self.base_dataset[doc_idx]
-            
-            # Handle case where metadata might be in different location
-            metadata = None
-            if isinstance(doc_data, dict):
-                metadata = doc_data.get("metadata")
-            
-            if not metadata:
-                log.warning(f"No metadata found for document {doc_idx}. Using fallback T5 SentencePiece tokenization.")
-                # Fallback: tokenize on-the-fly to get T5 SentencePiece token count
-                text = doc_data.get("text", "") if isinstance(doc_data, dict) else doc_data["text"]
-                tokens = self.tokenizer.encode(text, add_special_tokens=False)
-                token_count = len(tokens)
-                window_count = self._compute_window_count(token_count)
-                
-                # Add windows for this document
-                for window_idx in range(window_count):
-                    self.window_index.append((doc_idx, window_idx, token_count))
-                total_windows += window_count
-                continue
-            
-            # Verify configuration on first document with metadata
-            if verified_config is None and self.verify_config:
-                window_config = metadata.get("t5_sliding_window_config", {})
-                if self._verify_window_config(window_config):
-                    verified_config = window_config
-                    log.info(f"✅ Verified T5 window config: {window_config}")
-                else:
-                    log.warning("⚠️ T5 configuration verification failed - proceeding with current config")
-                    verified_config = {}
-            
-            # Get T5 SentencePiece token count from metadata
-            token_count = metadata.get("t5_sentencepiece_token_count")
-            
-            if token_count is None:
-                log.warning(f"No T5 SentencePiece token count found for document {doc_idx}. Using fallback T5 SentencePiece tokenization.")
-                # Fallback: tokenize on-the-fly with T5 SentencePiece
-                text = doc_data.get("text", "") if isinstance(doc_data, dict) else doc_data["text"]
-                tokens = self.tokenizer.encode(text, add_special_tokens=False)
-                token_count = len(tokens)
-            else:
-                docs_with_token_counts += 1
-            
-            # Compute window count
-            window_count = self._compute_window_count(token_count)
-            
-            # Add all windows for this document
-            for window_idx in range(window_count):
-                self.window_index.append((doc_idx, window_idx, token_count))
-            
-            total_windows += window_count
-            
-            if doc_idx < 5:  # Log first few documents for debugging
-                log.info(f"Document {doc_idx}: {token_count} T5 SentencePiece tokens → {window_count} windows")
-        
-        log.info(f"📊 Index built: {len(self.base_dataset)} docs → {total_windows} windows")
-        log.info(f"📈 Docs with T5 SentencePiece token counts: {docs_with_token_counts}/{len(self.base_dataset)} ({docs_with_token_counts/len(self.base_dataset):.1%})")
-        if docs_with_token_counts < len(self.base_dataset):
-            log.warning(f"⚠️ {len(self.base_dataset) - docs_with_token_counts} documents missing T5 SentencePiece token counts, using fallback T5 SentencePiece tokenization")
-    
-    def __len__(self):
-        return len(self.window_index)
-    
-    def __getitem__(self, idx: int) -> dict:
-        """Get window computed on-the-fly from token count."""
-        
-        if idx >= len(self.window_index):
-            raise IndexError(f"Index {idx} out of range for dataset of size {len(self.window_index)}")
-        
-        doc_idx, window_idx, token_count = self.window_index[idx]
-        
-        # Get document text
-        doc_data = self.base_dataset[doc_idx]
-        text = doc_data.get("text", "") if isinstance(doc_data, dict) else doc_data["text"]
-        
-        # Tokenize document
-        full_tokens = self.tokenizer.encode(text, add_special_tokens=False)
-        
-        # Verify T5 SentencePiece token count if available
-        if len(full_tokens) != token_count:
-            log.warning(f"T5 SentencePiece token count mismatch for doc {doc_idx}: stored={token_count}, actual={len(full_tokens)}")
-            # Use actual token count
-            token_count = len(full_tokens)
-        
-        # Compute window boundaries on-the-fly
-        if token_count <= self.max_length:
-            # Short document: single window with padding
-            window_tokens = full_tokens
-            start_pos = 0
-            end_pos = len(full_tokens)
-        else:
-            # Long document: extract specific window
-            start_pos = window_idx * self.stride
-            end_pos = min(start_pos + self.max_length, token_count)
-            window_tokens = full_tokens[start_pos:end_pos]
-        
-        # Pad if needed
-        if len(window_tokens) < self.max_length:
-            window_tokens.extend([self.tokenizer.pad_token_id or 0] * (self.max_length - len(window_tokens)))
-        
-        # Ensure exactly max_length tokens
-        window_tokens = window_tokens[:self.max_length]
-        
-        return {
-            "text": "",  # Empty - we return tokens directly
-            "tokens": window_tokens,
-            "type": "t5_sentencepiece_on_the_fly",
-            "doc_idx": doc_idx,
-            "window_idx": window_idx,
-            "start_pos": start_pos,
-            "end_pos": end_pos,
-            "t5_sentencepiece_token_count": token_count
-        }
 
 
-class T5PrecomputedWindowDataset(Dataset):
-    """
-    DEPRECATED: Use T5TokenCountDataset with token count preprocessing instead.
-    
-    This approach stored full window boundaries which was inefficient.
-    The new approach stores only token counts and computes windows on-the-fly.
-    """
-    
-    def __init__(self, *args, **kwargs):
-        log.warning("⚠️ T5PrecomputedWindowDataset is DEPRECATED. Use T5TokenCountDataset instead.")
-        log.warning("   This class stored full window boundaries which was inefficient.")
-        log.warning("   Use T5TokenCountDataset with token count preprocessing for better performance.")
-        
-        # Fallback implementation for backwards compatibility
-        super().__init__()
-        raise NotImplementedError(
-            "T5PrecomputedWindowDataset is deprecated. "
-            "Use T5TokenCountDataset with token count preprocessing instead."
-        )
 
 
 class T5MaterializedWindowDataset(Dataset):
-    """
-    Fast dataset for loading pre-materialized sliding windows.
-    
-    Expects parquet files with materialized windows created by SlidingWindowProcessor:
-    - text: space-separated token IDs (e.g. "1 23 456 789 2")
-    - metadata.document_type: "t5_sliding_window"
-    - metadata.preprocessing_version: "v2_materialized_windows"
-    
-    Provides O(1) access to pre-tokenized windows without tokenization overhead.
-    """
+    """Pre-tokenized sliding windows dataset."""
     
     def __init__(self, parquet_files: List[str | Path]):
         super().__init__()
         
-        # Create base dataset for document access
         self.base_dataset = T5ParquetDataset(parquet_files)
         
-        # Verify that this is materialized window data
         self._verify_materialized_windows()
         
         log.info(f"T5MaterializedWindowDataset created with {len(self.base_dataset)} pre-tokenized windows")
         
     def _verify_materialized_windows(self):
-        """Verify that parquet files contain materialized windows."""
         if len(self.base_dataset) == 0:
             raise ValueError("No data found in parquet files")
         
-        # Check first few documents to verify format
         sample_size = min(5, len(self.base_dataset))
         materialized_count = 0
         
@@ -318,18 +94,17 @@ class T5MaterializedWindowDataset(Dataset):
             doc_data = self.base_dataset[i]
             metadata = doc_data.get("metadata", {})
             
-            # Check for materialized window markers
             doc_type = metadata.get("document_type")
             version = metadata.get("preprocessing_version")
             
             if doc_type == "t5_sliding_window" and version == "v2_materialized_windows":
                 materialized_count += 1
             
-            # Verify text format (should be space-separated token IDs)
             text = doc_data.get("text", "")
             if text and not self._is_token_sequence(text):
                 log.warning(f"Document {i} text doesn't look like token sequence: {text[:50]}...")
         
+        # check if we found materialized windows
         if materialized_count == 0:
             raise ValueError(
                 "No materialized windows found! "
@@ -347,12 +122,10 @@ class T5MaterializedWindowDataset(Dataset):
                        f"Consider filtering or re-running materialization.")
     
     def _is_token_sequence(self, text: str) -> bool:
-        """Check if text looks like space-separated token IDs."""
         parts = text.strip().split()
-        if len(parts) < 10:  # Too short to be a meaningful token sequence
+        if len(parts) < 10:
             return False
         
-        # Check if first 10 parts are integers
         try:
             for part in parts[:10]:
                 int(part)
@@ -364,17 +137,15 @@ class T5MaterializedWindowDataset(Dataset):
         return len(self.base_dataset)
     
     def __getitem__(self, idx: int) -> dict:
-        """Get pre-tokenized window with O(1) access."""
         
         if idx >= len(self.base_dataset):
             raise IndexError(f"Index {idx} out of range for dataset of size {len(self.base_dataset)}")
         
-        # Get window data
         doc_data = self.base_dataset[idx]
         text = doc_data.get("text", "")
         metadata = doc_data.get("metadata", {})
         
-        # Parse pre-tokenized sequence
+        # parse pre-tokenized sequence
         try:
             tokens = [int(x) for x in text.split()]
         except ValueError as e:
@@ -382,7 +153,7 @@ class T5MaterializedWindowDataset(Dataset):
             raise ValueError(f"Invalid token sequence in document {idx}: {e}")
         
         return {
-            "tokens": tokens,  # Pre-tokenized sequence ready for training
+            "tokens": tokens,
             "type": "t5_materialized_window",
             "doc_id": doc_data.get("id", f"unknown_{idx}"),
             "original_doc_id": metadata.get("original_doc_id"),
@@ -391,24 +162,4 @@ class T5MaterializedWindowDataset(Dataset):
         }
 
 
-class T5SlidingWindowDataset(Dataset):
-    """
-    DEPRECATED: Use T5MaterializedWindowDataset with preprocessing pipeline instead.
-    
-    This class is kept for backwards compatibility but should not be used for new implementations.
-    Instead, use:
-    1. SlidingWindowProcessor to materialize windows
-    2. T5MaterializedWindowDataset to read materialized windows
-    """
-    
-    def __init__(self, *args, **kwargs):
-        log.warning("⚠️ T5SlidingWindowDataset is DEPRECATED. Use T5MaterializedWindowDataset with preprocessing pipeline instead.")
-        log.warning("   1. Run: python src/dataprep/pipelines/run_sliding_windows.py")
-        log.warning("   2. Use: T5MaterializedWindowDataset for training")
-        
-        # Fallback to simple implementation for backwards compatibility
-        super().__init__()
-        raise NotImplementedError(
-            "T5SlidingWindowDataset is deprecated. "
-            "Use materialized window preprocessing pipeline + T5MaterializedWindowDataset instead."
-        ) 
+ 

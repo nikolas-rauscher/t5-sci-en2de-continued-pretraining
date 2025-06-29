@@ -1,6 +1,5 @@
 _target_: src.data.t5_datamodule.T5DataModule
 
-# we use the data where added the sliding windows metadata
 data_dir: data/pretraining_windowed_3
 
 tokenizer_name_or_path: t5-base
@@ -15,5 +14,3 @@ mean_span_length: 3
 
 train_val_split: [0.95, 0.05] 
 
-use_precomputed_windows: true 
-window_overlap: 256  # 50% overlap

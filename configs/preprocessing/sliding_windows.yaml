@@ -1,51 +1,47 @@
 # @package _global_
 
-# T5 SentencePiece Token Count Preprocessing Configuration  
-# Berechnet Token-Counts mit T5 SentencePiece und speichert sie in Parquet-Metadaten
-
 
 defaults:
   - override /hydra/job_logging: colorlog
   - override /hydra/hydra_logging: colorlog
 
 sliding_windows:
-  # Input/Output Paths
+  # input/output paths
   paths:
-    input_folder: "data/cleaned_pretraining" # Cleaned documents input
-    input_pattern: "*.parquet" # Parquet file pattern
-    output_folder: "data/pretraining_windowed_3" # Output with sliding window metadata
-    logging_dir: "logs/sliding_windows_3" # DataTrove logging directory
+    input_folder: "data/cleaned_pretraining"
+    input_pattern: "*.parquet"
+    output_folder: "data/pretraining_windowed_3"
+    logging_dir: "logs/sliding_windows_3"
 
-  # Reader Configuration
+  # reader config
   reader:
     text_key: "text" 
     id_key: "id"
     default_metadata: {}
 
-  # Tokenizer Configuration
+  # tokenizer config
   tokenizer:
     name_or_path: "t5-base"
 
   window_config:
     max_length: 512
-    overlap_size: 256  # 50% 
+    overlap_size: 256
 
-  # Execution Configuration
+  # execution config
   execution:
     tasks: 75
     workers: 75
 
-  # Processing Limits
+  # processing limits
   limit_documents: -1          
 
-  # Weights & Biases Configuration
+  # weights & biases
   log_to_wandb: true
   wandb:
     project: "BA-DataTrove"
     group: "sliding-window-preprocessing"
     tags: ["sliding-windows", "preprocessing", "t5-tokenization", "production", "all-data"]
 
-# Hydra configuration
 hydra:
   job:
     name: sliding_window_preprocessing

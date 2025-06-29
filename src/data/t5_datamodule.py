@@ -89,7 +89,7 @@ except ImportError:  # pragma: no cover
                     "labels": batch_labels,
                 }
 
-from .components.t5_dataset import T5ParquetDataset, T5TokenCountDataset, T5PrecomputedWindowDataset, T5MaterializedWindowDataset
+from .components.t5_dataset import T5ParquetDataset, T5MaterializedWindowDataset
 
 
 class T5DataModule(LightningDataModule):
@@ -105,9 +105,6 @@ class T5DataModule(LightningDataModule):
         corruption_rate: float = 0.15,
         mean_span_length: int = 3,
         shuffle_buffer_size: int = 10_000,
-        # DEPRECATED: Use preprocessing pipeline instead
-        window_overlap: int = 256,  # Kept for config compatibility
-        use_precomputed_windows: bool = False,  # DEPRECATED: Use materialized windows instead
         use_materialized_windows: bool = True,  # Use materialized windows by default 
         limit_files: int = -1,  
     ) -> None:
@@ -149,41 +146,12 @@ class T5DataModule(LightningDataModule):
         # Load tokenizer first (needed for dataset)
         self.tokenizer = self._load_tokenizer()
 
-        # Choose dataset type based on configuration
-        if self.hparams.use_materialized_windows:
-            from src.utils.pylogger import RankedLogger
-            log = RankedLogger(__name__, rank_zero_only=True)
-            
-            log.info("🚀 Using T5MaterializedWindowDataset with pre-tokenized windows")
-            log.info(f"📁 Looking for materialized window data in: {self.data_dir}")
-            log.info("💡 If you get errors, make sure to run sliding window materialization first:")
-            log.info("   python src/dataprep/pipelines/run_sliding_windows.py")
-            log.info("⚡ Maximum performance: O(1) access to pre-tokenized windows")
-            
-            # Create dataset with materialized windows
-            full_dataset = T5MaterializedWindowDataset(parquet_files=parquet_files)
-            
-        elif self.hparams.use_precomputed_windows:
-            from src.utils.pylogger import RankedLogger
-            log = RankedLogger(__name__, rank_zero_only=True)
-            
-            log.info(f"Using T5TokenCountDataset with precomputed token counts from {self.data_dir}")
-            
-            # Create dataset with token count based windows
-            full_dataset = T5TokenCountDataset(
-                parquet_files=parquet_files,
-                tokenizer=self.tokenizer,
-                max_length=self.hparams.max_length,
-                overlap_size=self.hparams.window_overlap,
-                verify_config=True
-            )
-        else:
-            # Fallback to simple dataset without sliding windows
-            log.warning("Using simple T5ParquetDataset without sliding windows")
-            log.warning("This will truncate documents to 512 tokens and waste data")
-            log.warning("Consider using sliding window preprocessing for better data utilization")
-            
-            full_dataset = T5ParquetDataset(parquet_files=parquet_files)
+        from src.utils.pylogger import RankedLogger
+        log = RankedLogger(__name__, rank_zero_only=True)
+        
+        log.info(f"Using materialized windows from: {self.data_dir}")
+        
+        full_dataset = T5MaterializedWindowDataset(parquet_files=parquet_files)
 
         # Compute split lengths
         train_ratio, val_ratio = self.hparams.train_val_split
