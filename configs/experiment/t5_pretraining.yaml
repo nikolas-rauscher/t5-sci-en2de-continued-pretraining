@@ -7,6 +7,7 @@ defaults:
   - override /data: t5_pretraining
   - override /trainer: default
   - override /logger: wandb
+  - override /callbacks: default
 
 experiment_name: t5_base_scientific_pretraining
 
@@ -15,8 +16,6 @@ seed: 42
 # training settings
 trainer:
   max_epochs: 5
-
-callbacks: null
 
 test: false
 train: true 
