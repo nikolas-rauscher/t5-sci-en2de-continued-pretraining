@@ -312,6 +312,67 @@ class ShortLineCleaner(BaseTextCleaner):
         return False, ""
 
 
+class CopyrightCleaner(BaseTextCleaner):
+    """
+    Cleaner für Copyright-Zeilen (basierend auf 170k Rohdaten-Analyse)
+    ~52k Dokumente betroffen - größter Impact nach URLs
+    """
+    
+    def __init__(self, debug_mode: bool = False):
+        super().__init__(debug_mode)
+        self.copyright_patterns = [
+            r'.*©.*',
+            r'.*copyright.*', 
+            r'.*\(c\).*',
+            r'.*all rights reserved.*'
+        ]
+    
+    def clean(self, text: str, doc_id: str = None) -> Tuple[str, Dict]:
+        """Remove copyright lines completely"""
+        lines = text.splitlines()
+        cleaned_lines = []
+        removed_lines = []
+        
+        for i, line in enumerate(lines):
+            stripped_line = line.strip()
+            
+            # Keep empty lines
+            if not stripped_line:
+                cleaned_lines.append(line)
+                continue
+            
+            # Check for copyright patterns
+            is_copyright_line = any(re.search(pattern, stripped_line, re.IGNORECASE) 
+                                  for pattern in self.copyright_patterns)
+            
+            if is_copyright_line:
+                removed_lines.append({
+                    "line_content": stripped_line[:100],
+                    "line_number": i + 1,
+                    "length": len(stripped_line),
+                    "reason": "copyright_line"
+                })
+                
+                if self.debug_mode:
+                    # Debug-Tag statt Entfernung
+                    debug_tag = f"[DEBUG:copyright:copyright_line]"
+                    cleaned_lines.append(debug_tag)
+                else:
+                    # Ganze Zeile wird entfernt
+                    continue
+            else:
+                cleaned_lines.append(line)
+        
+        stats = {
+            "lines_removed": len(removed_lines),
+            "length_reduction": sum(item["length"] for item in removed_lines) if not self.debug_mode else 0,
+            "removed_lines": removed_lines[:10],
+            "doc_id": doc_id or "unknown"
+        }
+        
+        return '\n'.join(cleaned_lines), stats
+
+
 class MetadataCleaner(BaseTextCleaner):
     """
     Cleaner für Metadata-Zeilen (Keywords, technische Codes)
@@ -390,6 +451,7 @@ class ComprehensiveLineCleaner:
         self.tabular_cleaner = TabularDataCleaner(min_space_sequences=2, space_ratio_threshold=0.4, debug_mode=debug_mode)
         self.short_line_cleaner = ShortLineCleaner(debug_mode=debug_mode)
         self.metadata_cleaner = MetadataCleaner(debug_mode=debug_mode)
+        self.copyright_cleaner = CopyrightCleaner(debug_mode=debug_mode)  # NEUE Copyright-Cleaner
         self.debug_mode = debug_mode
     
     def clean_lines(self, text: str, doc_id: str = None) -> Tuple[str, Dict]:
@@ -423,6 +485,10 @@ class ComprehensiveLineCleaner:
         # Step 4: Remove metadata
         current_text, meta_stats = self.metadata_cleaner.clean(current_text, doc_id)
         combined_stats["cleaning_steps"]["metadata"] = meta_stats
+        
+        # Step 5: Remove copyright lines (NEUE Stufe basierend auf 170k Rohdaten-Analyse)
+        current_text, copyright_stats = self.copyright_cleaner.clean(current_text, doc_id)
+        combined_stats["cleaning_steps"]["copyright"] = copyright_stats
         
         # Combine stats
         for step_stats in combined_stats["cleaning_steps"].values():

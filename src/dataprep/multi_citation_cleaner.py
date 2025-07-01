@@ -4,7 +4,6 @@ Multi-Citation Cleaning Pipeline Module für DataTrove
 Entfernt verschiedene Citation-Typen mit konfigurierbaren Regex-Patterns und bietet
 detaillierte W&B Analytics für jeden Citation-Typ separat.
 
-Enhanced with SMART VALIDATION to prevent false positives, especially for semicolon_blocks.
 
 Citation Types:
 - semicolon_blocks: "Author1 ; Author2 ; Author3" (with smart author validation)
@@ -17,7 +16,14 @@ Citation Types:
 - page_references: "p. 123", "pp. 45-67", "pages 1,3,5" (case-insensitive)
 - figure_table_refs: "Fig. 1", "Table 2a", "figure 3,4" (case-insensitive)
 
-REMOVED for T5 pretraining (important for text flow):
+NEW ARTIFACT PATTERNS:
+- email_addresses: "firstname.lastname@example.org"
+- urls: "http://example.com", "www.example.com" 
+- doi_references: "doi:10.1000/xyz", "10.1000/xyz"
+- isbn_references: "ISBN 978-1-23456-789-0"
+- arxiv_references: "arXiv:1234.5678"
+
+REMOVED for T5 pretraining:
 - autor_jahr_text: "Smith (2020)", "Smith et al. (2020)" 
 - chapter_section: "Chapter 3", "section 2.1"
 - runde_klammern_numerisch: "(1)", "(1a)" - useful for math/data
@@ -174,6 +180,13 @@ class MultiCitationCleaner(BaseFilter):
                 # Zusätzliche häufige Citation-Patterns -  chapter_section (important for structure)
                 "page_references": r"(?:^|\s)(?:p|pp|page|pages)\.?\s*\d+(?:-\d+)?(?:,\s*\d+(?:-\d+)?)*(?=\s|$)", # Only standalone page refs, not in citations
                 "figure_table_refs": r"(?:\(\s*)?(?:fig|figure|tab|table|tbl)\.?\s*\d+(?:[a-z])?(?:,\s*\d+(?:[a-z])?)*(?:\s*[;:]\s*[^)]+)?(?:\s*\))?", # Capture complete figure citations with additional content
+                
+                #ARTEFAKT PATTERNS für email, url, doi, isbn, arxiv
+                "email_addresses": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", 
+                "urls": r"https?://[^\s<>\[\]\"']+|www\.[^\s<>\[\]\"']+",  
+                "doi_references": r"\bdoi:\s*[\w\./\-]+|\b10\.\d{4,}/[^\s]+", 
+                "isbn_references": r"\bISBN[-\s]*:?\s*[\d\-xX]+", 
+                "arxiv_references": r"\barXiv:\s*[\w\./\-]+", 
             }
         
         self.citation_patterns = citation_patterns
