@@ -1,4 +1,3 @@
-
 import logging
 from typing import Dict, List, Tuple
 from datatrove.data import Document
@@ -13,36 +12,37 @@ except ImportError:
     WANDB_AVAILABLE = False
 
 
-class SlidingWindowProcessor(PipelineStep):
-    """Materializes sliding windows as separate documents."""
+class TextOnlySlidingWindowProcessor(PipelineStep):
+    """Creates token-based sliding windows for precise T5 training."""
     
-    type = "sliding_window_materializer"
-    name = "sliding-window-materializer"
+    type = "token_sliding_window"
+    name = "token-sliding-window"
     
     def __init__(
         self,
         tokenizer_name_or_path: str = "t5-base",
-        max_length: int = 512,
-        overlap_size: int = 256,
+        target_tokens: int = 512,
+        overlap_ratio: float = 0.5,  # 50% overlap
         log_to_wandb: bool = False,
         wandb_project: str = "BA-DataTrove",
-        wandb_group: str = "sliding-window-materialization"
+        wandb_group: str = "token-sliding-windows"
     ):
         super().__init__()
         
-        self.max_length = max_length
-        self.overlap_size = overlap_size
-        self.stride = max_length - overlap_size  # step size between windows
+        self.target_tokens = target_tokens
+        self.overlap_ratio = overlap_ratio
+        self.overlap_tokens = int(target_tokens * overlap_ratio)
+        self.stride_tokens = target_tokens - self.overlap_tokens
         self.log_to_wandb = log_to_wandb and WANDB_AVAILABLE
         
-        # init tokenizer
+        # Load tokenizer for actual tokenization
         try:
             from transformers import T5TokenizerFast
             import transformers
             transformers.logging.set_verbosity_error()
             
             self.tokenizer = T5TokenizerFast.from_pretrained(tokenizer_name_or_path)
-            logger.info(f"loaded t5 sentencepiece tokenizer: {tokenizer_name_or_path}")
+            logger.info(f"loaded t5tokenizer for token-based windows: {tokenizer_name_or_path}")
         except Exception as e:
             logger.error(f"failed to load tokenizer {tokenizer_name_or_path}: {e}")
             raise
@@ -61,19 +61,21 @@ class SlidingWindowProcessor(PipelineStep):
     
     def _compute_window_count(self, token_count: int) -> int:
         """compute number of windows based on token count"""
-        if token_count <= self.max_length:
+        if token_count <= self.target_tokens:
             return 1
         else:
-            return max(1, (token_count - self.overlap_size) // self.stride + 1)
+            return max(1, (token_count - self.overlap_tokens) // self.stride_tokens + 1)
     
     def _tokenize_and_create_windows(self, doc: Document) -> List[Document]:
         """
         Tokenize document and create separate Document for each sliding window.
-        Returns:
-            List of Documents, each containing one window's tokens as text
+        Returns list of Documents, each containing one window's tokens as text.
         """
         # Get text content
-        text = doc.text
+        text = doc.text.strip()
+        if not text:
+            return []
+        
         full_tokens = self.tokenizer.encode(text, add_special_tokens=False)
         token_count = len(full_tokens)
         
@@ -82,24 +84,24 @@ class SlidingWindowProcessor(PipelineStep):
         windows = []
         
         for window_idx in range(window_count):
-            if token_count <= self.max_length:
+            if token_count <= self.target_tokens:
                 # Short document: single window
                 window_tokens = full_tokens
                 start_pos = 0
                 end_pos = token_count
             else:
                 # Long document: extract window with sliding overlap
-                start_pos = window_idx * self.stride
-                end_pos = min(start_pos + self.max_length, token_count)
+                start_pos = window_idx * self.stride_tokens
+                end_pos = min(start_pos + self.target_tokens, token_count)
                 window_tokens = full_tokens[start_pos:end_pos]
             
-            # pad to max_length
-            if len(window_tokens) < self.max_length:
-                pad_count = self.max_length - len(window_tokens)
+            # pad to target_tokens
+            if len(window_tokens) < self.target_tokens:
+                pad_count = self.target_tokens - len(window_tokens)
                 window_tokens.extend([self.tokenizer.pad_token_id or 0] * pad_count)
             
-            # Ensure exactly max_length
-            window_tokens = window_tokens[:self.max_length]
+            # Ensure exactly target_tokens
+            window_tokens = window_tokens[:self.target_tokens]
             
             # Create window document
             window_doc = self._create_window_document(
@@ -137,14 +139,14 @@ class SlidingWindowProcessor(PipelineStep):
             "original_window_count": self._compute_window_count(original_token_count),
             
             "window_config": {
-                "max_length": self.max_length,
-                "overlap_size": self.overlap_size,
-                "stride": self.stride,
+                "target_tokens": self.target_tokens,
+                "overlap_ratio": self.overlap_ratio,
+                "stride_tokens": self.stride_tokens,
                 "tokenizer": str(self.tokenizer.name_or_path)
             },
             
-            "document_type": "t5_sliding_window",
-            "preprocessing_version": "v2_materialized_windows"
+            "document_type": "t5_token_sliding_window",
+            "preprocessing_version": "v4_token_based_windows"
         }
         
         # preserve original metadata
@@ -179,7 +181,7 @@ class SlidingWindowProcessor(PipelineStep):
                 
                 wandb.log({
                     "processed_documents": self.processed_docs,
-                    "total_materialized_windows": self.total_output_windows,
+                    "total_token_windows": self.total_output_windows,
                     "short_documents": self.short_docs,
                     "long_documents": self.long_docs,
                     "avg_windows_per_doc": avg_windows_per_doc,
@@ -197,13 +199,14 @@ class SlidingWindowProcessor(PipelineStep):
             try:
                 self.wandb_run = wandb.init(
                     project="BA-DataTrove",
-                    group="sliding-window-materialization", 
-                    job_type=f"window-materialization-rank-{rank}",
-                    tags=["preprocessing", "materialization", "sliding-windows", "t5"],
+                    group="token-sliding-windows", 
+                    job_type=f"token-window-creation-rank-{rank}",
+                    tags=["preprocessing", "token-windows", "sliding-windows", "t5"],
                     config={
-                        "max_length": self.max_length,
-                        "overlap_size": self.overlap_size,
-                        "stride": self.stride,
+                        "target_tokens": self.target_tokens,
+                        "overlap_ratio": self.overlap_ratio,
+                        "stride_tokens": self.stride_tokens,
+                        "tokenizer": str(self.tokenizer.name_or_path),
                         "rank": rank,
                         "world_size": world_size
                     },
@@ -216,16 +219,16 @@ class SlidingWindowProcessor(PipelineStep):
         elif rank != 0:
             self.log_to_wandb = False
             
-        logger.info(f"starting sliding window materialization (rank {rank}/{world_size})")
-        logger.info(f"window config: max_length={self.max_length}, overlap={self.overlap_size}, stride={self.stride}")
-        logger.info(f"output: materialized windows as separate documents")
+        logger.info(f"starting token-based sliding window creation (rank {rank}/{world_size})")
+        logger.info(f"config: target_tokens={self.target_tokens}, overlap={self.overlap_ratio:.1%}")
+        logger.info(f"tokenizer: {self.tokenizer.name_or_path}")
         
         for doc in data:
             self.stat_update("input_documents")
             
             with self.track_time():
                 try:
-                    # create windows for this document
+                    # create token windows for this document
                     window_docs = self._tokenize_and_create_windows(doc)
                     
                     # update metrics
@@ -257,9 +260,9 @@ class SlidingWindowProcessor(PipelineStep):
             avg_tokens = self.total_input_tokens / self.processed_docs
             compression_ratio = self.total_output_windows / self.processed_docs
             
-            logger.info(f"sliding window materialization completed!")
+            logger.info(f"token-based sliding window creation completed!")
             logger.info(f"processed {self.processed_docs} input documents")
-            logger.info(f"generated {self.total_output_windows} output windows")
+            logger.info(f"generated {self.total_output_windows} token windows")
             logger.info(f"compression ratio: {compression_ratio:.1f}x (windows per document)")
             logger.info(f"average tokens per document: {avg_tokens:.0f}")
             logger.info(f"average windows per document: {avg_windows:.1f}")
@@ -271,7 +274,7 @@ class SlidingWindowProcessor(PipelineStep):
                 try:
                     wandb.log({
                         "final_input_documents": self.processed_docs,
-                        "final_output_windows": self.total_output_windows,
+                        "final_token_windows": self.total_output_windows,
                         "final_compression_ratio": compression_ratio,
                         "final_avg_windows_per_doc": avg_windows,
                         "final_avg_tokens_per_doc": avg_tokens,
@@ -280,4 +283,8 @@ class SlidingWindowProcessor(PipelineStep):
                     wandb.finish()
                     logger.info(f"📊 W&B session finished for rank {rank}")
                 except Exception as e:
-                    logger.warning(f"Final W&B logging failed: {e}") 
+                    logger.warning(f"Final W&B logging failed: {e}")
+
+
+# Keep old class name for compatibility
+SlidingWindowProcessor = TextOnlySlidingWindowProcessor
