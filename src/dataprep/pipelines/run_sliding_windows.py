@@ -1,5 +1,3 @@
-
-
 import os
 import sys
 import logging
@@ -16,7 +14,7 @@ from datatrove.executor import LocalPipelineExecutor
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import ParquetWriter
 
-from src.dataprep.sliding_window_processor import SlidingWindowProcessor
+from src.dataprep.sliding_window_processor import TextOnlySlidingWindowProcessor
 
 log = logging.getLogger(__name__)
 
@@ -34,14 +32,18 @@ except ImportError:
 
 @hydra.main(version_base="1.3", config_path="../../../configs", config_name="preprocessing/sliding_windows")
 def main(cfg: DictConfig) -> None:
-    log.info("Starting T5 Sliding Window Materialization Pipeline")
+    log.info("Starting T5 Sliding Window Pipeline")
     log.info("Configuration:")
     log.info(f"\n{OmegaConf.to_yaml(cfg)}")
 
     wandb_session = None
     if WANDB_AVAILABLE and cfg.sliding_windows.get("log_to_wandb", False):
         try:
-            tags = ["sliding-windows", "preprocessing", "tokenization"]
+            tags = ["sliding-windows", "preprocessing"]
+            
+            # Add output format tag
+            output_format = cfg.sliding_windows.window_config.get("output_format", "text")
+            tags.append(f"format-{output_format}")
             
             if cfg.sliding_windows.limit_documents != -1:
                 tags.extend(["test_run", f"limit-{cfg.sliding_windows.limit_documents}"])
@@ -52,8 +54,8 @@ def main(cfg: DictConfig) -> None:
                 project=cfg.sliding_windows.wandb.project,
                 group=cfg.sliding_windows.wandb.group,
                 tags=tags,
-                job_type="sliding-window-materialization",
-                notes="Materialize T5 sliding windows as separate parquet entries for fast training",
+                job_type="sliding-window-creation",
+                notes=f"Create {output_format} sliding windows for T5 training",
                 config=OmegaConf.to_container(cfg, resolve=True)
             )
             log.info(f"W&B session initialized: {wandb_session.url}")
@@ -71,10 +73,11 @@ def main(cfg: DictConfig) -> None:
             default_metadata=OmegaConf.to_container(cfg.sliding_windows.reader.default_metadata, resolve=True)
         ),
         
-        SlidingWindowProcessor(
+        TextOnlySlidingWindowProcessor(
             tokenizer_name_or_path=cfg.sliding_windows.tokenizer.name_or_path,
-            max_length=cfg.sliding_windows.window_config.max_length,
-            overlap_size=cfg.sliding_windows.window_config.overlap_size,
+            target_tokens=cfg.sliding_windows.window_config.target_tokens,
+            overlap_ratio=cfg.sliding_windows.window_config.overlap_ratio,
+            output_format=cfg.sliding_windows.window_config.get("output_format", "text"),
             log_to_wandb=cfg.sliding_windows.get("log_to_wandb", False) and bool(wandb_session),
             wandb_project=cfg.sliding_windows.wandb.project,
             wandb_group=cfg.sliding_windows.wandb.group
@@ -85,7 +88,15 @@ def main(cfg: DictConfig) -> None:
 
     log.info(f"Pipeline: {len(pipeline)} steps")
     log.info(f"Tasks: {cfg.sliding_windows.execution.tasks}, Workers: {cfg.sliding_windows.execution.workers}")
-    log.info(f"Max Length: {cfg.sliding_windows.window_config.max_length}, Overlap: {cfg.sliding_windows.window_config.overlap_size}")
+    
+    # New API logging
+    target_tokens = cfg.sliding_windows.window_config.target_tokens
+    overlap_ratio = cfg.sliding_windows.window_config.overlap_ratio
+    overlap_tokens = int(target_tokens * overlap_ratio)
+    output_format = cfg.sliding_windows.window_config.get("output_format", "text")
+    
+    log.info(f"Target Tokens: {target_tokens}, Overlap: {overlap_ratio:.1%} ({overlap_tokens} tokens)")
+    log.info(f"Output Format: {output_format}")
     log.info(f"Tokenizer: {cfg.sliding_windows.tokenizer.name_or_path}")
     
     if cfg.sliding_windows.limit_documents != -1:
@@ -123,8 +134,10 @@ def main(cfg: DictConfig) -> None:
             wandb.log({
                 "pipeline_execution_time": execution_time,
                 "limit_documents": cfg.sliding_windows.limit_documents,
-                "max_length": cfg.sliding_windows.window_config.max_length,
-                "overlap_size": cfg.sliding_windows.window_config.overlap_size,
+                "target_tokens": target_tokens,
+                "overlap_ratio": overlap_ratio,
+                "overlap_tokens": overlap_tokens,
+                "output_format": output_format,
                 "tasks": cfg.sliding_windows.execution.tasks,
                 "workers": cfg.sliding_windows.execution.workers,
                 "tokenizer": cfg.sliding_windows.tokenizer.name_or_path

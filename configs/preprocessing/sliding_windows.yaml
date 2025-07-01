@@ -24,8 +24,9 @@ sliding_windows:
     name_or_path: "t5-base"
 
   window_config:
-    max_length: 512
-    overlap_size: 256
+    target_tokens: 512        
+    overlap_ratio: 0.5        # 50% overlap (256 tokens)
+    output_format: "text"     # "text" or "tokens"
 
   # execution config
   execution:
@@ -40,7 +41,7 @@ sliding_windows:
   wandb:
     project: "BA-DataTrove"
     group: "sliding-window-preprocessing"
-    tags: ["sliding-windows", "preprocessing", "t5-tokenization", "production", "all-data"]
+    tags: ["sliding-windows", "preprocessing", "t5-precise-windows", "production", "all-data"]
 
 hydra:
   job:
