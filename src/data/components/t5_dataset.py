@@ -13,11 +13,18 @@ log = RankedLogger(__name__, rank_zero_only=True)
 
 
 class _ParquetTextFile:
-    """Random access to parquet file."""
+    """Random access to parquet file with batch caching."""
 
     def __init__(self, path: Path):
         self.file = pq.ParquetFile(path)
         self.num_rows = self.file.metadata.num_rows
+        # Disable caching in multiprocessing environments to avoid deadlocks
+        import os
+        self._use_cache = os.getenv('PYTORCH_DATALOADER_WORKERS', '0') == '0'
+        if self._use_cache:
+            self._cache = {}  # Cache for row groups
+            self._cache_size = 0
+            self._max_cache_size = 2  # Cache up to 2 row groups
 
     def __len__(self):
         return self.num_rows
@@ -25,9 +32,30 @@ class _ParquetTextFile:
     def __getitem__(self, idx: int) -> dict:
         # find row group and local index
         row_group, row_index = self._locate(idx)
-        batch: pa.Table = self.file.read_row_group(row_group, columns=["text", "id", "metadata"])
-        row = batch.slice(row_index, 1).to_pylist()[0]
-        return row
+        
+        if self._use_cache:
+            # Check cache first
+            if row_group not in self._cache:
+                # Read entire row group
+                batch: pa.Table = self.file.read_row_group(row_group, columns=["text", "id", "metadata"])
+                batch_data = batch.to_pylist()
+                
+                # Manage cache size
+                if self._cache_size >= self._max_cache_size:
+                    # Remove oldest entry
+                    oldest_key = next(iter(self._cache))
+                    del self._cache[oldest_key]
+                    self._cache_size -= 1
+                
+                self._cache[row_group] = batch_data
+                self._cache_size += 1
+            
+            return self._cache[row_group][row_index]
+        else:
+            # No caching - direct read (safer for multiprocessing)
+            batch: pa.Table = self.file.read_row_group(row_group, columns=["text", "id", "metadata"])
+            row = batch.slice(row_index, 1).to_pylist()[0]
+            return row
 
     def _locate(self, global_idx: int):
         rows_cum = 0
@@ -72,94 +100,97 @@ class T5ParquetDataset(Dataset):
 
 
 class T5MaterializedWindowDataset(Dataset):
-    """Pre-tokenized sliding windows dataset."""
+    """Text-only sliding windows dataset for efficient batch tokenization."""
     
     def __init__(self, parquet_files: List[str | Path]):
         super().__init__()
         
         self.base_dataset = T5ParquetDataset(parquet_files)
+        self._verify_text_windows()
         
-        self._verify_materialized_windows()
+        log.info(f"T5MaterializedWindowDataset created with {len(self.base_dataset)} text windows")
         
-        log.info(f"T5MaterializedWindowDataset created with {len(self.base_dataset)} pre-tokenized windows")
-        
-    def _verify_materialized_windows(self):
+    def _verify_text_windows(self):
         if len(self.base_dataset) == 0:
             raise ValueError("No data found in parquet files")
         
         sample_size = min(5, len(self.base_dataset))
-        materialized_count = 0
+        text_window_count = 0
         
         for i in range(sample_size):
             doc_data = self.base_dataset[i]
             metadata = doc_data.get("metadata", {})
             
-            # Check for materialized window markers
+            # Check for text window markers
             doc_type = metadata.get("document_type")
             version = metadata.get("preprocessing_version")
             
-            if doc_type == "t5_sliding_window" and version == "v2_materialized_windows":
-                materialized_count += 1
+            if doc_type == "text_sliding_window" and version == "v3_text_only_windows":
+                text_window_count += 1
+            elif doc_type == "t5_sliding_window" and version == "v2_materialized_windows":
+                # Legacy pre-tokenized windows are also acceptable
+                text_window_count += 1
+                log.info(f"Found legacy pre-tokenized window at index {i}")
             
-            # Verify text format 
+            # Verify text exists
             text = doc_data.get("text", "")
-            if text and not self._is_token_sequence(text):
-                log.warning(f"Document {i} text doesn't look like token sequence: {text[:50]}...")
+            if not text.strip():
+                log.warning(f"Document {i} has empty text")
         
-        # check if we found materialized windows
-        if materialized_count == 0:
+        # Check if we found valid windows
+        if text_window_count == 0:
             raise ValueError(
-                "No materialized windows found! "
-                "Expected metadata.document_type='t5_sliding_window' and "
-                "metadata.preprocessing_version='v2_materialized_windows'. "
-                "Run sliding window materialization first: "
+                "No sliding windows found! "
+                "Expected metadata.document_type='text_sliding_window' or 't5_sliding_window'. "
+                "Run sliding window creation first: "
                 "python src/dataprep/pipelines/run_sliding_windows.py"
             )
         
-        materialized_ratio = materialized_count / sample_size
-        log.info(f"✅ Verified materialized windows: {materialized_count}/{sample_size} ({materialized_ratio:.1%})")
+        window_ratio = text_window_count / sample_size
+        log.info(f"✅ Verified sliding windows: {text_window_count}/{sample_size} ({window_ratio:.1%})")
         
-        if materialized_ratio < 1.0:
-            log.warning(f"⚠️ Only {materialized_ratio:.1%} of documents are materialized windows. "
-                       f"Consider filtering or re-running materialization.")
-    
-    def _is_token_sequence(self, text: str) -> bool:
-        parts = text.strip().split()
-        if len(parts) < 10:  # Too short to be a meaningful token sequence
-            return False
-        
-        # Check if first 10 parts are integers
-        try:
-            for part in parts[:10]:
-                int(part)
-            return True
-        except ValueError:
-            return False
+        if window_ratio < 1.0:
+            log.warning(f"⚠️ Only {window_ratio:.1%} of documents are sliding windows. "
+                       f"Consider filtering or re-running window creation.")
     
     def __len__(self):
         return len(self.base_dataset)
     
     def __getitem__(self, idx: int) -> dict:
-        """Get pre-tokenized window."""
+        """Get text window - much faster than pre-tokenized version."""
         
         if idx >= len(self.base_dataset):
             raise IndexError(f"Index {idx} out of range for dataset of size {len(self.base_dataset)}")
         
-        # Get window data
+        # Get window data (direct access, no caching needed)
         doc_data = self.base_dataset[idx]
         text = doc_data.get("text", "")
         metadata = doc_data.get("metadata", {})
         
-        # parse pre-tokenized sequence
-        try:
-            tokens = [int(x) for x in text.split()]
-        except ValueError as e:
-            log.error(f"Failed to parse tokens from text: {text[:100]}...")
-            raise ValueError(f"Invalid token sequence in document {idx}: {e}")
+        # Check if this is legacy pre-tokenized data
+        if metadata.get("document_type") == "t5_sliding_window":
+            # Legacy: try to parse as tokens first, fallback to text
+            try:
+                tokens = [int(x) for x in text.split()[:10]]  # Test first 10
+                # If successful, it's pre-tokenized - convert back to text
+                # This is a fallback for compatibility
+                return {
+                    "tokens": [int(x) for x in text.split()],
+                    "text": None,  # Signal this is pre-tokenized
+                    "type": "legacy_t5_materialized_window",
+                    "doc_id": doc_data.get("id", f"unknown_{idx}"),
+                    "original_doc_id": metadata.get("original_doc_id"),
+                    "window_idx": metadata.get("window_idx", 0),
+                    "original_metadata": metadata.get("original_metadata", {})
+                }
+            except ValueError:
+                # Not pre-tokenized, treat as text
+                pass
         
+        # Modern text-only window (fast path)
         return {
-            "tokens": tokens,
-            "type": "t5_materialized_window",
+            "text": text.strip(),
+            "type": "text_sliding_window", 
             "doc_id": doc_data.get("id", f"unknown_{idx}"),
             "original_doc_id": metadata.get("original_doc_id"),
             "window_idx": metadata.get("window_idx", 0),

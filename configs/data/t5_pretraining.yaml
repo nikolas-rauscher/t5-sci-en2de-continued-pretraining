@@ -1,12 +1,12 @@
 _target_: src.data.t5_datamodule.T5DataModule
 
 # Using materialized sliding windows from preprocessing pipeline
-data_dir: data/pretraining_windowed_3
+data_dir: data/text_windows_test
 
 tokenizer_name_or_path: t5-base
 
-batch_size: 92  
-num_workers: 22
+batch_size: 1 #92   
+num_workers: 63
 pin_memory: true
 
 max_length: 512
