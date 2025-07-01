@@ -14,7 +14,7 @@ proj_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..'))
 sys.path.insert(0, proj_root)
 
 # Import modular text cleaning components
-from src.dataprep import MultiCitationCleaner, TextNormalizer
+from src.dataprep import MultiCitationCleaner, SymbolTokenNormalizer, TextNormalizer
 
 # Setup logging
 log = logging.getLogger(__name__)
@@ -43,9 +43,9 @@ def main(cfg: DictConfig) -> None:
             wandb_session = wandb.init(
                 project="BA-DataTrove",
                 group="text-cleaning-pipeline",
-                tags=["citation-cleaning", "text-normalization", "datatrove", "modular-pipeline"],
+                tags=["citation-cleaning", "symbol-normalization", "text-normalization", "datatrove", "modular-pipeline"],
                 job_type="text-processing",
-                notes="Modular text cleaning with citation removal and normalization analytics",
+                notes="Modular text cleaning with citation removal, symbol normalization and text normalization analytics",
                 config={
                     "limit_documents": cfg.cleaning.cleaning.limit_documents,
                     "tasks": cfg.cleaning.cleaning.tasks,
@@ -77,7 +77,13 @@ def main(cfg: DictConfig) -> None:
             log_to_wandb=bool(wandb_session)  # Nur loggen wenn Session vorhanden
         ),
         
-        # 2. Text Normalizer - Normalisiert Whitespace nach Citation-Removal
+        # 2. Symbol Token Normalizer - Normalizes scientific symbols for T5
+        SymbolTokenNormalizer(
+            debug_mode=cfg.cleaning.cleaning.get("debug_mode", False),
+            log_to_wandb=bool(wandb_session)
+        ),
+        
+        # 3. Text Normalizer - Normalisiert Whitespace nach Symbol-Normalization
         TextNormalizer(
             normalize_spaces=True,
             normalize_newlines=True,
@@ -88,21 +94,22 @@ def main(cfg: DictConfig) -> None:
             log_to_wandb=bool(wandb_session)  # Nur loggen wenn Session vorhanden
         ),
         
-        # 3. Stats berechnen (nutzt bereinigte Dokumente)
+        # 4. Stats berechnen (nutzt bereinigte Dokumente)
         DocStats(
             output_folder=cfg.cleaning.paths.dst + "/stats", 
             groups_to_compute=["summary"]
         ),
         
-        # 4. Cleaned + normalized documents speichern
+        # 5. Cleaned + normalized documents speichern
         ParquetWriter(cfg.cleaning.paths.dst),
     ]
 
     log.info(f"📋 Modular Pipeline: {len(pipeline)} steps")
     log.info(f"   1. Multi-Citation Cleaning (W&B: citation metrics)")  
-    log.info(f"   2. Text Normalization (W&B: normalization metrics)")
-    log.info(f"   3. Document Statistics")
-    log.info(f"   4. Parquet Output")
+    log.info(f"   2. Symbol Token Normalization (W&B: symbol metrics)")
+    log.info(f"   3. Text Normalization (W&B: normalization metrics)")
+    log.info(f"   4. Document Statistics")
+    log.info(f"   5. Parquet Output")
     log.info(f"🔧 Config: {cfg.cleaning.cleaning.tasks} tasks, {cfg.cleaning.cleaning.workers} workers")
     
     # Debug mode info
