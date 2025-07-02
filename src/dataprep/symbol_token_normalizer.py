@@ -176,7 +176,7 @@ class SymbolTokenNormalizer(BaseFilter):
             r'(\. ){3,}': ' ... ',                     # Spaced dots -> ellipsis
         }
         
-        self.stats = {
+        self.custom_stats = {
             "docs_processed": 0,
             "docs_normalized": 0,
             "total_normalizations": 0
@@ -231,15 +231,15 @@ class SymbolTokenNormalizer(BaseFilter):
     
     def filter(self, doc: Document) -> bool:
         original_text = doc.text
-        self.stats["docs_processed"] += 1
+        self.custom_stats["docs_processed"] += 1
         
         normalized_text, normalizations_count = self._normalize_symbols(original_text)
         doc.text = normalized_text
         
         text_changed = original_text != normalized_text
         if text_changed:
-            self.stats["docs_normalized"] += 1
-            self.stats["total_normalizations"] += normalizations_count
+            self.custom_stats["docs_normalized"] += 1
+            self.custom_stats["total_normalizations"] += normalizations_count
             
             doc.metadata["symbol_text_changed"] = True
             doc.metadata["symbol_normalizations"] = normalizations_count
@@ -252,7 +252,7 @@ class SymbolTokenNormalizer(BaseFilter):
             self.stat_update("docs_with_symbol_normalizations")
             self.stat_update("total_symbol_normalizations", normalizations_count)
         
-        if self.current_rank == 0 and self.wandb_initialized and self.stats["docs_processed"] % 100 == 0:
+        if self.current_rank == 0 and self.wandb_initialized and self.custom_stats["docs_processed"] % 100 == 0:
             self._log_stats()
         
         return bool(normalized_text.strip())
@@ -263,13 +263,13 @@ class SymbolTokenNormalizer(BaseFilter):
             
         try:
             wandb.log({
-                "symbol_norm/docs_processed": self.stats["docs_processed"],
-                "symbol_norm/docs_normalized": self.stats["docs_normalized"],
+                "symbol_norm/docs_processed": self.custom_stats["docs_processed"],
+                "symbol_norm/docs_normalized": self.custom_stats["docs_normalized"],
                 "symbol_norm/normalization_rate": (
-                    self.stats["docs_normalized"] / self.stats["docs_processed"] 
-                    if self.stats["docs_processed"] > 0 else 0
+                    self.custom_stats["docs_normalized"] / self.custom_stats["docs_processed"] 
+                    if self.custom_stats["docs_processed"] > 0 else 0
                 ),
-                "symbol_norm/total_normalizations": self.stats["total_normalizations"]
+                "symbol_norm/total_normalizations": self.custom_stats["total_normalizations"]
             })
         except Exception as e:
             log.warning(f"Failed to log symbol normalization stats: {e}")
@@ -283,9 +283,9 @@ class SymbolTokenNormalizer(BaseFilter):
         try:
             yield from super().run(data, rank, world_size)
         finally:
-            log.info(f"Symbol normalization rank {rank}: {self.stats['docs_processed']} docs, "
-                    f"{self.stats['docs_normalized']} normalized, "
-                    f"{self.stats['total_normalizations']} symbols")
+            log.info(f"Symbol normalization rank {rank}: {self.custom_stats['docs_processed']} docs, "
+                    f"{self.custom_stats['docs_normalized']} normalized, "
+                    f"{self.custom_stats['total_normalizations']} symbols")
     
     def _init_wandb(self):
         try:

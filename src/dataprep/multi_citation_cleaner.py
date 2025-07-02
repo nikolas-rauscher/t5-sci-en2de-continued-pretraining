@@ -354,10 +354,13 @@ class MultiCitationCleaner(BaseFilter):
         # Process all citations
         citations_found, citations_removed, citations_rejected, cleaned_text = self._process_citations(original_text)
         
-        # Post-processing cleaners
-        cleaned_text, figure_removal_stats = self.figure_table_cleaner.clean(cleaned_text, str(doc.id))
-        cleaned_text, appendix_removal_stats = self.appendix_section_cleaner.clean(cleaned_text, str(doc.id))
+        # Post-processing cleaners (OPTIMIZED ORDER)
+        # 1. Short lines first (handles isolated numbers/words)
         cleaned_text, short_line_removal_stats = self.line_cleaner.clean_lines(cleaned_text, str(doc.id))
+        # 2. Figure/table captions and numeric ratios (works on remaining content)
+        cleaned_text, figure_removal_stats = self.figure_table_cleaner.clean(cleaned_text, str(doc.id))
+        # 3. Appendix sections last (works on structured content)
+        cleaned_text, appendix_removal_stats = self.appendix_section_cleaner.clean(cleaned_text, str(doc.id))
         
         # Track all stats
         self.stats_manager.track_figure_line_removal(doc, figure_removal_stats)

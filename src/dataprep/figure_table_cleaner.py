@@ -47,91 +47,24 @@ class FigureTableCleaner(BaseTextCleaner):
                 cleaned_lines.append(line)
                 continue
             
-            # AGGRESSIVE Figure/Table line detection
+            # OPTIMIZED Figure/Table line detection - specialized patterns only
             should_remove = False
             removal_reason = ""
             
-            # Pattern 1: Lines starting with numbers + Figure/Table (e.g., "41 Figure 4.1: Goals...")
-            if re.match(r'^\d+\s+(?:fig|figure|tab|table|tbl)\.?\s*\d+', stripped_line, re.IGNORECASE):
+            # Pattern 1: Clear figure/table captions (e.g., "Figure 2.1:", "Table 5")
+            if re.match(r'^(?:fig|figure|tab|table|tbl)\.?\s*\d+(?:\.\d+)?[\s:]*', stripped_line, re.IGNORECASE):
                 should_remove = True
-                removal_reason = "numbered_figure_caption"
+                removal_reason = "figure_table_caption"
             
-            # Pattern 2: Lines starting with Figure/Table + decimal numbers (e.g., "Figure 5 . 2 :")
-            elif re.match(r'^(?:fig|figure|tab|table|tbl)\.?\s*\d+(?:\s*\.\s*\d+)*\s*[:.]?\s*', stripped_line, re.IGNORECASE):
-                should_remove = True
-                removal_reason = "figure_header"
-            
-            # Pattern 3: Just numbers and punctuation (leftover captions like "5", "41")
-            elif re.match(r'^\s*\d+\s*[:.]?\s*$', stripped_line):
-                should_remove = True
-                removal_reason = "orphaned_number"
-            
-            # Pattern 4: Figure references with descriptive text but short enough to be captions
-            # (Less than 80 chars and contains Figure/Table)
-            elif (len(stripped_line) < 80 and 
-                  re.search(r'(?:fig|figure|tab|table|tbl)\.?\s*\d+', stripped_line, re.IGNORECASE)):
-                should_remove = True
-                removal_reason = "short_figure_caption"
-            
-            # Pattern 5: Lines that are mostly numbers and punctuation with minimal text
-            elif re.match(r'^\s*\d+(?:\s*\.\s*\d+)*\s*[:.]?\s*\w{0,20}\s*[:.]?\s*$', stripped_line):
-                should_remove = True
-                removal_reason = "numeric_header"
-            
-            # Pattern 6: Table column headers that got separated
-            elif (re.match(r'^(?:variable|coefficient|std\.?\s*err|p-?value|confidence|interval|estimate|statistic)', stripped_line, re.IGNORECASE) and
-                  len(stripped_line) < 60):
-                should_remove = True
-                removal_reason = "table_column_header"
-            
-            # Pattern 7: Statistical notation lines (stars, crosses, etc.)
-            elif re.match(r'^\s*[\*\+†‡§¶#]+\s*[^a-zA-Z]*$', stripped_line):
-                should_remove = True  
-                removal_reason = "statistical_notation"
-            
-            # Pattern 8: Standalone section numbers without content
-            elif re.match(r'^\s*(?:\d+\.\d+|\d+\s*$|[IVX]+\.\s*$)', stripped_line):
-                should_remove = True
-                removal_reason = "section_number"
-            
-            # Pattern 9: Page headers/footers (common OCR artifacts)
-            elif (re.match(r'^\s*(?:page\s+\d+|chapter\s+\d+|\d+\s*$)', stripped_line, re.IGNORECASE) and
-                  len(stripped_line) < 20):
-                should_remove = True
-                removal_reason = "page_header"
-            
-            # Pattern 10: Mathematical notation lines (often OCR artifacts)
-            elif re.match(r'^\s*[=<>≤≥≠±∓×÷∑∏∫∂∇∆]+\s*$', stripped_line):
-                should_remove = True
-                removal_reason = "math_notation"
-            
-            # Pattern 11: Units and measurements lines (often separated from content)
-            elif (re.match(r'^\s*(?:mm|cm|kg|mg|ml|μl|°c|°f|hz|khz|mhz|ghz|v|mv|ma|μa)\s*$', stripped_line, re.IGNORECASE) and
-                  len(stripped_line) < 15):
-                should_remove = True
-                removal_reason = "units_line"
-            
-            # Pattern 12: Standalone abbreviations (common in scientific texts)
-            elif (re.match(r'^\s*(?:fig|tab|eq|ref|sec|ch|app|supp|vs|cf|ibid|loc|cit|al|inc|ltd|corp)\s*\.?\s*$', stripped_line, re.IGNORECASE) and
-                  len(stripped_line) < 10):
-                should_remove = True
-                removal_reason = "standalone_abbreviation"
-            
-            # Pattern 13: Zeichen-zu-Wort-Ratio Check für kurze Lines (unter 100 Zeichen)
-            # BUT: Skip mathematical content
-            elif len(stripped_line) < 100 and not self._is_mathematical_content(stripped_line):  
+            # Pattern 2: Numeric table data (≥60% numeric words in short lines)
+            # NOTE: Isolated numbers handled by ShortLineCleaner (runs first)
+            elif not self._is_mathematical_content(stripped_line):  
                 words = stripped_line.split()
-                if len(words) > 0:
-                    # Zähle Sonderzeichen (Nicht-Alphanumerisch, außer Leerzeichen)
-                    special_chars = len(re.findall(r'[^\w\s]', stripped_line))
-                    total_chars = len(stripped_line.replace(' ', ''))  # Ohne Leerzeichen
-                    
-                    if total_chars > 0:
-                        special_char_ratio = special_chars / total_chars
-                        # Wenn >50% Sonderzeichen in kurzer Line -> wahrscheinlich Artifact
-                        if special_char_ratio > 0.5 and len(words) <= 3:
-                            should_remove = True
-                            removal_reason = f"high_special_char_ratio_{special_char_ratio:.2f}"
+                if 2 <= len(words) <= 5:
+                    numeric_words = sum(1 for word in words if re.match(r'^\d+\.?\d*$', word))
+                    if numeric_words / len(words) >= 0.6:
+                        should_remove = True
+                        removal_reason = f"numeric_table_data_{numeric_words}of{len(words)}"
             
             if should_remove:
                 # Store removed line for analytics
