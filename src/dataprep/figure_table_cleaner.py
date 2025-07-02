@@ -56,8 +56,6 @@ class FigureTableCleaner(BaseTextCleaner):
                 should_remove = True
                 removal_reason = "figure_table_caption"
             
-            # Pattern 2: Numeric table data (≥60% numeric words in short lines)
-            # NOTE: Isolated numbers handled by ShortLineCleaner (runs first)
             elif not self._is_mathematical_content(stripped_line):  
                 words = stripped_line.split()
                 if 2 <= len(words) <= 5:

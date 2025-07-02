@@ -71,6 +71,7 @@ from src.dataprep.citation_stats_manager import CitationStatsManager
 from src.dataprep.text_cleaners import ComprehensiveLineCleaner
 from src.dataprep.figure_table_cleaner import FigureTableCleaner
 from src.dataprep.appendix_section_cleaner import AppendixSectionCleaner
+from src.dataprep.language_cleaner import SmartLanguageCleaner
 
 log = logging.getLogger(__name__)
 
@@ -243,6 +244,13 @@ class MultiCitationCleaner(BaseFilter):
         # Appendix Section Cleaner
         self.appendix_section_cleaner = AppendixSectionCleaner(debug_mode=self.debug_mode)
         
+        # Smart Language Cleaner
+        self.language_cleaner = SmartLanguageCleaner(
+            fasttext_threshold=0.75,
+            paragraph_threshold=0.5,
+            debug_mode=self.debug_mode
+        )
+        
         # Logging Settings (needed for other components)
         self.max_false_positive_samples = max_false_positive_samples
         self.max_top_citation_docs = max_top_citation_docs
@@ -320,8 +328,8 @@ class MultiCitationCleaner(BaseFilter):
 
     def _update_document_metadata(self, doc: Document, figure_stats: Dict, 
                                 appendix_stats: Dict, short_line_stats: Dict,
-                                citations_found: Dict, citations_removed: Dict, 
-                                citations_rejected: Dict) -> None:
+                                language_stats: Dict, citations_found: Dict, 
+                                citations_removed: Dict, citations_rejected: Dict) -> None:
         """Update document metadata with all cleaning results"""
         # Figure lines metadata
         doc.metadata["figure_lines_removed"] = figure_stats.get("lines_removed", 0)
@@ -335,6 +343,12 @@ class MultiCitationCleaner(BaseFilter):
         # Short lines metadata
         doc.metadata["short_lines_removed"] = short_line_stats.get("total_lines_removed", 0)
         doc.metadata["short_line_length_reduction"] = short_line_stats.get("total_length_reduction", 0)
+        
+        # Language cleaning metadata
+        doc.metadata["language_paragraphs_removed"] = language_stats.get("paragraphs_removed", 0)
+        doc.metadata["language_length_reduction"] = language_stats.get("length_reduction", 0)
+        doc.metadata["language_document_too_short"] = language_stats.get("document_too_short", False)
+        doc.metadata["language_skipped"] = language_stats.get("skipped", False)
         
         # Citation metadata
         for citation_type in self.citation_patterns.keys():
@@ -359,18 +373,22 @@ class MultiCitationCleaner(BaseFilter):
         cleaned_text, short_line_removal_stats = self.line_cleaner.clean_lines(cleaned_text, str(doc.id))
         # 2. Figure/table captions and numeric ratios (works on remaining content)
         cleaned_text, figure_removal_stats = self.figure_table_cleaner.clean(cleaned_text, str(doc.id))
-        # 3. Appendix sections last (works on structured content)
+        # 3. Appendix sections (works on structured content)
         cleaned_text, appendix_removal_stats = self.appendix_section_cleaner.clean(cleaned_text, str(doc.id))
+        # 4. Language cleaning last (uses fasttext_en metadata)
+        fasttext_en = doc.metadata.get('fasttext_en', 1.0)
+        cleaned_text, language_removal_stats = self.language_cleaner.clean(cleaned_text, str(doc.id), fasttext_en)
         
         # Track all stats
         self.stats_manager.track_figure_line_removal(doc, figure_removal_stats)
         self.stats_manager.track_appendix_section_removal(doc, appendix_removal_stats)
         self.stats_manager.track_short_line_removal(doc, short_line_removal_stats)
+        self.stats_manager.track_language_cleaning(doc, language_removal_stats)
         
         # Update document metadata
         self._update_document_metadata(doc, figure_removal_stats, appendix_removal_stats, 
-                                     short_line_removal_stats, citations_found, 
-                                     citations_removed, citations_rejected)
+                                     short_line_removal_stats, language_removal_stats,
+                                     citations_found, citations_removed, citations_rejected)
         
         # Track citation results
         for citation_type in self.citation_patterns.keys():

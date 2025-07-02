@@ -104,6 +104,7 @@ class CitationStatsManager:
             "top_appendix_removal_docs": [],
             "top_short_line_removal_docs": [],
             "top_combined_reduction_docs": [],
+            "language_cleaning_documents": [],
         }
     
     def track_citation_results(
@@ -302,6 +303,19 @@ class CitationStatsManager:
             elif short_line_removal_stats["total_lines_removed"] > self.cleaning_stats["top_short_line_removal_docs"][0][0]:
                 heapq.heapreplace(self.cleaning_stats["top_short_line_removal_docs"], short_line_doc_entry)
     
+    def track_language_cleaning(self, doc: Document, language_stats: Dict[str, Any]):
+        """Track language cleaning metrics"""
+        if language_stats.get("paragraphs_removed", 0) > 0:
+            doc_entry = (
+                language_stats["paragraphs_removed"],
+                str(doc.id),
+                str(doc.metadata.get("title", ""))[:50],
+                f"fasttext_en:{doc.metadata.get('fasttext_en', 1.0):.3f}"
+            )
+            self.cleaning_stats["language_cleaning_documents"].append(doc_entry)
+            self.cleaning_stats["language_cleaning_documents"].sort(reverse=True, key=lambda x: x[0])
+            self.cleaning_stats["language_cleaning_documents"] = self.cleaning_stats["language_cleaning_documents"][:self.max_top_citation_docs]
+
     def track_combined_reduction(
         self,
         doc: Document,
@@ -378,4 +392,5 @@ class CitationStatsManager:
             "top_appendix_removal_docs": [],
             "top_short_line_removal_docs": [],
             "top_combined_reduction_docs": [],
+            "language_cleaning_documents": [],
         }) 
