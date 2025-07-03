@@ -304,16 +304,17 @@ class CitationStatsManager:
                 heapq.heapreplace(self.cleaning_stats["top_short_line_removal_docs"], short_line_doc_entry)
     
     def track_language_cleaning(self, doc: Document, language_stats: Dict[str, Any]):
-        """Track language cleaning metrics"""
-        if language_stats.get("paragraphs_removed", 0) > 0:
+        """Track language cleaning metrics (document-level)"""
+        # Track documents that were removed entirely due to low FastText score
+        if language_stats.get("document_removed", False):
             doc_entry = (
-                language_stats["paragraphs_removed"],
+                language_stats.get("fasttext_score", 0.0),  # Use FastText score for sorting
                 str(doc.id),
                 str(doc.metadata.get("title", ""))[:50],
-                f"fasttext_en:{doc.metadata.get('fasttext_en', 1.0):.3f}"
+                f"removed_fasttext:{language_stats.get('fasttext_score', 0.0):.3f}"
             )
             self.cleaning_stats["language_cleaning_documents"].append(doc_entry)
-            self.cleaning_stats["language_cleaning_documents"].sort(reverse=True, key=lambda x: x[0])
+            self.cleaning_stats["language_cleaning_documents"].sort(reverse=False, key=lambda x: x[0])  # Sort by lowest FastText scores
             self.cleaning_stats["language_cleaning_documents"] = self.cleaning_stats["language_cleaning_documents"][:self.max_top_citation_docs]
 
     def track_combined_reduction(

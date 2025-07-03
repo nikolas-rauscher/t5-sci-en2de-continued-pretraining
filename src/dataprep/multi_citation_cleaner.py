@@ -244,10 +244,9 @@ class MultiCitationCleaner(BaseFilter):
         # Appendix Section Cleaner
         self.appendix_section_cleaner = AppendixSectionCleaner(debug_mode=self.debug_mode)
         
-        # Smart Language Cleaner
+        # Smart Language Cleaner (document-level only, no paragraph processing)
         self.language_cleaner = SmartLanguageCleaner(
             fasttext_threshold=0.75,
-            paragraph_threshold=0.5,
             debug_mode=self.debug_mode
         )
         
@@ -344,11 +343,11 @@ class MultiCitationCleaner(BaseFilter):
         doc.metadata["short_lines_removed"] = short_line_stats.get("total_lines_removed", 0)
         doc.metadata["short_line_length_reduction"] = short_line_stats.get("total_length_reduction", 0)
         
-        # Language cleaning metadata
-        doc.metadata["language_paragraphs_removed"] = language_stats.get("paragraphs_removed", 0)
+        # Language cleaning metadata (document-level)
+        doc.metadata["language_document_kept"] = language_stats.get("document_kept", False)
+        doc.metadata["language_document_removed"] = language_stats.get("document_removed", False)
         doc.metadata["language_length_reduction"] = language_stats.get("length_reduction", 0)
-        doc.metadata["language_document_too_short"] = language_stats.get("document_too_short", False)
-        doc.metadata["language_skipped"] = language_stats.get("skipped", False)
+        doc.metadata["fasttext_score_used"] = language_stats.get("fasttext_score", 1.0)
         
         # Citation metadata
         for citation_type in self.citation_patterns.keys():
