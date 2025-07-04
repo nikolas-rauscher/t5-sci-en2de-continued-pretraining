@@ -103,6 +103,19 @@ class TextNormalizer(BaseFilter):
         self.wandb_initialized = False
         self.wandb_enabled = log_to_wandb and WANDB_AVAILABLE
         # W&B wird erst in run() für rank 0 aktiviert
+        
+        # PERFORMANCE OPTIMIZATION: Pre-compile all regex patterns
+        self._compile_regex_patterns()
+    
+    def _compile_regex_patterns(self):
+        """Pre-compile all regex patterns for optimal performance"""
+        self.compiled_patterns = {
+            'spaces': re.compile(r'[ \t]+'),
+            'newlines': re.compile(r'\n{3,}'),
+            'sentence_spacing_1': re.compile(r'(^|\.)[ ]{2,}([A-Z])'),
+            'sentence_spacing_2': re.compile(r'^[ ]+', re.MULTILINE)
+        }
+        log.info(f"Compiled {len(self.compiled_patterns)} regex patterns for text normalization")
     
     def _init_wandb(self):
         """Prüft ob bereits eine W&B Session läuft - nutzt shared session"""
@@ -148,7 +161,7 @@ class TextNormalizer(BaseFilter):
                 "hash": original_hash
             }
         
-        # Schritt-für-Schritt Normalisierung mit Tracking
+        # OPTIMIZED: Single-pass normalization with pre-compiled patterns
         normalized_text = original_text
         changes_made = {
             "spaces": False,
@@ -159,14 +172,14 @@ class TextNormalizer(BaseFilter):
         
         if self.normalize_spaces:
             before_spaces = normalized_text
-            normalized_text = re.sub(r'[ \t]+', ' ', normalized_text)
+            normalized_text = self.compiled_patterns['spaces'].sub(' ', normalized_text)
             if normalized_text != before_spaces:
                 changes_made["spaces"] = True
                 self.normalization_stats["space_normalizations"] += 1
         
         if self.normalize_newlines:
             before_newlines = normalized_text
-            normalized_text = re.sub(r'\n{3,}', '\n\n', normalized_text)
+            normalized_text = self.compiled_patterns['newlines'].sub('\n\n', normalized_text)
             if normalized_text != before_newlines:
                 changes_made["newlines"] = True
                 self.normalization_stats["newline_normalizations"] += 1
@@ -175,9 +188,9 @@ class TextNormalizer(BaseFilter):
             # Leading spaces vor Sätzen entfernen
             before_sentence_fix = normalized_text
             # Pattern: Nach Punkt/Start + mehrere Spaces + Großbuchstabe
-            normalized_text = re.sub(r'(^|\.)[ ]{2,}([A-Z])', r'\1 \2', normalized_text)
+            normalized_text = self.compiled_patterns['sentence_spacing_1'].sub(r'\1 \2', normalized_text)
             # Auch Start-of-line leading spaces
-            normalized_text = re.sub(r'^[ ]+', '', normalized_text, flags=re.MULTILINE)
+            normalized_text = self.compiled_patterns['sentence_spacing_2'].sub('', normalized_text)
             if normalized_text != before_sentence_fix:
                 changes_made["sentence_spacing_fixes"] = True
                 self.normalization_stats["sentence_spacing_fixes"] += 1

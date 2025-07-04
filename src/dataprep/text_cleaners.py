@@ -172,52 +172,17 @@ class ShortLineCleaner(BaseTextCleaner):
     """
     
     def __init__(self, debug_mode: bool = False):
-        # Important single words that should be kept
-        self.important_single_words = {
-            'INTRODUCTION', 'CONCLUSION', 'RESULTS', 'DISCUSSION', 
-            'METHODS', 'BACKGROUND', 'SUMMARY', 'OVERVIEW', 'ANALYSIS',
-            'EXPERIMENT', 'PROCEDURE', 'MATERIALS', 'PROTOCOL', 'DESIGN',
-            'IMPLEMENTATION', 'EVALUATION', 'LIMITATIONS', 'FUTURE',
-            'APPLICATIONS', 'IMPLICATIONS', 'SIGNIFICANCE', 'ABSTRACT',
-            'OBJECTIVES', 'HYPOTHESIS', 'APPROACH', 'FRAMEWORK', 'MODEL',
-            'ALGORITHM', 'BASELINE', 'COMPARISON', 'VALIDATION', 'TESTING'
-        }
-        
-        # Important two-word patterns
-        self.important_two_word_patterns = {
-            'RELATED WORK', 'FUTURE WORK', 'CASE STUDY', 'USER STUDY',
-            'DATA ANALYSIS', 'STATISTICAL ANALYSIS', 'EXPERIMENTAL DESIGN',
-            'LITERATURE REVIEW', 'SYSTEMATIC REVIEW', 'META ANALYSIS',
-            'RESEARCH QUESTIONS', 'RESEARCH OBJECTIVES', 'ETHICAL CONSIDERATIONS',
-            'PERFORMANCE EVALUATION', 'MODEL VALIDATION', 'EXPERIMENTAL SETUP',
-            'BASELINE COMPARISON', 'ABLATION STUDY', 'ERROR ANALYSIS',
-            'THEORETICAL BACKGROUND', 'CONCEPTUAL FRAMEWORK', 'PROBLEM STATEMENT'
-        }
-        
-        # Important three-word patterns
-        self.important_three_word_patterns = {
-            'MATERIALS AND METHODS', 'RESULTS AND DISCUSSION', 'CONCLUSIONS AND IMPLICATIONS',
-            'EXPERIMENTAL VALIDATION RESULTS', 'STATISTICAL SIGNIFICANCE TESTING', 'MODEL PERFORMANCE EVALUATION',
-            'LITERATURE REVIEW METHODOLOGY', 'DATA COLLECTION PROCEDURES', 'ETHICAL APPROVAL CONSIDERATIONS',
-            'LIMITATIONS AND ASSUMPTIONS', 'FUTURE RESEARCH DIRECTIONS', 'PRACTICAL IMPLEMENTATION CONSIDERATIONS',
-            'THEORETICAL FRAMEWORK DEVELOPMENT', 'EMPIRICAL RESULTS ANALYSIS', 'COMPARATIVE PERFORMANCE ANALYSIS'
-        }
         super().__init__(debug_mode)
         self._compile_regex_patterns()
     
     def _compile_regex_patterns(self):
-        """Pre-compile regex patterns for better performance"""
-        self.digit_pattern = re.compile(r'\d')
-        self.all_caps_plural_pattern = re.compile(r'^[A-Z]{2,}S$')
-        self.numbered_section_pattern = re.compile(r'^\d+[\.\)]\s+[A-Z]')
-        self.roman_section_pattern = re.compile(r'^[IVX]+[\.\)]\s+[A-Z]')
-        self.table_number_pattern = re.compile(r'^TABLE\s+\d+')
-        self.figure_number_pattern = re.compile(r'^FIGURE\s+\d+')
-        self.chapter_number_pattern = re.compile(r'^CHAPTER\s+\d+')
-        self.section_number_pattern = re.compile(r'^SECTION\s+\d+')
-        self.keywords_pattern = re.compile(r'^KEYWORDS?:\s+')
-        self.table_number_space_pattern = re.compile(r'^TABLE\s+\d+\s+')
-        self.figure_number_space_pattern = re.compile(r'^FIGURE\s+\d+\s+')
+        """Compile useful specific patterns"""
+        self.keywords_pattern = re.compile(r'^KEYWORDS?:\s+', re.IGNORECASE)
+        self.isolated_table_pattern = re.compile(r'^TABLE\s+\d+$', re.IGNORECASE)
+        self.isolated_figure_pattern = re.compile(r'^FIGURE\s+\d+$', re.IGNORECASE)
+        self.isolated_chapter_pattern = re.compile(r'^CHAPTER\s+\d+$', re.IGNORECASE)
+        self.page_number_pattern = re.compile(r'^p\.?\s*\d+$', re.IGNORECASE)
+        self.junk_pattern = re.compile(r'^[\d\s\.\,\;\-\(\)]+$')
     
     def clean(self, text: str, doc_id: str = None) -> Tuple[str, Dict]:
         """Remove isolated short lines that break text flow"""
@@ -267,65 +232,37 @@ class ShortLineCleaner(BaseTextCleaner):
         return '\n'.join(cleaned_lines), stats
     
     def _should_remove_short_line(self, line: str, words: List[str], word_count: int) -> Tuple[bool, str]:
-        """Determine if a short line should be removed"""
-        if word_count == 1:
-            return self._check_single_word(words[0])
-        elif word_count == 2:
-            return self._check_two_words(line)
-        elif word_count == 3:
-            return self._check_three_words(line)
+        """Smart removal: specific patterns + general fallback"""
+        stripped = line.strip()
         
-        return False, ""
-    
-    def _check_single_word(self, word: str) -> Tuple[bool, str]:
-        """Check single word lines"""
-        word_upper = word.upper()
-        
-        if word_upper not in self.important_single_words:
-            if (len(word_upper) < 10 and
-                not self.digit_pattern.search(word_upper) and
-                not word_upper.endswith('ING') and
-                not self.all_caps_plural_pattern.match(word_upper) and
-                word_upper not in ['PROBLEM', 'SOLUTION', 'APPROACH', 'THEORY', 'PRACTICE', 'REVIEW']):
-                return True, "isolated_meaningless_word"
-        
-        return False, ""
-    
-    def _check_two_words(self, line: str) -> Tuple[bool, str]:
-        """Check two word lines"""
-        line_upper = line.upper()
-        
-        # Keep numbered section headers
-        if self.numbered_section_pattern.match(line) or self.roman_section_pattern.match(line):
+        # Keep longer lines (>15 chars) - likely real content
+        if len(stripped) > 15:
             return False, ""
         
-        # Remove structural headers
-        if (line_upper not in self.important_two_word_patterns and
-            (self.table_number_pattern.match(line_upper) or
-             self.figure_number_pattern.match(line_upper) or
-             self.chapter_number_pattern.match(line_upper) or
-             self.section_number_pattern.match(line_upper) or
-             line_upper in ['NAME SUPPLIER', 'ANTIBODY SUPPLIER', 'GENE NAME'])):
-            return True, "structural_two_word_header"
+        # Remove specific patterns (even if alphabetic)
+        if self.keywords_pattern.match(stripped):
+            return True, "keywords_metadata"
         
-        return False, ""
-    
-    def _check_three_words(self, line: str) -> Tuple[bool, str]:
-        """Check three word lines"""
-        line_upper = line.upper()
+        if self.isolated_table_pattern.match(stripped):
+            return True, "isolated_table_reference"
+            
+        if self.isolated_figure_pattern.match(stripped):
+            return True, "isolated_figure_reference"
+            
+        if self.isolated_chapter_pattern.match(stripped):
+            return True, "isolated_chapter_reference"
         
-        # Keep numbered section headers
-        if self.numbered_section_pattern.match(line) or self.roman_section_pattern.match(line):
+        if self.page_number_pattern.match(stripped):
+            return True, "page_number"
+            
+        if self.junk_pattern.match(stripped):
+            return True, "numeric_junk"
+        
+        # Keep alphabetic content (headers like "Introduction", "METHODS") 
+        if re.match(r'^[A-Za-z\s]+$', stripped):
             return False, ""
         
-        # Remove metadata headers
-        if (line_upper not in self.important_three_word_patterns and
-            (self.keywords_pattern.match(line_upper) or
-             self.table_number_space_pattern.match(line_upper) or
-             self.figure_number_space_pattern.match(line_upper) or
-             line_upper in ['TABLE OF CONTENTS', 'LIST OF TABLES', 'LIST OF FIGURES', 'LIST OF ABBREVIATIONS'])):
-            return True, "metadata_or_structural_header"
-        
+        # Conservative: keep everything else
         return False, ""
 
 
