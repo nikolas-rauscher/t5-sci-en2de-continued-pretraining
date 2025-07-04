@@ -184,22 +184,13 @@ class SymbolTokenNormalizer(BaseFilter):
         
         self.wandb_initialized = False
         self.current_rank = 0
+        
+        # PERFORMANCE OPTIMIZATION: Pre-compile all regex patterns
+        self._compile_all_patterns()
     
-    def _normalize_symbols(self, text: str) -> Tuple[str, int]:
-        normalized_text = text
-        normalizations = 0
-        
-        if self.debug_mode:
-            all_patterns = {**self.math_operators, **self.math_symbols, **self.logic_set_symbols,
-                           **self.fractions, **self.superscripts, **self.quotation_marks,
-                           **self.legal_currency, **self.greek_letters, **self.bullet_points, **self.arrows}
-            for pattern, replacement in all_patterns.items():
-                if re.search(pattern, normalized_text):
-                    normalized_text = re.sub(pattern, f'[DEBUG:symbol:{replacement}]', normalized_text)
-                    normalizations += 1
-            return normalized_text, normalizations
-        
-        # Apply all normalizations in order
+    def _compile_all_patterns(self):
+        """Pre-compile all regex patterns for optimal performance"""
+        # Collect all patterns in processing order
         pattern_groups = [
             self.invisible_chars,  # Remove invisible chars first
             self.toc_patterns,  # Remove table of contents
@@ -220,12 +211,52 @@ class SymbolTokenNormalizer(BaseFilter):
             self.scientific_notation  # Scientific notation
         ]
         
+        # Pre-compile all patterns for performance
+        self.compiled_patterns = []
         for patterns in pattern_groups:
             for pattern, replacement in patterns.items():
-                count = len(re.findall(pattern, normalized_text))
-                if count > 0:
-                    normalized_text = re.sub(pattern, replacement, normalized_text)
-                    normalizations += count
+                try:
+                    compiled_pattern = re.compile(pattern)
+                    self.compiled_patterns.append((compiled_pattern, replacement))
+                except re.error as e:
+                    log.warning(f"Invalid regex pattern '{pattern}': {e}")
+                    continue
+        
+        # For debug mode, compile all patterns into one group
+        if self.debug_mode:
+            debug_patterns = {**self.math_operators, **self.math_symbols, **self.logic_set_symbols,
+                           **self.fractions, **self.superscripts, **self.quotation_marks,
+                           **self.legal_currency, **self.greek_letters, **self.bullet_points, **self.arrows}
+            self.debug_compiled_patterns = []
+            for pattern, replacement in debug_patterns.items():
+                try:
+                    compiled_pattern = re.compile(pattern)
+                    self.debug_compiled_patterns.append((compiled_pattern, replacement))
+                except re.error as e:
+                    log.warning(f"Invalid debug regex pattern '{pattern}': {e}")
+                    continue
+        
+        log.info(f"Compiled {len(self.compiled_patterns)} regex patterns for symbol normalization")
+    
+    def _normalize_symbols(self, text: str) -> Tuple[str, int]:
+        normalized_text = text
+        normalizations = 0
+        
+        if self.debug_mode:
+            # Use pre-compiled debug patterns
+            for compiled_pattern, replacement in self.debug_compiled_patterns:
+                matches = compiled_pattern.findall(normalized_text)
+                if matches:
+                    normalized_text = compiled_pattern.sub(f'[DEBUG:symbol:{replacement}]', normalized_text)
+                    normalizations += len(matches)
+            return normalized_text, normalizations
+        
+        # Use pre-compiled patterns for optimal performance
+        for compiled_pattern, replacement in self.compiled_patterns:
+            matches = compiled_pattern.findall(normalized_text)
+            if matches:
+                normalized_text = compiled_pattern.sub(replacement, normalized_text)
+                normalizations += len(matches)
         
         return normalized_text, normalizations
     

@@ -8,8 +8,11 @@ Extracted from MultiCitationCleaner to improve modularity and maintainability.
 """
 
 import re
+import logging
 from typing import Dict, List, Tuple
 from src.dataprep.text_cleaners import BaseTextCleaner
+
+log = logging.getLogger(__name__)
 
 
 class FigureTableCleaner(BaseTextCleaner):
@@ -23,6 +26,39 @@ class FigureTableCleaner(BaseTextCleaner):
             debug_mode: If True, add debug tags instead of removing lines
         """
         super().__init__(debug_mode)
+        
+        # PERFORMANCE OPTIMIZATION: Pre-compile all regex patterns
+        self._compile_regex_patterns()
+    
+    def _compile_regex_patterns(self):
+        """Pre-compile all regex patterns for optimal performance"""
+        # Figure/table caption pattern
+        self.compiled_figure_pattern = re.compile(
+            r'^(?:fig|figure|tab|table|tbl)\.?\s*\d+(?:\.\d+)?[\s:]*', 
+            re.IGNORECASE
+        )
+        
+        # Numeric word pattern
+        self.compiled_numeric_pattern = re.compile(r'^\d+\.?\d*$')
+        
+        # Mathematical content patterns
+        math_patterns = [
+            r'[αβγδεζηθικλμνξοπρστυφχψωΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ]',  # Greek letters
+            r'[∂∇∑∏∫≡≠≤≥±∓×÷∈∉⊂⊃∪∩]',  # Math operators
+            r'⟨[^⟩]*⟩',                    # Bra-ket notation
+            r'\|[^|]*⟩',                   # Ket notation  
+            r'⟨[^|]*\|',                   # Bra notation
+            r'[a-zA-Z]+_[a-zA-Z0-9]+',     # Subscripts like γA, γB
+            r'[a-zA-Z]+\^[a-zA-Z0-9]+',    # Superscripts
+            r'\\[a-z]+\{[^}]*\}',          # LaTeX commands
+            r'[a-zA-Z]+=.*[a-zA-Z]',       # Equations like tl=t0[...]
+            r'ℋ|ℰ|ℱ|ℊ|ℋ|ℌ|ℍ|ℎ|ℏ|ℐ',      # Script letters (Hamiltonian etc.)
+            r'Π†|Π|†|‡|°|µ|σ|ρ|τ|φ|χ|ψ|ω', # Special math symbols
+        ]
+        
+        self.compiled_math_patterns = [re.compile(pattern) for pattern in math_patterns]
+        
+        log.info(f"Compiled figure/table patterns: {len(self.compiled_math_patterns)} math patterns + 2 other patterns")
     
     def clean(self, text: str, doc_id: str = None) -> Tuple[str, Dict]:
         """
@@ -52,14 +88,14 @@ class FigureTableCleaner(BaseTextCleaner):
             removal_reason = ""
             
             # Pattern 1: Clear figure/table captions (e.g., "Figure 2.1:", "Table 5")
-            if re.match(r'^(?:fig|figure|tab|table|tbl)\.?\s*\d+(?:\.\d+)?[\s:]*', stripped_line, re.IGNORECASE):
+            if self.compiled_figure_pattern.match(stripped_line):
                 should_remove = True
                 removal_reason = "figure_table_caption"
             
             elif not self._is_mathematical_content(stripped_line):  
                 words = stripped_line.split()
                 if 2 <= len(words) <= 5:
-                    numeric_words = sum(1 for word in words if re.match(r'^\d+\.?\d*$', word))
+                    numeric_words = sum(1 for word in words if self.compiled_numeric_pattern.match(word))
                     if numeric_words / len(words) >= 0.6:
                         should_remove = True
                         removal_reason = f"numeric_table_data_{numeric_words}of{len(words)}"
@@ -111,4 +147,4 @@ class FigureTableCleaner(BaseTextCleaner):
             r'Π†|Π|†|‡|°|µ|σ|ρ|τ|φ|χ|ψ|ω', # Special math symbols
         ]
         
-        return any(re.search(pattern, line) for pattern in math_patterns) 
+        return any(pattern.search(line) for pattern in self.compiled_math_patterns) 

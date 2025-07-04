@@ -55,6 +55,8 @@ cleaner = MultiCitationCleaner(
 import re
 import logging
 from typing import Dict, Any, Optional, List, Set, Tuple
+from functools import lru_cache
+import hashlib
 # Removed unused imports: defaultdict, Counter, heapq (now handled by CitationStatsManager)
 
 from datatrove.data import Document
@@ -191,13 +193,23 @@ class MultiCitationCleaner(BaseFilter):
             }
         
         self.citation_patterns = citation_patterns
+        # PERFORMANCE OPTIMIZATION: Pre-compile all regex patterns
         self.citation_regexes = {}
         for name, pattern in citation_patterns.items():
-            # Case-insensitive für bestimmte patterns
-            if name in ["ref_nummer", "page_references", "figure_table_refs"]:
-                self.citation_regexes[name] = re.compile(pattern, re.IGNORECASE)
-            else:
-                self.citation_regexes[name] = re.compile(pattern)
+            try:
+                # Case-insensitive für bestimmte patterns
+                if name in ["ref_nummer", "page_references", "figure_table_refs"]:
+                    self.citation_regexes[name] = re.compile(pattern, re.IGNORECASE)
+                else:
+                    self.citation_regexes[name] = re.compile(pattern)
+            except re.error as e:
+                log.warning(f"Invalid citation regex pattern '{name}': {pattern} - {e}")
+                continue
+        
+        log.info(f"Compiled {len(self.citation_regexes)} citation regex patterns")
+        
+        # ADVANCED OPTIMIZATION: Create master combined regex for single-pass processing
+        self._create_master_regex()
         self.replacement = replacement
         self.track_changes = track_changes
         self.log_to_wandb = log_to_wandb and WANDB_AVAILABLE
@@ -270,8 +282,11 @@ class MultiCitationCleaner(BaseFilter):
         citations_rejected = {}
         cleaned_text = text
         
-        for citation_type, citation_regex in self.citation_regexes.items():
-            matches = list(citation_regex.finditer(cleaned_text))
+        # OPTIMIZED: Find all citations in single pass using master regex
+        citations_found_matches = self._find_all_citations_optimized(cleaned_text)
+        
+        # Process each citation type (validation + cleaning)
+        for citation_type, matches in citations_found_matches.items():
             citations_found[citation_type] = [match.group() for match in matches]
             
             validated_matches, rejected_matches = self._validate_matches(
@@ -280,6 +295,8 @@ class MultiCitationCleaner(BaseFilter):
             
             citations_removed[citation_type] = [match.group() for match in validated_matches]
             citations_rejected[citation_type] = rejected_matches
+            
+            # Validation stats are tracked via final results in track_citation_results()
             
             cleaned_text = self._apply_cleaning(cleaned_text, validated_matches, citation_type)
             
@@ -296,12 +313,27 @@ class MultiCitationCleaner(BaseFilter):
         for match in matches:
             match_text = match.group()
             
+            # OPTIMIZED: Use cached validation
             if citation_type in self.CONTEXT_AWARE_TYPES:
-                is_valid, reason = self._validate_citation_with_context(
-                    citation_type, match_text, match.start(), match.end(), text
+                context_start = max(0, match.start() - 50)
+                context_end = min(len(text), match.end() + 50)
+                context_text = text[context_start:context_end]
+                
+                # Store position info for the cached function
+                self._temp_match_start = match.start()
+                self._temp_match_end = match.end()
+                self._temp_full_text = text
+                
+                is_valid, reason = self._validate_with_context_cached(
+                    citation_type, match_text, context_text
                 )
+                
+                # Clean up temp variables
+                delattr(self, '_temp_match_start')
+                delattr(self, '_temp_match_end') 
+                delattr(self, '_temp_full_text')
             else:
-                is_valid, reason = self._validate_citation(citation_type, match_text)
+                is_valid, reason = self._validate_citation_cached(citation_type, match_text)
             
             if is_valid:
                 validated_matches.append(match)
@@ -324,6 +356,72 @@ class MultiCitationCleaner(BaseFilter):
             else:
                 text = text[:start] + self.replacement + text[end:]
         return text
+    
+    def _create_master_regex(self):
+        """Create master combined regex for single-pass citation detection"""
+        # Group patterns by flags
+        case_insensitive_patterns = []
+        case_sensitive_patterns = []
+        
+        for name, compiled_regex in self.citation_regexes.items():
+            pattern = compiled_regex.pattern
+            if name in ["ref_nummer", "page_references", "figure_table_refs"]:
+                case_insensitive_patterns.append(f'(?P<{name}>{pattern})')
+            else:
+                case_sensitive_patterns.append(f'(?P<{name}>{pattern})')
+        
+        # Create separate master patterns for different flags
+        if case_sensitive_patterns:
+            self.master_regex_sensitive = re.compile('|'.join(case_sensitive_patterns))
+        else:
+            self.master_regex_sensitive = None
+            
+        if case_insensitive_patterns:
+            self.master_regex_insensitive = re.compile('|'.join(case_insensitive_patterns), re.IGNORECASE)
+        else:
+            self.master_regex_insensitive = None
+        
+        log.info(f"Created master regex: {len(case_sensitive_patterns)} sensitive + {len(case_insensitive_patterns)} insensitive patterns")
+    
+    def _hash_for_cache(self, text: str) -> str:
+        """Create cache key hash for text"""
+        return hashlib.md5(text.encode('utf-8')).hexdigest()[:16]
+    
+    @lru_cache(maxsize=2000)
+    def _validate_citation_cached(self, citation_type: str, match_text: str) -> Tuple[bool, str]:
+        """OPTIMIZED: Cached validation for citation matches"""
+        return self._validate_citation_uncached(citation_type, match_text)
+    
+    @lru_cache(maxsize=1000) 
+    def _validate_with_context_cached(self, citation_type: str, match_text: str, context_text: str) -> Tuple[bool, str]:
+        """OPTIMIZED: Cached context validation for citation matches"""
+        # Extract start/end positions from the context for the uncached function
+        # For caching, we simplify by using just the match text and context
+        if hasattr(self, '_temp_match_start') and hasattr(self, '_temp_match_end') and hasattr(self, '_temp_full_text'):
+            return self._validate_citation_with_context_uncached(
+                citation_type, match_text, self._temp_match_start, self._temp_match_end, self._temp_full_text
+            )
+        else:
+            # Fallback to simple validation if no position info
+            return self._validate_citation_uncached(citation_type, match_text)
+    
+    def _find_all_citations_optimized(self, text: str) -> Dict[str, List]:
+        """OPTIMIZED: Find all citations in single pass using master regex"""
+        citations_found = {name: [] for name in self.citation_regexes.keys()}
+        
+        # Single pass for case-sensitive patterns
+        if self.master_regex_sensitive:
+            for match in self.master_regex_sensitive.finditer(text):
+                citation_type = match.lastgroup
+                citations_found[citation_type].append(match)
+        
+        # Single pass for case-insensitive patterns
+        if self.master_regex_insensitive:
+            for match in self.master_regex_insensitive.finditer(text):
+                citation_type = match.lastgroup
+                citations_found[citation_type].append(match)
+        
+        return citations_found
 
     def _update_document_metadata(self, doc: Document, figure_stats: Dict, 
                                 appendix_stats: Dict, short_line_stats: Dict,
@@ -466,7 +564,7 @@ class MultiCitationCleaner(BaseFilter):
                                                   sum(len(citations) for citations in doc.metadata.get("citations_removed", {}).values() if isinstance(citations, list)),
                                                   figure_stats, appendix_stats, short_line_stats, total_combined_reduction)
 
-    def _validate_citation(self, citation_type: str, match_text: str) -> Tuple[bool, str]:
+    def _validate_citation_uncached(self, citation_type: str, match_text: str) -> Tuple[bool, str]:
         """Simple validation for different citation types"""
         if not self.enable_smart_validation:
             return True, "validation_disabled"
@@ -553,7 +651,7 @@ class MultiCitationCleaner(BaseFilter):
             return False, "ref_in_sentence_flow"
         return True, "isolated_ref_citation"
 
-    def _validate_citation_with_context(self, citation_type: str, match_text: str, 
+    def _validate_citation_with_context_uncached(self, citation_type: str, match_text: str, 
                                       start_pos: int, end_pos: int, full_text: str) -> Tuple[bool, str]:
         """Enhanced validation with context analysis - now modular"""
         if not self.enable_smart_validation:

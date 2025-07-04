@@ -1,8 +1,5 @@
 """
 Specialized Text Cleaners für DataTrove
-
-Verschiedene spezialisierte Cleaner für unterschiedliche Text-Cleaning-Aufgaben.
-Jeder Cleaner hat eine klare, spezifische Verantwortung.
 """
 
 import re
@@ -103,6 +100,11 @@ class TabularDataCleaner(BaseTextCleaner):
         super().__init__(debug_mode)
         self.min_space_sequences = min_space_sequences
         self.space_ratio_threshold = space_ratio_threshold
+        self._compile_regex_patterns()
+    
+    def _compile_regex_patterns(self):
+        """Pre-compile regex patterns for better performance"""
+        self.multiple_spaces_pattern = re.compile(r'\s{3,}')
     
     def clean(self, text: str, doc_id: str = None) -> Tuple[str, Dict]:
         """Remove lines with excessive spacing indicating tabular data"""
@@ -150,7 +152,7 @@ class TabularDataCleaner(BaseTextCleaner):
     def _is_tabular_data(self, line: str) -> Tuple[bool, str]:
         """Check if line represents tabular data"""
         # Method 1: Multiple space sequences
-        multiple_space_sequences = len(re.findall(r'\s{3,}', line))
+        multiple_space_sequences = len(self.multiple_spaces_pattern.findall(line))
         if multiple_space_sequences >= self.min_space_sequences:
             return True, "tabular_data_spacing"
         
@@ -201,6 +203,21 @@ class ShortLineCleaner(BaseTextCleaner):
             'THEORETICAL FRAMEWORK DEVELOPMENT', 'EMPIRICAL RESULTS ANALYSIS', 'COMPARATIVE PERFORMANCE ANALYSIS'
         }
         super().__init__(debug_mode)
+        self._compile_regex_patterns()
+    
+    def _compile_regex_patterns(self):
+        """Pre-compile regex patterns for better performance"""
+        self.digit_pattern = re.compile(r'\d')
+        self.all_caps_plural_pattern = re.compile(r'^[A-Z]{2,}S$')
+        self.numbered_section_pattern = re.compile(r'^\d+[\.\)]\s+[A-Z]')
+        self.roman_section_pattern = re.compile(r'^[IVX]+[\.\)]\s+[A-Z]')
+        self.table_number_pattern = re.compile(r'^TABLE\s+\d+')
+        self.figure_number_pattern = re.compile(r'^FIGURE\s+\d+')
+        self.chapter_number_pattern = re.compile(r'^CHAPTER\s+\d+')
+        self.section_number_pattern = re.compile(r'^SECTION\s+\d+')
+        self.keywords_pattern = re.compile(r'^KEYWORDS?:\s+')
+        self.table_number_space_pattern = re.compile(r'^TABLE\s+\d+\s+')
+        self.figure_number_space_pattern = re.compile(r'^FIGURE\s+\d+\s+')
     
     def clean(self, text: str, doc_id: str = None) -> Tuple[str, Dict]:
         """Remove isolated short lines that break text flow"""
@@ -266,9 +283,9 @@ class ShortLineCleaner(BaseTextCleaner):
         
         if word_upper not in self.important_single_words:
             if (len(word_upper) < 10 and
-                not re.search(r'\d', word_upper) and
+                not self.digit_pattern.search(word_upper) and
                 not word_upper.endswith('ING') and
-                not re.match(r'^[A-Z]{2,}S$', word_upper) and
+                not self.all_caps_plural_pattern.match(word_upper) and
                 word_upper not in ['PROBLEM', 'SOLUTION', 'APPROACH', 'THEORY', 'PRACTICE', 'REVIEW']):
                 return True, "isolated_meaningless_word"
         
@@ -279,15 +296,15 @@ class ShortLineCleaner(BaseTextCleaner):
         line_upper = line.upper()
         
         # Keep numbered section headers
-        if re.match(r'^\d+[\.\)]\s+[A-Z]', line) or re.match(r'^[IVX]+[\.\)]\s+[A-Z]', line):
+        if self.numbered_section_pattern.match(line) or self.roman_section_pattern.match(line):
             return False, ""
         
         # Remove structural headers
         if (line_upper not in self.important_two_word_patterns and
-            (re.match(r'^TABLE\s+\d+', line_upper) or
-             re.match(r'^FIGURE\s+\d+', line_upper) or
-             re.match(r'^CHAPTER\s+\d+', line_upper) or
-             re.match(r'^SECTION\s+\d+', line_upper) or
+            (self.table_number_pattern.match(line_upper) or
+             self.figure_number_pattern.match(line_upper) or
+             self.chapter_number_pattern.match(line_upper) or
+             self.section_number_pattern.match(line_upper) or
              line_upper in ['NAME SUPPLIER', 'ANTIBODY SUPPLIER', 'GENE NAME'])):
             return True, "structural_two_word_header"
         
@@ -298,14 +315,14 @@ class ShortLineCleaner(BaseTextCleaner):
         line_upper = line.upper()
         
         # Keep numbered section headers
-        if re.match(r'^\d+[\.\)]\s+[A-Z]', line) or re.match(r'^[IVX]+[\.\)]\s+[A-Z]', line):
+        if self.numbered_section_pattern.match(line) or self.roman_section_pattern.match(line):
             return False, ""
         
         # Remove metadata headers
         if (line_upper not in self.important_three_word_patterns and
-            (re.match(r'^KEYWORDS?:\s+', line_upper) or
-             re.match(r'^TABLE\s+\d+\s+', line_upper) or
-             re.match(r'^FIGURE\s+\d+\s+', line_upper) or
+            (self.keywords_pattern.match(line_upper) or
+             self.table_number_space_pattern.match(line_upper) or
+             self.figure_number_space_pattern.match(line_upper) or
              line_upper in ['TABLE OF CONTENTS', 'LIST OF TABLES', 'LIST OF FIGURES', 'LIST OF ABBREVIATIONS'])):
             return True, "metadata_or_structural_header"
         
@@ -326,6 +343,13 @@ class CopyrightCleaner(BaseTextCleaner):
             r'.*\(c\).*',
             r'.*all rights reserved.*'
         ]
+        self._compile_regex_patterns()
+    
+    def _compile_regex_patterns(self):
+        """Pre-compile regex patterns for better performance"""
+        self.compiled_copyright_patterns = [
+            re.compile(pattern, re.IGNORECASE) for pattern in self.copyright_patterns
+        ]
     
     def clean(self, text: str, doc_id: str = None) -> Tuple[str, Dict]:
         """Remove copyright lines completely"""
@@ -342,8 +366,8 @@ class CopyrightCleaner(BaseTextCleaner):
                 continue
             
             # Check for copyright patterns
-            is_copyright_line = any(re.search(pattern, stripped_line, re.IGNORECASE) 
-                                  for pattern in self.copyright_patterns)
+            is_copyright_line = any(pattern.search(stripped_line) 
+                                  for pattern in self.compiled_copyright_patterns)
             
             if is_copyright_line:
                 removed_lines.append({
@@ -380,6 +404,14 @@ class MetadataCleaner(BaseTextCleaner):
     
     def __init__(self, debug_mode: bool = False):
         super().__init__(debug_mode)
+        self._compile_regex_patterns()
+    
+    def _compile_regex_patterns(self):
+        """Pre-compile regex patterns for better performance"""
+        self.keywords_metadata_pattern = re.compile(r'^[Kk]eywords?:\s+')
+        self.technical_code_start_pattern = re.compile(r'^[A-Z0-9\-]{2,}\s+[A-Z0-9\-]{2,}')
+        self.all_caps_pattern = re.compile(r'^[A-Z0-9\s\-\.]+$')
+        self.lowercase_pattern = re.compile(r'[a-z]')
     
     def clean(self, text: str, doc_id: str = None) -> Tuple[str, Dict]:
         """Remove metadata lines like keywords and technical codes"""
@@ -427,14 +459,14 @@ class MetadataCleaner(BaseTextCleaner):
     def _is_metadata_line(self, line: str) -> Tuple[bool, str]:
         """Check if line is metadata that should be removed"""
         # Keywords lines
-        if re.match(r'^[Kk]eywords?:\s+', line):
+        if self.keywords_metadata_pattern.match(line):
             return True, "keywords_metadata"
         
         # Technical codes (only short ones, not drug names like GEFITINIB)
         if (len(line.split()) <= 8 and
-            re.search(r'^[A-Z0-9\-]{2,}\s+[A-Z0-9\-]{2,}', line) or
-            (re.match(r'^[A-Z0-9\s\-\.]+$', line) and
-             not re.search(r'[a-z]', line) and
+            self.technical_code_start_pattern.search(line) or
+            (self.all_caps_pattern.match(line) and
+             not self.lowercase_pattern.search(line) and
              len(line.replace(' ', '')) < 8)):  # Only short codes
             return True, "technical_code_line"
         
@@ -456,51 +488,158 @@ class ComprehensiveLineCleaner:
     
     def clean_lines(self, text: str, doc_id: str = None) -> Tuple[str, Dict]:
         """
-        Apply all line cleaning steps in sequence
+        Apply all line cleaning steps using optimized single-pass approach
         
         Returns:
             Tuple of (cleaned_text, combined_stats)
         """
-        current_text = text
-        combined_stats = {
-            "total_lines_removed": 0,
-            "total_length_reduction": 0,
-            "removed_lines": [],
-            "doc_id": doc_id or "unknown",
-            "cleaning_steps": {}
+        # Use optimized single-pass implementation
+        return self.clean_lines_optimized(text, doc_id)
+    
+    def clean_lines_optimized(self, text: str, doc_id: str = None) -> Tuple[str, Dict]:
+        """OPTIMIZED: Single-pass line cleaning with all 5 cleaners fused"""
+        lines = text.splitlines()
+        cleaned_lines = []
+        
+        # Stats tracking for each cleaner type
+        stats_by_type = {
+            "repetition": {"lines_removed": 0, "length_reduction": 0, "removed_lines": []},
+            "tabular": {"lines_removed": 0, "length_reduction": 0, "removed_lines": []},
+            "short_lines": {"lines_removed": 0, "length_reduction": 0, "removed_lines": []},
+            "metadata": {"lines_removed": 0, "length_reduction": 0, "removed_lines": []},
+            "copyright": {"lines_removed": 0, "length_reduction": 0, "removed_lines": []}
         }
         
-        # Step 1: Remove repeated lines
-        current_text, rep_stats = self.repetition_cleaner.clean(current_text, doc_id)
-        combined_stats["cleaning_steps"]["repetition"] = rep_stats
+        recent_lines = []  # For repetition detection
         
-        # Step 2: Remove tabular data
-        current_text, tab_stats = self.tabular_cleaner.clean(current_text, doc_id)
-        combined_stats["cleaning_steps"]["tabular"] = tab_stats
-        
-        # Step 3: Remove short lines
-        current_text, short_stats = self.short_line_cleaner.clean(current_text, doc_id)
-        combined_stats["cleaning_steps"]["short_lines"] = short_stats
-        
-        # Step 4: Remove metadata
-        current_text, meta_stats = self.metadata_cleaner.clean(current_text, doc_id)
-        combined_stats["cleaning_steps"]["metadata"] = meta_stats
-        
-        # Step 5: Remove copyright lines (NEUE Stufe basierend auf 170k Rohdaten-Analyse)
-        current_text, copyright_stats = self.copyright_cleaner.clean(current_text, doc_id)
-        combined_stats["cleaning_steps"]["copyright"] = copyright_stats
+        for i, line in enumerate(lines):
+            stripped_line = line.strip()
+            
+            # Skip empty lines
+            if not stripped_line:
+                cleaned_lines.append(line)
+                continue
+                
+            removal_reason = None
+            cleaner_type = None
+            
+            # FUSED LOGIC: Apply all 5 cleaners in priority order
+            
+            # 1. Check repetition (use existing logic)
+            if self._should_remove_repetition_optimized(stripped_line, recent_lines):
+                removal_reason = "repeated_line"
+                cleaner_type = "repetition"
+            
+            # 2. Check tabular data (use existing logic)
+            elif self._should_remove_tabular_optimized(stripped_line):
+                removal_reason = "tabular_data_spacing"
+                cleaner_type = "tabular"
+                
+            # 3. Check short lines (use existing logic)
+            elif self._should_remove_short_line_optimized(stripped_line):
+                removal_reason = self._get_short_line_reason_optimized(stripped_line)
+                cleaner_type = "short_lines"
+                
+            # 4. Check metadata (use existing logic)
+            elif self._should_remove_metadata_optimized(stripped_line):
+                removal_reason = self._get_metadata_reason_optimized(stripped_line)
+                cleaner_type = "metadata"
+                
+            # 5. Check copyright (use existing logic)
+            elif self._should_remove_copyright_optimized(stripped_line):
+                removal_reason = "copyright_line"
+                cleaner_type = "copyright"
+            
+            # Process result
+            if removal_reason:
+                # Track stats
+                stats_by_type[cleaner_type]["lines_removed"] += 1
+                stats_by_type[cleaner_type]["length_reduction"] += len(line) if not self.debug_mode else 0
+                stats_by_type[cleaner_type]["removed_lines"].append({
+                    "line_content": stripped_line[:100],
+                    "line_number": i + 1,
+                    "length": len(stripped_line),
+                    "reason": removal_reason
+                })
+                
+                if self.debug_mode:
+                    # Add debug tag instead of removing
+                    debug_tag = f"[DEBUG:{cleaner_type}:{removal_reason}]"
+                    cleaned_lines.append(debug_tag)
+                else:
+                    # Remove line (don't add to cleaned_lines)
+                    pass
+            else:
+                # Keep the line
+                cleaned_lines.append(line)
+                
+            # Update recent lines for repetition detection
+            recent_lines.append(stripped_line)
+            if len(recent_lines) > 5:  # Max 5 recent lines
+                recent_lines.pop(0)
         
         # Combine stats
-        for step_stats in combined_stats["cleaning_steps"].values():
-            combined_stats["total_lines_removed"] += step_stats["lines_removed"]
-            combined_stats["total_length_reduction"] += step_stats["length_reduction"]
-            combined_stats["removed_lines"].extend(step_stats["removed_lines"])
+        combined_stats = {
+            "total_lines_removed": sum(s["lines_removed"] for s in stats_by_type.values()),
+            "total_length_reduction": sum(s["length_reduction"] for s in stats_by_type.values()),
+            "removed_lines": [],
+            "doc_id": doc_id or "unknown",
+            "cleaning_steps": stats_by_type
+        }
         
-        # Limit samples
+        # Collect all removed lines (limited)
+        for step_stats in stats_by_type.values():
+            combined_stats["removed_lines"].extend(step_stats["removed_lines"])
         combined_stats["removed_lines"] = combined_stats["removed_lines"][:10]
         
-        # In debug mode, no actual length reduction occurs (only tags added)
-        if self.debug_mode:
-            combined_stats["total_length_reduction"] = 0
+        return '\n'.join(cleaned_lines), combined_stats
+    
+    # Helper methods that extract the core logic from each cleaner
+    def _should_remove_repetition_optimized(self, line: str, recent_lines: List[str]) -> bool:
+        """Extract repetition logic"""
+        # Skip debug tags - they can create false positives when different items get same tag
+        if line.startswith("[DEBUG:") and line.endswith("]"):
+            return False
         
-        return current_text, combined_stats 
+        return line in recent_lines
+    
+    def _should_remove_tabular_optimized(self, line: str) -> bool:
+        """Extract tabular detection logic"""
+        should_remove, _ = self.tabular_cleaner._is_tabular_data(line)
+        return should_remove
+    
+    def _should_remove_short_line_optimized(self, line: str) -> bool:
+        """Extract short line detection logic"""
+        words = line.split()
+        word_count = len(words)
+        
+        # Only process lines with 1-3 words (same as original ShortLineCleaner)
+        if word_count <= 3:
+            should_remove, _ = self.short_line_cleaner._should_remove_short_line(line, words, word_count)
+            return should_remove
+        
+        return False
+    
+    def _get_short_line_reason_optimized(self, line: str) -> str:
+        """Get specific short line removal reason"""
+        words = line.split()
+        word_count = len(words)
+        
+        # Get the actual reason from the original cleaner logic
+        should_remove, reason = self.short_line_cleaner._should_remove_short_line(line, words, word_count)
+        return reason if reason else "short_line"
+    
+    def _should_remove_metadata_optimized(self, line: str) -> bool:
+        """Extract metadata detection logic"""
+        should_remove, _ = self.metadata_cleaner._is_metadata_line(line)
+        return should_remove
+    
+    def _get_metadata_reason_optimized(self, line: str) -> str:
+        """Get specific metadata removal reason"""
+        should_remove, reason = self.metadata_cleaner._is_metadata_line(line)
+        return reason if reason else "metadata_line"
+    
+    def _should_remove_copyright_optimized(self, line: str) -> bool:
+        """Extract copyright detection logic"""
+        # Use the compiled patterns from CopyrightCleaner
+        return any(pattern.search(line) for pattern in self.copyright_cleaner.compiled_copyright_patterns) 

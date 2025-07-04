@@ -350,6 +350,12 @@ class CitationStatsManager:
             elif total_combined_reduction > self.cleaning_stats["top_combined_reduction_docs"][0][0]:
                 heapq.heapreplace(self.cleaning_stats["top_combined_reduction_docs"], combined_doc_entry)
     
+    def track_citation_validation(self, citation_type: str, total_found: int, total_validated: int, total_rejected: int):
+        """Track citation validation statistics for a specific citation type"""
+        if citation_type not in self.citation_stats:
+            return
+        pass
+    
     def get_stats(self) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """Get current citation and cleaning statistics"""
         return self.citation_stats, self.cleaning_stats

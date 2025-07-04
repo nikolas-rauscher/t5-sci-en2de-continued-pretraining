@@ -8,9 +8,12 @@ Extracted from MultiCitationCleaner to improve modularity and maintainability.
 """
 
 import re
+import logging
 from typing import Dict, List, Tuple
 from collections import defaultdict
 from src.dataprep.text_cleaners import BaseTextCleaner
+
+log = logging.getLogger(__name__)
 
 
 class AppendixSectionCleaner(BaseTextCleaner):
@@ -27,6 +30,39 @@ class AppendixSectionCleaner(BaseTextCleaner):
             debug_mode: If True, add debug tags instead of removing sections
         """
         super().__init__(debug_mode)
+        
+        # PERFORMANCE OPTIMIZATION: Pre-compile all regex patterns
+        self._compile_regex_patterns()
+    
+    def _compile_regex_patterns(self):
+        """Pre-compile all regex patterns for optimal performance"""
+        # Section indicator patterns
+        section_patterns = [
+            # Table indicators
+            r'^table\s+\d+', r'^tab\s+\d+', r'^figure\s+\d+', r'^fig\s+\d+',
+            
+            # Scientific sections
+            r'^acknowledgments?$', r'^acknowledgements?$', r'^references?$', 
+            r'^bibliography$', r'^appendix', r'^supplementary',
+            
+            # Gene/protein lists
+            r'^gene\s+symbol', r'^protein\s+name', r'^antibody\s+supplier',
+            
+            # Table content patterns
+            r'^[A-Z][A-Z0-9]+\s+[A-Z][A-Z0-9]+\s+[A-Z][A-Z0-9]+',  # Column headers
+        ]
+        
+        # Compile all section patterns with IGNORECASE
+        self.compiled_section_patterns = [
+            re.compile(pattern, re.IGNORECASE) for pattern in section_patterns
+        ]
+        
+        # Compile frequently used patterns
+        self.compiled_gene_pattern = re.compile(r'^[A-Z]{2,}')
+        self.compiled_decimal_pattern = re.compile(r'\d+\.\d+')
+        self.compiled_separator_pattern = re.compile(r'[:\t]')
+        
+        log.info(f"Compiled {len(self.compiled_section_patterns)} section patterns + 3 validation patterns")
     
     def clean(self, text: str, doc_id: str = None) -> Tuple[str, Dict]:
         """
@@ -57,27 +93,10 @@ class AppendixSectionCleaner(BaseTextCleaner):
                     cleaned_lines.append(line)
                 continue
             
-            # Detect start of appendix sections
-            section_indicators = [
-                # Table indicators
-                r'^table\s+\d+', r'^tab\s+\d+', r'^figure\s+\d+', r'^fig\s+\d+',
-                
-                # Scientific sections
-                r'^acknowledgments?$', r'^acknowledgements?$', r'^references?$', 
-                r'^bibliography$', r'^appendix', r'^supplementary',
-                
-                # ENTFERNT: Method sections - zu viele False Positives bei normalem Content
-                # r'^materials?\s+and\s+methods?$', r'^methods?$', r'^procedures?$',
-                
-                # Gene/protein lists
-                r'^gene\s+symbol', r'^protein\s+name', r'^antibody\s+supplier',
-                
-                # Table content patterns
-                r'^[A-Z][A-Z0-9]+\s+[A-Z][A-Z0-9]+\s+[A-Z][A-Z0-9]+',  # Column headers
-            ]
+            # OPTIMIZED: Use pre-compiled patterns (removed duplicate section_indicators list)
             
-            is_section_start = any(re.search(pattern, stripped_line, re.IGNORECASE) 
-                                 for pattern in section_indicators)
+            is_section_start = any(pattern.search(stripped_line) 
+                                 for pattern in self.compiled_section_patterns)
             
             if is_section_start and not in_appendix_section:
                 in_appendix_section = True
@@ -97,9 +116,9 @@ class AppendixSectionCleaner(BaseTextCleaner):
                     if (line_stats['word_count'] > 15 and 
                         line_stats['special_char_ratio'] < 0.15 and
                         line_stats['uppercase_ratio'] < 0.3 and
-                        not re.search(r'^[A-Z]{2,}', stripped_line) and  # Not gene names
-                        not re.search(r'\d+\.\d+', stripped_line) and    # Not version numbers
-                        not re.search(r'[:\t]', stripped_line)):         # Not tabular data
+                        not self.compiled_gene_pattern.search(stripped_line) and  # Not gene names
+                        not self.compiled_decimal_pattern.search(stripped_line) and    # Not version numbers
+                        not self.compiled_separator_pattern.search(stripped_line)):         # Not tabular data
                         
                         # This looks like normal text, end the section
                         section_stats = self._analyze_section_stats(current_section_lines[:-1])  # Exclude current line
