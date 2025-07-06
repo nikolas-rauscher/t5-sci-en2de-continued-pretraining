@@ -34,56 +34,53 @@ class SymbolTokenNormalizer(BaseFilter):
         self.debug_mode = debug_mode
         self.log_to_wandb = log_to_wandb and WANDB_AVAILABLE
         
-        # Math operators
+        # Math operators - ULTRA-CONSERVATIVE: minimal normalization only
         self.math_operators = {
-            r'≤': '<=', r'≥': '>=', r'≠': '!=', r'±': '+/-',
-            r'×': '*', r'÷': '/', r'≈': '~=', r'∞': 'infinity',
-            r'∂': 'partial', r'∇': 'nabla', r'∆': 'DELTA',
-            r'≅': 'congruent', r'≃': 'simeq', r'∝': 'proportional',
-            r'≡': 'equivalent', r'≢': 'not_equivalent', r'≅': 'congruent'
+            # REMOVED: ≤≥≠± (preserve mathematical Unicode - visual clarity, standard in scientific texts)
+            # REMOVED: ×÷ (cross product vs scalar multiplication), ≈≅≃∝≡≢ (preserve mathematical meaning)
+            # REMOVED: ⋅· (dot product vs multiplication - semantically different)
+            # REMOVED: ° (degree symbol - preserve for scientific units like 20°C, 45°)
+            r'′': "'", r'″': "''",  # Only prime symbols (accessible via keyboard)
+            # PRESERVED: All mathematical Unicode (≤≥≠±×÷°∂∇∆∞) and Greek letters (α,β,γ) for scientific authenticity
         }
         
-        # Math symbols
+        # Math symbols - CONSERVATIVE: only normalize clearly problematic symbols
         self.math_symbols = {
-            r'∑': 'SUM', r'∏': 'PRODUCT', r'∫': 'integral',
-            r'√': 'sqrt', r'∛': 'cube_root', r'∜': 'fourth_root',
-            r'⌈': 'ceil', r'⌉': 'ceil', r'⌊': 'floor', r'⌋': 'floor',
-            r'|': 'absolute', r'∥': 'parallel', r'⊥': 'perpendicular'
+            # DISABLED: Keep ∑, ∏, ∫, √ as Unicode for scientific authenticity
+            # r'∑': ' sum ', r'∏': ' prod ', r'∫': ' integral ', r'∮': ' contour_integral ',
+            # r'√': ' sqrt ', r'∛': ' cbrt ', r'∜': ' sqrt4 ',
+            # DISABLED: Keep ceiling/floor as Unicode
+            # r'⌈': ' ceil ', r'⌉': ' ceil ', r'⌊': ' floor ', r'⌋': ' floor ',
+            # r'|': 'absolute',  # REMOVED - keep | symbol as-is for absolute values |x|
+            # DISABLED: Keep parallel/perp as Unicode  
+            # r'∥': ' parallel ', r'⊥': ' perp ',
+            r'…': '...', r'⋯': '...', # Keep ellipsis normalization (improves readability)
+            # DISABLED: Keep mathematical dots as Unicode
+            # r'⋮': ' vdots ', r'⋱': ' ddots ',
         }
         
-        # Logic and set symbols
+        # Logic and set symbols - DISABLED to preserve scientific notation
         self.logic_set_symbols = {
-            r'∧': 'AND', r'∨': 'OR', r'¬': 'NOT',
-            r'∀': 'forall', r'∃': 'exists', r'∄': 'not_exists',
-            r'∈': 'in', r'∉': 'not_in', r'⊂': 'subset', r'⊃': 'superset',
-            r'∪': 'union', r'∩': 'intersection', r'∅': 'emptyset',
-            r'⊆': 'subset_equal', r'⊇': 'superset_equal', r'⊊': 'proper_subset',
-            r'⊋': 'proper_superset', r'⊕': 'xor', r'⊗': 'tensor_product'
+            # DISABLED: Keep ∧, ∨, ¬, ∀, ∃, ∈, ⊂, ∪, ∩, etc. as Unicode
+            # Scientific texts benefit from preserving these symbols
         }
         
-        # Fractions
+        # Fractions - DISABLED: preserve Unicode for scientific authenticity
         self.fractions = {
-            r'½': '1/2', r'⅓': '1/3', r'¼': '1/4', r'¾': '3/4',
-            r'⅛': '1/8', r'⅜': '3/8', r'⅝': '5/8', r'⅞': '7/8',
-            r'⅕': '1/5', r'⅖': '2/5', r'⅗': '3/5', r'⅘': '4/5',
-            r'⅙': '1/6', r'⅚': '5/6', r'⅐': '1/7', r'⅑': '1/9', r'⅒': '1/10'
+            # DISABLED: Keep ½⅓¼¾ as Unicode - T5 can handle these well
+            # Scientific texts benefit from visual clarity of Unicode fractions
         }
         
-        # Superscripts (common ones)
+        # Superscripts - DISABLED: preserve Unicode for scientific authenticity
         self.superscripts = {
-            r'¹': '^1', r'²': '^2', r'³': '^3', r'⁴': '^4', r'⁵': '^5',
-            r'⁶': '^6', r'⁷': '^7', r'⁸': '^8', r'⁹': '^9', r'¹⁰': '^10',
-            r'¹¹': '^11', r'¹²': '^12', r'¹³': '^13', r'¹⁴': '^14', r'¹⁵': '^15',
-            r'¹⁶': '^16', r'¹⁷': '^17', r'¹⁸': '^18', r'¹⁹': '^19', r'²⁰': '^20',
-            r'²¹': '^21', r'²²': '^22', r'²³': '^23', r'²⁴': '^24', r'²⁵': '^25',
-            r'²⁶': '^26', r'²⁷': '^27', r'²⁸': '^28', r'²⁹': '^29', r'³⁰': '^30'
+            # DISABLED: Keep ¹²³⁴⁵ as Unicode - iconic formulas like E=mc², x², H₂O
+            # T5 tokenizer handles Unicode superscripts well, visual clarity important
         }
         
-        # Subscripts
+        # Subscripts - DISABLED: preserve Unicode for scientific authenticity
         self.subscripts = {
-            r'₁': '_1', r'₂': '_2', r'₃': '_3', r'₄': '_4', r'₅': '_5',
-            r'₆': '_6', r'₇': '_7', r'₈': '_8', r'₉': '_9', r'₀': '_0',
-            r'₊': '_+', r'₋': '_-', r'₌': '_=', r'₍': '_(', r'₎': '_)'
+            # DISABLED: Keep ₁₂₃₄₅ as Unicode - chemical formulas like H₂O, CO₂
+            # Scientific notation benefits from Unicode subscripts
         }
         
         # Quotation marks and guillemets
@@ -94,48 +91,38 @@ class SymbolTokenNormalizer(BaseFilter):
             r'❛': "'", r'❜': "'", r'❝': '"', r'❞': '"'
         }
         
-        # Legal and currency symbols
+        # Legal symbols (minimal - only common ones in scientific texts)
         self.legal_currency = {
             r'©': '(c)', r'®': '(R)', r'™': '(TM)',
             r'§': 'section', r'¶': 'paragraph',
-            r'€': 'EUR', r'£': 'GBP', r'¥': 'JPY', r'¢': 'cents',
-            r'$': 'USD', r'₹': 'INR', r'₽': 'RUB', r'₩': 'KRW',
-            r'₪': 'ILS', r'₦': 'NGN', r'₨': 'PKR', r'₫': 'VND'
+            # CURRENCY SYMBOLS NOT HANDLED: €, £, ¥, $, etc. stay as-is (not replaced, not removed)
         }
         
-        # Greek letters
+        # Greek letters - DISABLED to preserve Unicode for scientific texts
+        # T5 with SentencePiece handles Unicode well, and scientific meaning is preserved
         self.greek_letters = {
-            r'α': 'alpha', r'β': 'beta', r'γ': 'gamma', r'δ': 'delta',
-            r'ε': 'epsilon', r'ζ': 'zeta', r'η': 'eta', r'θ': 'theta',
-            r'ι': 'iota', r'κ': 'kappa', r'λ': 'lambda', r'μ': 'mu',
-            r'ν': 'nu', r'ξ': 'xi', r'π': 'pi', r'ρ': 'rho',
-            r'σ': 'sigma', r'τ': 'tau', r'υ': 'upsilon', r'φ': 'phi',
-            r'χ': 'chi', r'ψ': 'psi', r'ω': 'omega',
-            r'Α': 'Alpha', r'Β': 'Beta', r'Γ': 'Gamma', r'Δ': 'Delta',
-            r'Θ': 'Theta', r'Λ': 'Lambda', r'Π': 'Pi', r'Σ': 'Sigma',
-            r'Φ': 'Phi', r'Ω': 'Omega', r'µ': 'mu',
-            r'ϑ': 'vartheta', r'ϒ': 'Upsilon', r'ϕ': 'varphi',
-            r'ϖ': 'varpi', r'ϱ': 'varrho', r'ς': 'varsigma'
+            # Disabled: keep α, β, γ, etc. as Unicode for scientific authenticity
         }
         
-        # Scientific notation
+        # Scientific notation - DISABLED: preserve original for scientific texts
         self.scientific_notation = {
-            r'\d+\.\d+e[+-]?\d+': '[SCI_NUM]',
-            r'\d+e[+-]?\d+': '[SCI_NUM]'
+            # DISABLED: Keep original notation (1.23e-4) - T5 tokenizer handles this well
+            # Normalization would lose information and reduce precision
         }
         
-        # Bullet points
+        # Bullet points - DEDUPLICATED
         self.bullet_points = {
             r'•': '*', r'‣': '*', r'‧': '*', r'⁃': '*',
-            r'◦': '*', r'‣': '*', r'⁌': '*', r'⁍': '*',
-            r'•': '*', r'‣': '*', r'‧': '*', r'⁃': '*'
+            r'◦': '*', r'⁌': '*', r'⁍': '*'
         }
         
         
-        # Arrows
+        # Arrows - CONSERVATIVE: only common ASCII-equivalent arrows
         self.arrows = {
-            r'→': '->', r'←': '<-', r'↑': '^', r'↓': 'v',
-            r'↔': '<->', r'⇒': '=>', r'⇐': '<=', r'⇔': '<=>'
+            r'→': '->', r'←': '<-', r'↔': '<->',  # Common directional arrows
+            r'⇒': '=>', r'⇐': '<=', r'⇔': '<=>',  # Logic arrows (implication)
+            r'⟶': '-->', r'⟵': '<--', r'⟷': '<-->'  # Long arrows
+            # REMOVED: Keep ↑↓↗↘↙↖ as Unicode - no clear ASCII standard, and they're visually clear
         }
         
         # Special minus and dashes
@@ -143,9 +130,9 @@ class SymbolTokenNormalizer(BaseFilter):
             r'−': '-', r'‐': '-', r'–': '-', r'—': '-'
         }
         
-        # Invisible mathematical characters
+        # Invisible mathematical characters - FIXED regex syntax
         self.invisible_chars = {
-            r'\u2062': '', r'\u2063': '', r'\u2061': ''
+            r'\u2062': '', r'\u2063': '', r'\u2061': ''  # Function application, separator, invisible times
         }
         
         # Cyrillic to Latin (common OCR errors)

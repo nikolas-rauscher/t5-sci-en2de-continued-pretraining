@@ -150,19 +150,8 @@ class TabularDataCleaner(BaseTextCleaner):
         return '\n'.join(cleaned_lines), stats
     
     def _is_tabular_data(self, line: str) -> Tuple[bool, str]:
-        """Check if line represents tabular data"""
-        # Method 1: Multiple space sequences
-        multiple_space_sequences = len(self.multiple_spaces_pattern.findall(line))
-        if multiple_space_sequences >= self.min_space_sequences:
-            return True, "tabular_data_spacing"
-        
-        # Method 2: Space ratio for longer lines
-        if len(line) > 20:
-            space_count = line.count(' ')
-            space_ratio = space_count / len(line)
-            if space_ratio > self.space_ratio_threshold:
-                return True, "excessive_spacing_ratio"
-        
+        """Check if line represents tabular data - DISABLED"""
+        # This method is disabled - only consecutive tab logic is used
         return False, ""
 
 
@@ -434,7 +423,7 @@ class ComprehensiveLineCleaner:
         return self.clean_lines_optimized(text, doc_id)
     
     def clean_lines_optimized(self, text: str, doc_id: str = None) -> Tuple[str, Dict]:
-        """OPTIMIZED: Single-pass line cleaning with all 5 cleaners fused"""
+        """OPTIMIZED: Single-pass line cleaning with smart consecutive tab detection"""
         lines = text.splitlines()
         cleaned_lines = []
         
@@ -448,6 +437,18 @@ class ComprehensiveLineCleaner:
         }
         
         recent_lines = []  # For repetition detection
+        
+        # SMART TABLE DETECTION: Check for consecutive lines with tabs
+        table_line_indices = set()
+        for i in range(len(lines) - 1):
+            current_line = lines[i]  # Don't strip - keep original formatting
+            next_line = lines[i + 1]  # Don't strip - keep original formatting
+            
+            # If current line AND next line both contain multiple tabs -> likely table
+            if ('\t' in current_line and current_line.count('\t') >= 2 and 
+                '\t' in next_line and next_line.count('\t') >= 2):
+                table_line_indices.add(i)
+                table_line_indices.add(i + 1)
         
         for i, line in enumerate(lines):
             stripped_line = line.strip()
@@ -467,9 +468,9 @@ class ComprehensiveLineCleaner:
                 removal_reason = "repeated_line"
                 cleaner_type = "repetition"
             
-            # 2. Check tabular data (use existing logic)
-            elif self._should_remove_tabular_optimized(stripped_line):
-                removal_reason = "tabular_data_spacing"
+            # 2. Check tabular data (ONLY consecutive tab detection)
+            elif i in table_line_indices:
+                removal_reason = "consecutive_tab_lines"
                 cleaner_type = "tabular"
                 
             # 3. Check short lines (use existing logic)

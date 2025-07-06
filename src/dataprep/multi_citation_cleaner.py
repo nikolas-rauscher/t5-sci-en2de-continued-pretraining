@@ -182,11 +182,11 @@ class MultiCitationCleaner(BaseFilter):
                 
                 # Zusätzliche häufige Citation-Patterns -  chapter_section (important for structure)
                 "page_references": r"(?:^|\s)(?:p|pp|page|pages)\.?\s*\d+(?:-\d+)?(?:,\s*\d+(?:-\d+)?)*(?=\s|$)", # Only standalone page refs, not in citations
-                "figure_table_refs": r"(?:\(\s*)?(?:fig|figure|tab|table|tbl)\.?\s*\d+(?:[a-z])?(?:,\s*\d+(?:[a-z])?)*(?:\s*[;:]\s*[^)]+)?(?:\s*\))?", # Capture complete figure citations with additional content
+                #"figure_table_refs": r"(?:\(\s*)?(?:fig|figure|tab|table|tbl)\.?\s*\d+(?:[a-z])?(?:,\s*\d+(?:[a-z])?)*(?:\s*[;:]\s*[^)]+)?(?:\s*\))?", # Capture complete figure citations with additional content
                 
                 #ARTEFAKT PATTERNS für email, url, doi, isbn, arxiv
                 "email_addresses": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", 
-                "urls": r"https?://[^\s<>\[\]\"']+|www\.[^\s<>\[\]\"']+",  
+                "urls": r"https?://[^\s]+|ftp://[^\s]+|www\.[^\s]+",  
                 "doi_references": r"\bdoi:\s*[\w\./\-]+|\b10\.\d{4,}/[^\s]+", 
                 "isbn_references": r"\bISBN[-\s]*:?\s*[\d\-xX]+", 
                 "arxiv_references": r"\barXiv:\s*[\w\./\-]+", 
@@ -283,22 +283,42 @@ class MultiCitationCleaner(BaseFilter):
         cleaned_text = text
         
         # OPTIMIZED: Find all citations in single pass using master regex
-        citations_found_matches = self._find_all_citations_optimized(cleaned_text)
+        citations_found_matches = self._find_all_citations_optimized(text)  # Use original text
         
-        # Process each citation type (validation + cleaning)
+        # Initialize result dicts
+        for citation_type in self.citation_patterns.keys():
+            citations_found[citation_type] = []
+            citations_removed[citation_type] = []
+            citations_rejected[citation_type] = []
+        
+        # Collect all validated matches with positions
+        all_validated_matches = []
+        
+        # Process each citation type (validation only)
         for citation_type, matches in citations_found_matches.items():
             citations_found[citation_type] = [match.group() for match in matches]
             
             validated_matches, rejected_matches = self._validate_matches(
-                matches, citation_type, cleaned_text
+                matches, citation_type, text  # Use original text for validation
             )
             
             citations_removed[citation_type] = [match.group() for match in validated_matches]
             citations_rejected[citation_type] = rejected_matches
             
-            # Validation stats are tracked via final results in track_citation_results()
-            
-            cleaned_text = self._apply_cleaning(cleaned_text, validated_matches, citation_type)
+            # Add to global list with citation type
+            for match in validated_matches:
+                all_validated_matches.append((match.start(), match.end(), citation_type))
+        
+        # FIXED: Sort by position (descending) and apply all changes at once
+        all_validated_matches.sort(key=lambda x: x[0], reverse=True)
+        
+        # Apply all cleaning operations from right to left
+        for start, end, citation_type in all_validated_matches:
+            if self.debug_mode:
+                debug_tag = f"[DEBUG:citation:{citation_type}]"
+                cleaned_text = cleaned_text[:start] + debug_tag + cleaned_text[end:]
+            else:
+                cleaned_text = cleaned_text[:start] + self.replacement + cleaned_text[end:]
             
         return citations_found, citations_removed, citations_rejected, cleaned_text
 
