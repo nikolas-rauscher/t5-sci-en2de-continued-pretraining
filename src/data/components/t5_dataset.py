@@ -125,8 +125,12 @@ class T5MaterializedWindowDataset(Dataset):
             doc_type = metadata.get("document_type")
             version = metadata.get("preprocessing_version")
             
-            if doc_type == "text_sliding_window" and version == "v3_text_only_windows":
+            if doc_type == "text_sliding_window" and version in ["v3_text_only_windows", "v6_precise_text_windows"]:
                 text_window_count += 1
+            elif doc_type == "token_sliding_window" and version == "v5_configurable_windows":
+                # Token-based sliding windows are also acceptable
+                text_window_count += 1
+                log.info(f"Found token-based sliding window at index {i}")
             elif doc_type == "t5_sliding_window" and version == "v2_materialized_windows":
                 # Legacy pre-tokenized windows are also acceptable
                 text_window_count += 1

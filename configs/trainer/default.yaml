@@ -20,3 +20,7 @@ deterministic: False
 
 # Optional training limits for testing
 limit_train_batches: null
+limit_val_batches: null
+
+# Gradient accumulation
+accumulate_grad_batches: 1

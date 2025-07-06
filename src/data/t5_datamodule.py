@@ -11,79 +11,8 @@ from transformers import (
     T5TokenizerFast,
 )
 
-from typing import Dict, List
-import torch
-from torch.nn.utils.rnn import pad_sequence
-from .components.span_masking import apply_span_corruption
-
-class DataCollatorForT5MLM:  
-    """Efficient T5 Data Collator for text-only windows with batch tokenization."""
-
-    def __init__(
-        self,
-        tokenizer: PreTrainedTokenizerFast,
-        noise_density: float = 0.15,
-        mean_noise_span_length: int = 3,
-        input_length: int = 512,
-        target_length: int | None = None,
-        **kwargs  # Ignore extra args from config
-    ) -> None:
-        self.tokenizer = tokenizer
-        self.noise_density = noise_density
-        self.mean_noise_span_length = mean_noise_span_length
-        self.input_length = input_length
-        self.target_length = target_length or input_length
-
-    def _pad(self, sequences: List[torch.Tensor]) -> torch.Tensor:
-        return pad_sequence(
-            sequences,
-            batch_first=True,
-            padding_value=self.tokenizer.pad_token_id or 0,
-        )
-
-    def __call__(self, batch):
-        input_tensors: List[torch.Tensor] = []
-        label_tensors: List[torch.Tensor] = []
-
-        for item in batch:
-            # Handle both text-only and legacy pre-tokenized
-            if "tokens" in item and item["tokens"] and item.get("text") is None:
-                # Legacy pre-tokenized sequence
-                ids = item["tokens"][:self.input_length]  # Truncate if needed
-            else:
-                # Text-only window - tokenize efficiently
-                text = item.get("text", "")
-                if not text:
-                    # Fallback for empty text
-                    ids = [self.tokenizer.pad_token_id or 0] * 10
-                else:
-                    ids = self.tokenizer.encode(
-                        text,
-                        add_special_tokens=False,
-                        truncation=True,
-                        max_length=self.input_length,
-                    )
-
-            # Apply span corruption (same as before)
-            inp_ids, lbl_ids = apply_span_corruption(
-                ids,
-                self.tokenizer,
-                corruption_rate=self.noise_density,
-                mean_span_length=self.mean_noise_span_length,
-            )
-
-            input_tensors.append(torch.tensor(inp_ids, dtype=torch.long))
-            label_tensors.append(torch.tensor(lbl_ids, dtype=torch.long))
-
-        batch_inputs = self._pad(input_tensors)
-        batch_labels = self._pad(label_tensors)
-        attention_mask = (batch_inputs != (self.tokenizer.pad_token_id or 0)).long()
-
-        return {
-            "input_ids": batch_inputs,
-            "attention_mask": attention_mask,
-            "labels": batch_labels,
-        }
+# Import optimized collator
+from .components.optimized_t5_collator import DataCollatorForT5MLM
 
 from .components.t5_dataset import T5ParquetDataset, T5MaterializedWindowDataset
 
@@ -157,13 +86,15 @@ class T5DataModule(LightningDataModule):
             full_dataset, [train_len, val_len], generator=torch.Generator().manual_seed(42)
         )
 
-        # Create efficient text-only collator
+        # Create optimized collator with all required parameters
         self.collator = DataCollatorForT5MLM(
             tokenizer=self.tokenizer,
             noise_density=self.hparams.corruption_rate,
             mean_noise_span_length=self.hparams.mean_span_length,
             input_length=self.hparams.max_length,
             target_length=self.hparams.max_length,
+            pad_token_id=self.tokenizer.pad_token_id,
+            decoder_start_token_id=self.tokenizer.pad_token_id,  # T5 uses pad_token_id for decoder start
         )
 
 

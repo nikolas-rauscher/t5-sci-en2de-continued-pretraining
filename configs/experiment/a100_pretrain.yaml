@@ -1,0 +1,35 @@
+# @package _global_
+
+# example experiment override
+# python train.py experiment=example
+
+defaults:
+  - override /data: pretraining
+  - override /model: t5_base
+  - override /trainer: gpu 
+
+# all parameters below will be merged with parameters from default configurations set above
+# this allows you to overwrite only specified parameters
+
+tags: ["t5-base", "pretraining", "A100"]
+
+seed: 12345
+
+trainer:
+  min_epochs: 1
+  max_epochs: 5
+  precision: 16-mixed
+  accumulate_grad_batches: 16
+
+model:
+  optimizer:
+    _target_: transformers.optimization.Adafactor
+    lr: 1e-3
+    _partial_: true
+  
+  scheduler:
+    _target_: transformers.optimization.get_inverse_sqrt_schedule
+    num_warmup_steps: 1000
+    _partial_: true
+
+# data_dir will be set by data config override
