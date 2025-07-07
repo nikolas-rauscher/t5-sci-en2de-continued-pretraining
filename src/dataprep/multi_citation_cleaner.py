@@ -282,8 +282,8 @@ class MultiCitationCleaner(BaseFilter):
         citations_rejected = {}
         cleaned_text = text
         
-        # OPTIMIZED: Find all citations in single pass using master regex
-        citations_found_matches = self._find_all_citations_optimized(text)  # Use original text
+        # FAST: Find citations using individual patterns (much faster than master regex)
+        citations_found_matches = self._find_all_citations_simple(text)
         
         # Initialize result dicts
         for citation_type in self.citation_patterns.keys():
@@ -424,28 +424,20 @@ class MultiCitationCleaner(BaseFilter):
             citation_type, match_text, start_pos, end_pos, context_text
         )
     
-    def _find_all_citations_optimized(self, text: str) -> Dict[str, List]:
-        """OPTIMIZED: Find all citations in single pass using master regex"""
-        citations_found = {name: [] for name in self.citation_regexes.keys()}
+    def _find_all_citations_simple(self, text: str) -> Dict[str, List]:
+        """FAST: Find citations using individual patterns (much faster than master regex)"""
+        citations_found = {}
         
-        # Pre-filter: Skip expensive regex if no semicolons found
-        if ';' not in text:
-            # Still check non-semicolon patterns
-            pass
-        
-        # Single pass for case-sensitive patterns
-        if self.master_regex_sensitive:
-            for match in self.master_regex_sensitive.finditer(text):
-                citation_type = match.lastgroup
-                citations_found[citation_type].append(match)
-        
-        # Single pass for case-insensitive patterns
-        if self.master_regex_insensitive:
-            for match in self.master_regex_insensitive.finditer(text):
-                citation_type = match.lastgroup
-                citations_found[citation_type].append(match)
+        for citation_type, compiled_regex in self.citation_regexes.items():
+            matches = list(compiled_regex.finditer(text))
+            if matches:
+                citations_found[citation_type] = matches
         
         return citations_found
+    
+    def _find_all_citations_optimized(self, text: str) -> Dict[str, List]:
+        """DEPRECATED: Master regex is slower - kept for compatibility"""
+        return self._find_all_citations_simple(text)
 
     def _update_document_metadata(self, doc: Document, figure_stats: Dict, 
                                 appendix_stats: Dict, short_line_stats: Dict,
