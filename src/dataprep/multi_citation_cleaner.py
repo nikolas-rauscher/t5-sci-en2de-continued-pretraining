@@ -52,7 +52,7 @@ cleaner = MultiCitationCleaner(
 ```
 """
 
-import re
+import regex as re  # High-performance regex module for 10M+ documents
 import logging
 from typing import Dict, Any, Optional, List, Set, Tuple
 from functools import lru_cache
@@ -162,11 +162,11 @@ class MultiCitationCleaner(BaseFilter):
         if citation_patterns is None:
             citation_patterns = {
                 # Enhanced Patterns mit besserer Precision
-                "semicolon_blocks": r'\s(?:[\w\-]+(?:\d+)?\s+;\s+)+(?:[\w\-]+(?:\d+)?)(?:\s*;)?\s+',
+                "semicolon_blocks": r'\s(?:[a-zA-Z0-9\-]++(?:\d++)?\s+;\s+)+(?:[a-zA-Z0-9\-]++(?:\d++)?)(?:\s*;)?\s+',
                 
                 # Verbesserte numerische Citation-Patterns
-                "eckige_klammern_numerisch": r"\[\s*\d+(?:,\s*\d+)*\s*(?:-\s*\d+)?\s*\]", # [1,2,3] or [1-3] 
-                "consecutive_numeric_citations": r"(?:\(\s*\d+\s*\)){2,}",  # (1)(2)(3) patterns
+                "eckige_klammern_numerisch": r"\[\s*+\d++(?:,\s*+\d++)*+\s*+(?:-\s*+\d++)?\s*+\]", # [1,2,3] or [1-3] - possessive 
+                "consecutive_numeric_citations": r"(?>\(\s*\d++\s*\)){2,}",  # (1)(2)(3) patterns - possessive
                 "isolated_numeric_citations": r"\(\s*\d{1,3}\s*\)(?!\s*[A-Za-z°%])",  # (1), (23) but not (25°C) or (100%)
                 
                 # Autor-Jahr Citation-Patterns -  autor_jahr_text (important for text flow)
@@ -318,9 +318,22 @@ class MultiCitationCleaner(BaseFilter):
                 debug_tag = f"[DEBUG:citation:{citation_type}]"
                 cleaned_text = cleaned_text[:start] + debug_tag + cleaned_text[end:]
             else:
-                cleaned_text = cleaned_text[:start] + self.replacement + cleaned_text[end:]
+                # Use placeholders for artifact patterns, removal for citations
+                replacement = self._get_replacement_for_type(citation_type)
+                cleaned_text = cleaned_text[:start] + replacement + cleaned_text[end:]
             
         return citations_found, citations_removed, citations_rejected, cleaned_text
+
+    def _get_replacement_for_type(self, citation_type: str) -> str:
+        """Get appropriate replacement text for different citation types"""
+        # Only email and URLs get placeholders for better sentence structure
+        # All other patterns (citations, DOI, ISBN, arXiv) get removed normally
+        placeholders = {
+            "email_addresses": "[EMAIL]",
+            "urls": "[URL]"
+        }
+        
+        return placeholders.get(citation_type, self.replacement)
 
     def _validate_matches(self, matches: List, citation_type: str, text: str) -> Tuple[List, List]:
         """Validate citation matches and return validated/rejected lists"""
@@ -339,19 +352,10 @@ class MultiCitationCleaner(BaseFilter):
                 context_end = min(len(text), match.end() + 50)
                 context_text = text[context_start:context_end]
                 
-                # Store position info for the cached function
-                self._temp_match_start = match.start()
-                self._temp_match_end = match.end()
-                self._temp_full_text = text
-                
+                # Pass positions directly to avoid threading issues
                 is_valid, reason = self._validate_with_context_cached(
-                    citation_type, match_text, context_text
+                    citation_type, match_text, context_text, match.start(), match.end()
                 )
-                
-                # Clean up temp variables
-                delattr(self, '_temp_match_start')
-                delattr(self, '_temp_match_end') 
-                delattr(self, '_temp_full_text')
             else:
                 is_valid, reason = self._validate_citation_cached(citation_type, match_text)
             
@@ -413,21 +417,21 @@ class MultiCitationCleaner(BaseFilter):
         return self._validate_citation_uncached(citation_type, match_text)
     
     @lru_cache(maxsize=1000) 
-    def _validate_with_context_cached(self, citation_type: str, match_text: str, context_text: str) -> Tuple[bool, str]:
+    def _validate_with_context_cached(self, citation_type: str, match_text: str, context_text: str, start_pos: int, end_pos: int) -> Tuple[bool, str]:
         """OPTIMIZED: Cached context validation for citation matches"""
-        # Extract start/end positions from the context for the uncached function
-        # For caching, we simplify by using just the match text and context
-        if hasattr(self, '_temp_match_start') and hasattr(self, '_temp_match_end') and hasattr(self, '_temp_full_text'):
-            return self._validate_citation_with_context_uncached(
-                citation_type, match_text, self._temp_match_start, self._temp_match_end, self._temp_full_text
-            )
-        else:
-            # Fallback to simple validation if no position info
-            return self._validate_citation_uncached(citation_type, match_text)
+        # Pass positions directly as parameters to avoid threading issues
+        return self._validate_citation_with_context_uncached(
+            citation_type, match_text, start_pos, end_pos, context_text
+        )
     
     def _find_all_citations_optimized(self, text: str) -> Dict[str, List]:
         """OPTIMIZED: Find all citations in single pass using master regex"""
         citations_found = {name: [] for name in self.citation_regexes.keys()}
+        
+        # Pre-filter: Skip expensive regex if no semicolons found
+        if ';' not in text:
+            # Still check non-semicolon patterns
+            pass
         
         # Single pass for case-sensitive patterns
         if self.master_regex_sensitive:
@@ -630,6 +634,11 @@ class MultiCitationCleaner(BaseFilter):
         """Validate simple 'p53' style page references"""
         actual_p_match = p_pattern.group()
         match_offset_in_full = match_text.find(actual_p_match)
+        
+        # Protect against negative index if pattern not found
+        if match_offset_in_full == -1:
+            return False, "page_ref_pattern_not_found"
+            
         actual_start_pos = start_pos + match_offset_in_full
         actual_end_pos = actual_start_pos + len(actual_p_match)
         
@@ -714,6 +723,11 @@ class MultiCitationCleaner(BaseFilter):
         finally:
             # Get current stats from stats manager
             citation_stats, cleaning_stats = self.stats_manager.get_stats()
+            
+            # Clear LRU caches to prevent memory leaks
+            self._validate_citation_cached.cache_clear()
+            self._validate_with_context_cached.cache_clear()
+            log.info(f"🧹 Cleared LRU caches for rank {rank}")
             
             # Alle Worker: Lokale Stats speichern für Aggregation
             self.worker_stats.save_worker_stats(rank, citation_stats, cleaning_stats)
