@@ -286,6 +286,12 @@ class MultiCitationCleaner(BaseFilter):
     # Citation types that need context-aware validation
     CONTEXT_AWARE_TYPES = {"semicolon_blocks", "figure_table_refs", "page_references", 
                           "isolated_numeric_citations", "ref_nummer"}
+    
+    # Citation types that benefit from caching (complex validation)
+    CACHE_BENEFICIAL_TYPES = {"semicolon_blocks", "autor_jahr_multi_klammer", "autor_jahr_klammer_einzel"}
+    
+    # Simple patterns with high false positive rate - skip cache
+    SIMPLE_VALIDATION_TYPES = {"page_references", "isolated_numeric_citations", "eckige_klammern_numerisch", "consecutive_numeric_citations"}
 
     # Validation constants
     CONTEXT_SIZE_SMALL = 15
@@ -374,12 +380,23 @@ class MultiCitationCleaner(BaseFilter):
                 context_end = min(len(text), match.end() + 50)
                 context_text = text[context_start:context_end]
                 
-                # Pass positions directly to avoid threading issues
-                is_valid, reason = self._validate_with_context_cached(
-                    citation_type, match_text, context_text, match.start(), match.end()
-                )
+                # Use cache only for complex validations
+                if citation_type in self.CACHE_BENEFICIAL_TYPES:
+                    is_valid, reason = self._validate_with_context_cached(
+                        citation_type, match_text, context_text, match.start(), match.end()
+                    )
+                else:
+                    # Direct validation for simple patterns - no cache overhead
+                    is_valid, reason = self._validate_citation_with_context_uncached(
+                        citation_type, match_text, match.start(), match.end(), context_text
+                    )
             else:
-                is_valid, reason = self._validate_citation_cached(citation_type, match_text)
+                # Use cache only for complex validations
+                if citation_type in self.CACHE_BENEFICIAL_TYPES:
+                    is_valid, reason = self._validate_citation_cached(citation_type, match_text)
+                else:
+                    # Direct validation for simple patterns - no cache overhead
+                    is_valid, reason = self._validate_citation_uncached(citation_type, match_text)
             
             if is_valid:
                 validated_matches.append(match)
@@ -434,14 +451,14 @@ class MultiCitationCleaner(BaseFilter):
         """Create cache key hash for text"""
         return hashlib.md5(text.encode('utf-8')).hexdigest()[:16]
     
-    @lru_cache(maxsize=2000)
+    @lru_cache(maxsize=1000)  # Reduced cache size - only for complex patterns
     def _validate_citation_cached(self, citation_type: str, match_text: str) -> Tuple[bool, str]:
-        """OPTIMIZED: Cached validation for citation matches"""
+        """SELECTIVE CACHE: Only for complex validations (semicolon_blocks, autor_jahr patterns)"""
         return self._validate_citation_uncached(citation_type, match_text)
     
-    @lru_cache(maxsize=1000) 
+    @lru_cache(maxsize=500)  # Reduced cache size - only for complex context validations
     def _validate_with_context_cached(self, citation_type: str, match_text: str, context_text: str, start_pos: int, end_pos: int) -> Tuple[bool, str]:
-        """OPTIMIZED: Cached context validation for citation matches"""
+        """SELECTIVE CACHE: Only for complex context validations (semicolon_blocks)"""
         # Pass positions directly as parameters to avoid threading issues
         return self._validate_citation_with_context_uncached(
             citation_type, match_text, start_pos, end_pos, context_text
