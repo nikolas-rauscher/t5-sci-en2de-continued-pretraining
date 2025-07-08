@@ -184,12 +184,12 @@ class MultiCitationCleaner(BaseFilter):
                 "page_references": r"(?:^|\s)(?:p|pp|page|pages)\.?\s*\d+(?:-\d+)?(?:,\s*\d+(?:-\d+)?)*(?=\s|$)", # Only standalone page refs, not in citations
                 #"figure_table_refs": r"(?:\(\s*)?(?:fig|figure|tab|table|tbl)\.?\s*\d+(?:[a-z])?(?:,\s*\d+(?:[a-z])?)*(?:\s*[;:]\s*[^)]+)?(?:\s*\))?", # Capture complete figure citations with additional content
                 
-                #ARTEFAKT PATTERNS für email, url, doi, isbn, arxiv
+                # ARTEFAKT PATTERNS (will be moved to fast processing)
                 "email_addresses": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", 
                 "urls": r"https?://[^\s]+|ftp://[^\s]+|www\.[^\s]+",  
                 "doi_references": r"\bdoi:\s*[\w\./\-]+|\b10\.\d{4,}/[^\s]+", 
                 "isbn_references": r"\bISBN[-\s]*:?\s*[\d\-xX]+", 
-                "arxiv_references": r"\barXiv:\s*[\w\./\-]+", 
+                "arxiv_references": r"\barXiv:\s*[\w\./\-]+",
             }
         
         self.citation_patterns = citation_patterns
@@ -208,8 +208,25 @@ class MultiCitationCleaner(BaseFilter):
         
         log.info(f"Compiled {len(self.citation_regexes)} citation regex patterns")
         
-        # ADVANCED OPTIMIZATION: Create master combined regex for single-pass processing
-        self._create_master_regex()
+        # SIMPLE PATTERNS: ARTEFAKT patterns (no validation needed)
+        self.artefakt_patterns = {
+            "email_addresses": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", 
+            "urls": r"https?://[^\s]+|ftp://[^\s]+|www\.[^\s]+",  
+            "doi_references": r"\bdoi:\s*[\w\./\-]+|\b10\.\d{4,}/[^\s]+", 
+            "isbn_references": r"\bISBN[-\s]*:?\s*[\d\-xX]+", 
+            "arxiv_references": r"\barXiv:\s*[\w\./\-]+",
+        }
+        
+        # Separate ARTEFAKT patterns from citation patterns (no validation overhead)
+        self.artefakt_regexes = {}
+        for name, pattern in self.artefakt_patterns.items():
+            if name in self.citation_regexes:  # Move from citation processing to fast processing
+                try:
+                    self.artefakt_regexes[name] = re.compile(pattern)
+                    del self.citation_regexes[name]  # Remove from citation processing
+                    log.info(f"Moved {name} to fast ARTEFAKT processing (no validation)")
+                except re.error as e:
+                    log.warning(f"Invalid ARTEFAKT regex pattern '{name}': {pattern} - {e}")
         self.replacement = replacement
         self.track_changes = track_changes
         self.log_to_wandb = log_to_wandb and WANDB_AVAILABLE
@@ -282,14 +299,19 @@ class MultiCitationCleaner(BaseFilter):
         citations_rejected = {}
         cleaned_text = text
         
-        # FAST: Find citations using individual patterns (much faster than master regex)
-        citations_found_matches = self._find_all_citations_simple(text)
+        # FAST ARTEFAKT CLEANING: No validation needed for emails, URLs, DOIs, etc.
+        cleaned_text = self._clean_artefakt_patterns_fast(cleaned_text, citations_found, citations_removed, citations_rejected)
         
-        # Initialize result dicts
-        for citation_type in self.citation_patterns.keys():
+        # CITATION PROCESSING: With validation for academic patterns
+        citations_found_matches = self._find_all_citations_simple(cleaned_text)
+        
+        # Initialize result dicts (only for citation patterns, ARTEFAKT already handled)
+        for citation_type in self.citation_regexes.keys():
             citations_found[citation_type] = []
             citations_removed[citation_type] = []
             citations_rejected[citation_type] = []
+        
+        # ARTEFAKT patterns have no rejections (already initialized with citations_rejected = [])
         
         # Collect all validated matches with positions
         all_validated_matches = []
@@ -381,31 +403,32 @@ class MultiCitationCleaner(BaseFilter):
                 text = text[:start] + self.replacement + text[end:]
         return text
     
-    def _create_master_regex(self):
-        """Create master combined regex for single-pass citation detection"""
-        # Group patterns by flags
-        case_insensitive_patterns = []
-        case_sensitive_patterns = []
+    def _clean_artefakt_patterns_fast(self, text: str, citations_found: Dict, citations_removed: Dict, citations_rejected: Dict) -> str:
+        """FAST: Clean ARTEFAKT patterns without validation overhead"""
+        cleaned_text = text
         
-        for name, compiled_regex in self.citation_regexes.items():
-            pattern = compiled_regex.pattern
-            if name in ["ref_nummer", "page_references", "figure_table_refs"]:
-                case_insensitive_patterns.append(f'(?P<{name}>{pattern})')
+        for pattern_name, compiled_regex in self.artefakt_regexes.items():
+            matches = list(compiled_regex.finditer(cleaned_text))
+            if matches:
+                citations_found[pattern_name] = [match.group() for match in matches]
+                citations_removed[pattern_name] = citations_found[pattern_name].copy()
+                
+                # Apply cleaning (right-to-left to avoid position shifts)
+                for match in reversed(matches):
+                    start, end = match.span()
+                    if self.debug_mode:
+                        debug_tag = f"[DEBUG:artefakt:{pattern_name}]"
+                        cleaned_text = cleaned_text[:start] + debug_tag + cleaned_text[end:]
+                    else:
+                        cleaned_text = cleaned_text[:start] + self.replacement + cleaned_text[end:]
             else:
-                case_sensitive_patterns.append(f'(?P<{name}>{pattern})')
-        
-        # Create separate master patterns for different flags
-        if case_sensitive_patterns:
-            self.master_regex_sensitive = re.compile('|'.join(case_sensitive_patterns))
-        else:
-            self.master_regex_sensitive = None
+                citations_found[pattern_name] = []
+                citations_removed[pattern_name] = []
             
-        if case_insensitive_patterns:
-            self.master_regex_insensitive = re.compile('|'.join(case_insensitive_patterns), re.IGNORECASE)
-        else:
-            self.master_regex_insensitive = None
+            # ARTEFAKT patterns have no rejections
+            citations_rejected[pattern_name] = []
         
-        log.info(f"Created master regex: {len(case_sensitive_patterns)} sensitive + {len(case_insensitive_patterns)} insensitive patterns")
+        return cleaned_text
     
     def _hash_for_cache(self, text: str) -> str:
         """Create cache key hash for text"""
@@ -435,9 +458,6 @@ class MultiCitationCleaner(BaseFilter):
         
         return citations_found
     
-    def _find_all_citations_optimized(self, text: str) -> Dict[str, List]:
-        """DEPRECATED: Master regex is slower - kept for compatibility"""
-        return self._find_all_citations_simple(text)
 
     def _update_document_metadata(self, doc: Document, figure_stats: Dict, 
                                 appendix_stats: Dict, short_line_stats: Dict,
@@ -463,11 +483,12 @@ class MultiCitationCleaner(BaseFilter):
         doc.metadata["language_length_reduction"] = language_stats.get("length_reduction", 0)
         doc.metadata["fasttext_score_used"] = language_stats.get("fasttext_score", 1.0)
         
-        # Citation metadata
-        for citation_type in self.citation_patterns.keys():
-            total_found = len(citations_found[citation_type])
-            total_removed = len(citations_removed[citation_type])
-            total_rejected = len(citations_rejected[citation_type])
+        # Citation metadata (both ARTEFAKT and citation patterns)
+        all_pattern_types = set(citations_found.keys())  # Use actual keys from results
+        for citation_type in all_pattern_types:
+            total_found = len(citations_found.get(citation_type, []))
+            total_removed = len(citations_removed.get(citation_type, []))
+            total_rejected = len(citations_rejected.get(citation_type, []))  # ARTEFAKT has no rejections
             
             doc.metadata[f"{citation_type}_citations_found"] = total_found
             doc.metadata[f"{citation_type}_citations_removed"] = total_removed
