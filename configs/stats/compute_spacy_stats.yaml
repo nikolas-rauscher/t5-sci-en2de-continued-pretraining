@@ -12,9 +12,9 @@ logger:
 # Pfade für Datenzugriff und -ausgabe
 paths:
   # CHAINED v2: Liest enriched documents v1 (Standard-Stats) und erstellt v2 (Standard + spaCy)
-  input_folder: /netscratch/nrauscher/projects/BA-hydra/data/statistics/enriched_documents_statistics_v1/
+  input_folder: /fscratch/nrauscher/projects/BA-hydra/data/after_cleaning/cleand_data_stats_enriched_V1/enriched_documents_statistics_v1/
   src_pattern: "*.parquet"
-  output_folder: /netscratch/nrauscher/projects/BA-hydra/data/statistics/
+  output_folder: /fscratch/nrauscher/projects/BA-hydra/data/after_cleaning/cleand_data_stats_enriched_V2/
   # logging_dir: Wird dynamisch von Script generiert (Hydra-Output + DataTrove-Subdirectory)
 
 # Reader Konfiguration
@@ -25,8 +25,8 @@ reader:
 
 # Pipeline Ausführungseinstellungen  
 # spaCy-Stats sind memory-intensiver, aber trotzdem aggressiver für bessere CPU-Auslastung
-tasks: 200         # 4x workers (50*4) für aggressive Load-Balancing
-workers: 38       # ~75% der CPU-Kerne (50) - konservativ wegen spaCy Memory-Verbrauch
+tasks: 75         # 4x workers (50*4) für aggressive Load-Balancing
+workers: 75       # ~75% der CPU-Kerne (50) - konservativ wegen spaCy Memory-Verbrauch
 limit_documents: -1 # Kann per Kommandozeile überschrieben werden (limit_documents=100)
 
 # Optional: Speichere enriched documents mit stats als metadata

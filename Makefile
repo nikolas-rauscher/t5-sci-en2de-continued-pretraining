@@ -62,6 +62,14 @@ stats-all: ## Run all stats pipelines (chained: standard -> spacy)
 	.venv_spacy_stats/bin/python src/dataprep/pipelines/run_spacy_stats.py
 	@echo "Complete stats pipeline finished!"
 
+stats-all-after-cleaning: ## Run all stats pipelines (chained: standard -> spacy) 
+	@echo "Running stats pipeline (chained)..."
+	@echo "Step 1: Standard stats with enriched docs..."
+	.venv/bin/python src/dataprep/pipelines/run_stats.py stats.save_enriched_docs=true 
+	@echo "Step 2: spaCy stats on enriched docs..."
+	.venv_spacy_stats/bin/python src/dataprep/pipelines/run_spacy_stats.py
+	@echo "Complete stats pipeline finished!"
+
 stats-test: ## Run stats with limited documents for testing (chained)
 	@echo "Running test stats pipeline (chained)..."
 	.venv/bin/python src/dataprep/pipelines/run_stats.py stats.save_enriched_docs=true stats.limit_documents=10 stats.tasks=16 stats.workers=16
@@ -100,4 +108,4 @@ web-diff-custom: ## Start web diff viewer with custom directories
 	.venv/bin/python scripts/util/web_diff_viewer_simple.py --gold-dir $(GOLD_DIR) --cleaned-dir $(CLEANED_DIR) --list-categories-dir $(LIST_CATEGORIES_DIR)
 
 web-diff-test: ## Start web diff viewer with test data directories
-	.venv/bin/python scripts/util/web_diff_viewer_simple.py --gold-dir data/statistics_data_gold/enriched_documents_statistics_v2 --cleaned-dir data/cleaned --ngrok --list-categories-dir wandb/run-20250612_141655-cpwqgv8t/files/media/table/tables
+	.venv/bin/python scripts/util/web_diff_viewer_simple.py --gold-dir data/statistics_data_gold/enriched_documents_statistics_v2 --cleaned-dir data/cleaned_pretraining_OPTIMIZED_3T_fix --ngrok --list-categories-dir wandb/run-20250705_025711-6hpu5eov/files/media/table/tables

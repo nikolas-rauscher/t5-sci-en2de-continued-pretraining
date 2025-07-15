@@ -11,9 +11,9 @@ logger:
 
 # Pfade für Datenzugriff und -ausgabe
 paths:
-  input_folder: /netscratch/nrauscher/projects/BA-NikolasRauscher/datasets/texts_pq_3-deduped-Eng_Latn/data/
+  input_folder: /fscratch/nrauscher/projects/BA-hydra/data/cleaned-data-final-09-07-2025
   src_pattern: "*.parquet"
-  output_folder: /netscratch/nrauscher/projects/BA-hydra/data/statistics_test/
+  output_folder: /fscratch/nrauscher/projects/BA-hydra/data/after_cleaning/cleand_data_stats_enriched_V1/
   # logging_dir: Wird dynamisch von Script generiert (Hydra-Output + DataTrove-Subdirectory)
 
 # Reader Konfiguration
@@ -24,8 +24,8 @@ reader:
 
 # Pipeline Ausführungseinstellungen
 # Optimiert für: 50 CPU cores, 125GB RAM, 200GB data - Maximale Parallelisierung 
-tasks: 200         # 4x workers (50*4) für optimale Load-Balancing  
-workers: 48        # 96% der CPU-Kerne (50), minimale Reserve für System
+tasks: 75       # 4x workers (50*4) für optimale Load-Balancing  
+workers: 75        # 96% der CPU-Kerne (50), minimale Reserve für System
 limit_documents: -1 # Kann per Kommandozeile überschrieben werden (limit_documents=100)
 
 # Optional: Speichere enriched documents mit stats als metadata
