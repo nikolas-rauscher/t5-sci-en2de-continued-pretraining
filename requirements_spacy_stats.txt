@@ -4,6 +4,7 @@
 # --------- core dependencies --------- #
 numpy>=2.0  # NumPy 2.x für DataTrove + spaCy 3.8+ Kompatibilität
 pandas>=1.5.3
+python-dotenv  # Environment variable loading
 
 # --------- spacy für Stats --------- #
 spacy>=3.8.0  # spaCy 3.8+ unterstützt memory_zone() und NumPy 2.x
