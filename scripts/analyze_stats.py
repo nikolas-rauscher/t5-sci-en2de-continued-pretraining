@@ -140,7 +140,7 @@ def load_all_metrics(stats_dir):
         return all_data
     
     # DataTrove-Struktur durchsuchen: {stats_dir}/{stat_type}/[summary|histogram]/{metric}/[metric.json|00000.json,...]
-    stats_folders = [d for d in stats_path.iterdir() if d.is_dir() and d.name.endswith('_stats')]
+    stats_folders = [d for d in stats_path.iterdir() if d.is_dir() and ('_stats' in d.name)]
     
     if not stats_folders:
         # Alternative: alle Ordner mit histogram/ oder summary/ Unterordner
@@ -195,60 +195,58 @@ def load_all_metrics(stats_dir):
                     combined_data = None
                     total_samples = 0
                     
-                    # Für große Datasets: Sample nur wenige Dateien für Summary-Analyse
-                    if len(json_files) > 10:
-                        # Sample erste, mittlere und letzte Dateien
-                        sampled_files = [json_files[0], json_files[len(json_files)//2], json_files[-1]]
-                        print(f"      🎯 Sampling {len(sampled_files)}/{len(json_files)} Dateien für Analyse")
-                    else:
-                        sampled_files = json_files
+                    # Verarbeite ALLE Dateien für vollständige Analyse (keine Sampling)
+                    sampled_files = json_files
+                    print(f"      📊 Verarbeite alle {len(json_files)} Dateien")
                     
-                    for json_file in sampled_files:
-                        file_size_mb = json_file.stat().st_size / (1024 * 1024)
-                        
-                        # Überspringe sehr große Einzeldateien
-                        if file_size_mb > 100:  # 100MB Limit pro Datei für Summary-Analyse
-                            print(f"        ⚠️  Überspringe {json_file.name} (zu groß: {file_size_mb:.1f}MB)")
-                            continue
-                        
-                        with open(json_file, 'r') as f:
-                            data = json.load(f)
-                        
-                        if group_type == "summary":
-                            # Summary-Daten direkt verwenden (falls verfügbar)
+                    if group_type == "summary":
+                        # Für Summary: Kombiniere n_samples aber nehme nur einen Satz Stats
+                        for json_file in sampled_files:
+                            with open(json_file, 'r') as f:
+                                data = json.load(f)
+                            
                             if 'summary' in data and isinstance(data['summary'], dict):
                                 summary_stats = data['summary']
-                                processed_data = {
-                                    'mean': summary_stats.get('mean', 0),
-                                    'std': summary_stats.get('std_dev', summary_stats.get('std', 0)),
-                                    'variance': summary_stats.get('variance', 0),
-                                    'min': summary_stats.get('min', 0),
-                                    'max': summary_stats.get('max', 0),
-                                    'n_samples': summary_stats.get('n', 0),
-                                    'p25': summary_stats.get('p25'),
-                                    'p50': summary_stats.get('p50', summary_stats.get('median')),
-                                    'p75': summary_stats.get('p75'),
-                                    'p95': summary_stats.get('p95'),
-                                    'p99': summary_stats.get('p99'),
-                                    'data_type': 'summary'
-                                }
-                                combined_data = processed_data
-                                total_samples += processed_data['n_samples']
-                                break  # Eine Summary-Datei reicht
+                                if combined_data is None:
+                                    combined_data = {
+                                        'mean': summary_stats.get('mean', 0),
+                                        'std': summary_stats.get('std_dev', summary_stats.get('std', 0)),
+                                        'variance': summary_stats.get('variance', 0),
+                                        'min': summary_stats.get('min', 0),
+                                        'max': summary_stats.get('max', 0),
+                                        'n_samples': summary_stats.get('n', 0),
+                                        'p25': summary_stats.get('p25'),
+                                        'p50': summary_stats.get('p50', summary_stats.get('median')),
+                                        'p75': summary_stats.get('p75'),
+                                        'p95': summary_stats.get('p95'),
+                                        'p99': summary_stats.get('p99'),
+                                        'data_type': 'summary'
+                                    }
+                                    total_samples = summary_stats.get('n', 0)
+                                else:
+                                    # Akkumuliere nur n_samples
+                                    total_samples += summary_stats.get('n', 0)
                         
-                        elif group_type == "histogram":
-                            # Für Histogram: Berechne Statistiken aus Sample
+                        if combined_data:
+                            combined_data['n_samples'] = total_samples
+                    
+                    elif group_type == "histogram":
+                        # Für Histogram: Kombiniere alle Buckets über alle Dateien
+                        combined_histogram = {}
+                        
+                        for json_file in sampled_files:
+                            file_size_mb = json_file.stat().st_size / (1024 * 1024)
+                            if file_size_mb > 100:
+                                print(f"        📊 Große Datei: {json_file.name} ({file_size_mb:.1f}MB)")
+                            
+                            with open(json_file, 'r') as f:
+                                data = json.load(f)
+                            
                             if isinstance(data, dict) and len(data) > 0:
-                                # Nehme nur ein Sample für schnelle Analyse
-                                sample_items = list(data.items())[:1000]  # Max 1000 Buckets
-                                
-                                histogram_stats = {}
-                                total_count = 0
-                                values = []
-                                counts = []
-                                
-                                for bucket_value, count_data in sample_items:
+                                # Kombiniere Histogramme - addiere Counts für gleiche Buckets
+                                for bucket_value, count_data in data.items():
                                     try:
+                                        # Normalisiere bucket_value zu float für konsistente Keys
                                         value = float(bucket_value)
                                         if isinstance(count_data, dict):
                                             count = count_data.get('n', count_data.get('count', 0))
@@ -256,49 +254,68 @@ def load_all_metrics(stats_dir):
                                             count = int(count_data)
                                         
                                         if count > 0:
-                                            values.append(value)
-                                            counts.append(count)
-                                            total_count += count
+                                            # Verwende normalisierten float-Wert als Key
+                                            if value in combined_histogram:
+                                                combined_histogram[value] += count
+                                            else:
+                                                combined_histogram[value] = count
                                     except (ValueError, TypeError):
                                         continue
+                        
+                        # Berechne Statistiken aus kombiniertem Histogram
+                        if combined_histogram:
+                            values = []
+                            counts = []
+                            total_count = 0
+                            
+                            for value, count in combined_histogram.items():
+                                # value ist bereits float von oben
+                                values.append(value)
+                                counts.append(count)
+                                total_count += count
+                            
+                            if values and counts:
+                                values_arr = np.array(values)
+                                counts_arr = np.array(counts)
                                 
-                                if values and counts:
-                                    # Berechne schnelle Statistiken
-                                    values_arr = np.array(values)
-                                    counts_arr = np.array(counts)
-                                    
-                                    # Gewichteter Durchschnitt
-                                    mean_val = np.average(values_arr, weights=counts_arr)
-                                    
-                                    # Einfache Perzentile (approximiert)
-                                    sorted_idx = np.argsort(values_arr)
-                                    sorted_values = values_arr[sorted_idx]
-                                    cumsum = np.cumsum(counts_arr[sorted_idx])
-                                    
-                                    percentiles = {}
-                                    for p in [25, 50, 75, 95]:
-                                        target = (p / 100.0) * total_count
-                                        idx = np.searchsorted(cumsum, target)
-                                        if idx < len(sorted_values):
-                                            percentiles[f'p{p}'] = sorted_values[idx]
-                                    
-                                    histogram_stats = {
-                                        'mean': mean_val,
-                                        'std': 0,  # Nicht berechnet für Performance
-                                        'variance': 0,
-                                        'min': float(np.min(values_arr)),
-                                        'max': float(np.max(values_arr)),
-                                        'n_samples': total_count,
-                                        'p25': percentiles.get('p25'),
-                                        'p50': percentiles.get('p50'),
-                                        'p75': percentiles.get('p75'),
-                                        'p95': percentiles.get('p95'),
-                                        'p99': percentiles.get('p95'),  # Approximation
-                                        'data_type': 'histogram'
-                                    }
-                                    combined_data = histogram_stats
-                                    total_samples += total_count
-                                    break  # Eine Histogram-Datei reicht für Summary
+                                # Sortiere nach Werten
+                                sorted_idx = np.argsort(values_arr)
+                                sorted_values = values_arr[sorted_idx]
+                                sorted_counts = counts_arr[sorted_idx]
+                                
+                                # Gewichteter Durchschnitt
+                                mean_val = np.average(sorted_values, weights=sorted_counts)
+                                
+                                # Gewichtete Standardabweichung
+                                variance_val = np.average((sorted_values - mean_val)**2, weights=sorted_counts)
+                                std_val = np.sqrt(variance_val)
+                                
+                                # Perzentile (korrigierte Berechnung)
+                                cumsum = np.cumsum(sorted_counts)
+                                percentiles = {}
+                                for p in [25, 50, 75, 95, 99]:
+                                    target = (p / 100.0) * total_count
+                                    # Finde den Index wo cumsum >= target
+                                    idx = np.searchsorted(cumsum, target, side='left')
+                                    if idx >= len(sorted_values):
+                                        idx = len(sorted_values) - 1
+                                    percentiles[f'p{p}'] = float(sorted_values[idx])
+                                
+                                combined_data = {
+                                    'mean': mean_val,
+                                    'std': std_val,
+                                    'variance': variance_val,
+                                    'min': float(np.min(sorted_values)),
+                                    'max': float(np.max(sorted_values)),
+                                    'n_samples': total_count,
+                                    'p25': percentiles.get('p25'),
+                                    'p50': percentiles.get('p50'),
+                                    'p75': percentiles.get('p75'),
+                                    'p95': percentiles.get('p95'),
+                                    'p99': percentiles.get('p99'),
+                                    'data_type': 'histogram'
+                                }
+                                total_samples = total_count
                     
                     if combined_data:
                         # Speichere die verarbeiteten Daten
@@ -644,7 +661,7 @@ def create_analysis_dataframe(all_data):
                 'mean': stats.get('mean', 0),
                 'std': stats.get('std', 0),
                 'variance': stats.get('variance', 0),
-                'cv': stats.get('std', 0) / stats.get('mean', 1) if stats.get('mean', 0) > 0 else 0,
+                'cv': stats.get('std', 0) / stats.get('mean', 1) if stats.get('mean', 0) != 0 else 0,
                 'iqr': (stats.get('p75', 0) - stats.get('p25', 0)) if stats.get('p75') is not None and stats.get('p25') is not None else None,
                 'min': stats.get('min', 0),
                 'max': stats.get('max', 0),
