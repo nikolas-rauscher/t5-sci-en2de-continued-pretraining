@@ -1,16 +1,16 @@
 #!/bin/bash
 #SBATCH --job-name=clean_data_2025-07-03
-#SBATCH --time=30:00:00
-#SBATCH --cpus-per-task=77   # 75 CPUs auf dem V100-16GB-Node nutzen
+#SBATCH --time=72:00:00
+#SBATCH --cpus-per-task=76   # 75 CPUs auf dem V100-16GB-Node nutzen
 #SBATCH --mem=150G            # 100G RAM (angepasst für 75 CPUs)
-#SBATCH --partition=A100-80GB  # A100-80GB partition
+#SBATCH --partition=A100-80GB,A100-40GB,RTXA6000,V100-32GB,V100-16GB
 #SBATCH --gres=gpu:0         # Explizit keine GPUs
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=nikolas.rauscher@dfki.de
 #SBATCH --output=logs/slurm-clean-data-2025-07-03-%j.out
 #SBATCH --error=logs/slurm-clean-data-2025-07-03-%j.err
 
-echo "Starting BA-hydra CLEAN DATA 2025-07-03 job at $(date)"
+echo "Starting BA-hydra CLEAN DATA OPTIMIZATION job at $(date)"
 echo "Job ID: $SLURM_JOB_ID"
 echo "Running on node: $SLURM_NODELIST"
 echo "CPUs: $SLURM_CPUS_PER_TASK"
@@ -28,4 +28,4 @@ srun -K \
   --container-mounts=/netscratch:/netscratch,/home/$USER:/home/$USER,/ds-slt:/ds-slt \
   --container-image=/netscratch/$USER/containers/hydra_pytorch_25.05.25-final.sqsh \
   --container-workdir="$(pwd)" \
-  bash -c "pip install wandb && python src/dataprep/pipelines/clean_data.py"
+  bash -c "pip install wandb regex && python src/dataprep/pipelines/clean_data.py"
