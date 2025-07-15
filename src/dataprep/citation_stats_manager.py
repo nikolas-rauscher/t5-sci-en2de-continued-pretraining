@@ -105,6 +105,11 @@ class CitationStatsManager:
             "top_short_line_removal_docs": [],
             "top_combined_reduction_docs": [],
             "language_cleaning_documents": [],
+            
+            # Language filtering stats (simple)
+            "docs_removed_by_language": 0,
+            "total_fasttext_score": 0.0,
+            "language_removal_samples": [],
         }
     
     def track_citation_results(
@@ -304,18 +309,23 @@ class CitationStatsManager:
                 heapq.heapreplace(self.cleaning_stats["top_short_line_removal_docs"], short_line_doc_entry)
     
     def track_language_cleaning(self, doc: Document, language_stats: Dict[str, Any]):
-        """Track language cleaning metrics (document-level)"""
-        # Track documents that were removed entirely due to low FastText score
+        """Track simple language filtering stats"""
+        fasttext_score = language_stats.get("fasttext_score", 1.0)
+        self.cleaning_stats["total_fasttext_score"] += fasttext_score
+        
+        # Track docs removed due to low FastText score
         if language_stats.get("document_removed", False):
-            doc_entry = (
-                language_stats.get("fasttext_score", 0.0),  # Use FastText score for sorting
-                str(doc.id),
-                str(doc.metadata.get("title", ""))[:50],
-                f"removed_fasttext:{language_stats.get('fasttext_score', 0.0):.3f}"
-            )
-            self.cleaning_stats["language_cleaning_documents"].append(doc_entry)
-            self.cleaning_stats["language_cleaning_documents"].sort(reverse=False, key=lambda x: x[0])  # Sort by lowest FastText scores
-            self.cleaning_stats["language_cleaning_documents"] = self.cleaning_stats["language_cleaning_documents"][:self.max_top_citation_docs]
+            self.cleaning_stats["docs_removed_by_language"] += 1
+            
+            # Store sample for W&B (only near threshold examples)
+            if len(self.cleaning_stats["language_removal_samples"]) < self.max_false_positive_samples:
+                sample = {
+                    "doc_id": str(doc.id),
+                    "title": str(doc.metadata.get("title", ""))[:80],
+                    "fasttext_score": fasttext_score,
+                    "original_length": language_stats.get("original_length", 0)
+                }
+                self.cleaning_stats["language_removal_samples"].append(sample)
 
     def track_combined_reduction(
         self,

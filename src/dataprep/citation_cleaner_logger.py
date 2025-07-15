@@ -437,6 +437,17 @@ class CitationCleanerLogger:
             "summary/citation_limit_exceeded_rate": (
                 cleaning_stats["docs_with_citation_limits_exceeded"] / cleaning_stats["docs_processed"]
                 if cleaning_stats["docs_processed"] > 0 else 0
+            ),
+            
+            # Language filtering summary
+            "summary/docs_removed_by_language": cleaning_stats["docs_removed_by_language"],
+            "summary/language_removal_rate": (
+                cleaning_stats["docs_removed_by_language"] / cleaning_stats["docs_processed"]
+                if cleaning_stats["docs_processed"] > 0 else 0
+            ),
+            "summary/average_fasttext_score": (
+                cleaning_stats["total_fasttext_score"] / cleaning_stats["docs_processed"]
+                if cleaning_stats["docs_processed"] > 0 else 1.0
             )
         }
         
@@ -528,4 +539,23 @@ class CitationCleanerLogger:
             )
             wandb.log({"tables/citation_limit_exceeded_documents": exceeded_table})
             
-            log.info(f"📋 Citation limits exceeded: {len(cleaning_stats['citation_limit_exceeded_samples'])} documents logged") 
+            log.info(f"📋 Citation limits exceeded: {len(cleaning_stats['citation_limit_exceeded_samples'])} documents logged")
+        
+        # Language filtering samples table
+        if cleaning_stats["language_removal_samples"]:
+            language_samples_data = []
+            for sample in cleaning_stats["language_removal_samples"]:
+                language_samples_data.append([
+                    sample["doc_id"][:40],
+                    sample["title"][:60],
+                    f"{sample['fasttext_score']:.3f}",
+                    sample["original_length"]
+                ])
+            
+            language_table = wandb.Table(
+                columns=["Doc ID", "Title", "FastText Score", "Original Length"],
+                data=language_samples_data
+            )
+            wandb.log({"tables/language_filtered_documents": language_table})
+            
+ 

@@ -1,7 +1,10 @@
 """Document-level language cleaner for T5 pretraining using FastText scores"""
 
+import logging
 from typing import Dict, Tuple
 from src.dataprep.text_cleaners import BaseTextCleaner
+
+log = logging.getLogger(__name__)
 
 
 class SmartLanguageCleaner(BaseTextCleaner):
@@ -10,6 +13,7 @@ class SmartLanguageCleaner(BaseTextCleaner):
     def __init__(self, fasttext_threshold: float = 0.75, debug_mode: bool = False):
         super().__init__(debug_mode)
         self.fasttext_threshold = fasttext_threshold
+        log.info(f"SmartLanguageCleaner initialized with threshold={fasttext_threshold}")
     
     def clean(self, text: str, doc_id: str = None, fasttext_en: float = 1.0) -> Tuple[str, Dict]:
         """Clean text based on document-level FastText English confidence score.
