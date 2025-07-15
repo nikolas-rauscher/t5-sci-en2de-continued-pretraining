@@ -10,6 +10,10 @@ import logging
 import shutil
 import wandb
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # 1) Projekt-Root und lokale Datatrove-Quelle ins PYTHONPATH
 script_dir = os.path.dirname(__file__)
@@ -109,7 +113,7 @@ def sync_stats_to_central(primary_dir: str, central_dir: str):
 @hydra.main(
     version_base="1.3",
     config_path="../../../configs",
-    config_name="stats/compute_spacy_stats_datatrove"
+    config_name="stats/compute_spacy_stats"
 )
 def main(cfg: DictConfig) -> None:
     log.info("🚀 Starting spaCy Stats Pipeline")

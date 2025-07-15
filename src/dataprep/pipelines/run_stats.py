@@ -4,6 +4,10 @@ import logging
 import shutil
 import wandb
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # 1) Projekt-Root und lokale Datatrove-Quelle ins PYTHONPATH
 script_dir = os.path.dirname(__file__)
