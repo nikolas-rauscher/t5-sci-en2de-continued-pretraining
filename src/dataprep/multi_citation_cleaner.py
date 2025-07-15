@@ -161,8 +161,8 @@ class MultiCitationCleaner(BaseFilter):
         # Default Citation Patterns wenn keine angegeben
         if citation_patterns is None:
             citation_patterns = {
-                # Enhanced Patterns mit besserer Precision
-                "semicolon_blocks": r'\s(?:[a-zA-Z0-9\-]++(?:\d++)?\s+;\s+)+(?:[a-zA-Z0-9\-]++(?:\d++)?)(?:\s*;)?\s+',
+                # Enhanced Patterns mit besserer Precision - OPTIMIZED to avoid catastrophic backtracking
+                "semicolon_blocks": r'(?:^|\s)(?:[A-Za-z][A-Za-z0-9\-]*(?:\s+\d+)?\s*;\s*)(?:[A-Za-z][A-Za-z0-9\-]*(?:\s+\d+)?\s*;\s*)*[A-Za-z][A-Za-z0-9\-]*(?:\s+\d+)?(?:\s*;)?(?:\s|$)',
                 
                 # Verbesserte numerische Citation-Patterns
                 "eckige_klammern_numerisch": r"\[\s*+\d++(?:,\s*+\d++)*+\s*+(?:-\s*+\d++)?\s*+\]", # [1,2,3] or [1-3] - possessive 
@@ -410,15 +410,26 @@ class MultiCitationCleaner(BaseFilter):
         return validated_matches, rejected_matches
 
     def _apply_cleaning(self, text: str, matches: List, citation_type: str) -> str:
-        """Apply text cleaning for validated matches"""
-        for match in reversed(matches):
+        """Optimized text cleaning using list operations for better performance"""
+        if not matches:
+            return text
+        
+        # Sort matches by position (reverse order for right-to-left processing)
+        sorted_matches = sorted(matches, key=lambda m: m.start(), reverse=True)
+        
+        # Convert to list for efficient operations
+        text_list = list(text)
+        
+        for match in sorted_matches:
             start, end = match.span()
             if self.debug_mode:
                 debug_tag = f"[DEBUG:citation:{citation_type}]"
-                text = text[:start] + debug_tag + text[end:]
+                text_list[start:end] = list(debug_tag)
             else:
-                text = text[:start] + self.replacement + text[end:]
-        return text
+                replacement = self._get_replacement_for_type(citation_type)
+                text_list[start:end] = list(replacement)
+        
+        return ''.join(text_list)
     
     def _clean_artefakt_patterns_fast(self, text: str, citations_found: Dict, citations_removed: Dict, citations_rejected: Dict) -> str:
         """FAST: Clean ARTEFAKT patterns without validation overhead"""
