@@ -102,13 +102,20 @@ class T5ParquetDataset(Dataset):
 class T5MaterializedWindowDataset(Dataset):
     """Text-only sliding windows dataset for efficient batch tokenization."""
     
-    def __init__(self, parquet_files: List[str | Path]):
+    def __init__(self, parquet_files: List[str | Path], limit_documents: int = -1):
         super().__init__()
         
         self.base_dataset = T5ParquetDataset(parquet_files)
         self._verify_text_windows()
         
-        log.info(f"T5MaterializedWindowDataset created with {len(self.base_dataset)} text windows")
+        # Apply document limit if specified
+        self.limit_documents = limit_documents
+        if limit_documents > 0 and limit_documents < len(self.base_dataset):
+            self.actual_length = limit_documents
+            log.info(f"T5MaterializedWindowDataset created with {limit_documents} text windows (limited from {len(self.base_dataset)})")
+        else:
+            self.actual_length = len(self.base_dataset)
+            log.info(f"T5MaterializedWindowDataset created with {len(self.base_dataset)} text windows")
         
     def _verify_text_windows(self):
         if len(self.base_dataset) == 0:
@@ -158,13 +165,17 @@ class T5MaterializedWindowDataset(Dataset):
                        f"Consider filtering or re-running window creation.")
     
     def __len__(self):
-        return len(self.base_dataset)
+        return self.actual_length
     
     def __getitem__(self, idx: int) -> dict:
         """Get text window - much faster than pre-tokenized version."""
         
-        if idx >= len(self.base_dataset):
-            raise IndexError(f"Index {idx} out of range for dataset of size {len(self.base_dataset)}")
+        if idx >= self.actual_length:
+            raise IndexError(f"Index {idx} out of range for dataset of size {self.actual_length}")
+        
+        # Apply document limit check
+        if self.limit_documents > 0 and idx >= self.limit_documents:
+            raise IndexError(f"Index {idx} exceeds document limit {self.limit_documents}")
         
         # Get window data (direct access, no caching needed)
         doc_data = self.base_dataset[idx]

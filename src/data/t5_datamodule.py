@@ -31,7 +31,8 @@ class T5DataModule(LightningDataModule):
         mean_span_length: int = 3,
         shuffle_buffer_size: int = 10_000,
         use_materialized_windows: bool = True,  # Use materialized windows by default 
-        limit_files: int = -1,  
+        limit_files: int = -1,
+        limit_documents: int = -1,  # Limit total number of windows/documents
     ) -> None:
         super().__init__()
 
@@ -76,7 +77,10 @@ class T5DataModule(LightningDataModule):
         
         log.info(f"Using materialized windows from: {self.data_dir}")
         
-        full_dataset = T5MaterializedWindowDataset(parquet_files=parquet_files)
+        full_dataset = T5MaterializedWindowDataset(
+            parquet_files=parquet_files,
+            limit_documents=self.hparams.limit_documents
+        )
 
         # Compute split lengths
         train_ratio, val_ratio = self.hparams.train_val_split
