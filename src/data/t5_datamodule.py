@@ -111,6 +111,9 @@ class T5DataModule(LightningDataModule):
             pin_memory=self.hparams.pin_memory,
             shuffle=True,
             collate_fn=self.collator,
+            persistent_workers=True,  # Keep workers alive between epochs
+            prefetch_factor=4,        # Prefetch 4 batches per worker
+            drop_last=True,           # More consistent batch sizes
         )
 
     def val_dataloader(self): 
@@ -121,4 +124,7 @@ class T5DataModule(LightningDataModule):
             pin_memory=self.hparams.pin_memory,
             shuffle=False,
             collate_fn=self.collator,
+            persistent_workers=True,  # Keep workers alive 
+            prefetch_factor=4,        # Prefetch 4 batches per worker
+            drop_last=False,          # Keep all validation data
         ) 
