@@ -38,6 +38,7 @@ class T5LitModule(LightningModule):
         optimizer: torch.optim.Optimizer,
         scheduler: Dict[str, Any] | None = None,
         tokenizer=None,  # Add tokenizer for span corruption logging
+        ignore_index: int = -100,  # Configurable ignore index for perplexity
     ) -> None:  # noqa: D401
         super().__init__()
         self.save_hyperparameters(logger=False)
@@ -47,8 +48,15 @@ class T5LitModule(LightningModule):
 
         self.train_loss = MeanMetric()
         self.val_loss = MeanMetric()
-        self.train_perplexity = Perplexity()
-        self.val_perplexity = Perplexity()
+        
+        # Initialize Perplexity metrics with configurable ignore_index
+        # Use tokenizer pad_token_id if available, otherwise use configured ignore_index
+        final_ignore_index = ignore_index
+        if tokenizer is not None and hasattr(tokenizer, 'pad_token_id') and tokenizer.pad_token_id is not None:
+            final_ignore_index = tokenizer.pad_token_id
+        
+        self.train_perplexity = Perplexity(ignore_index=final_ignore_index)
+        self.val_perplexity = Perplexity(ignore_index=final_ignore_index)
 
     def forward(self, **batch):  # type: ignore[override]
         return self.model(**batch)
@@ -58,14 +66,23 @@ class T5LitModule(LightningModule):
         loss = outputs.loss
 
         self.train_loss(loss)
-        self.train_perplexity(loss)
+        
+        # Calculate perplexity correctly using logits and labels
+        if hasattr(outputs, 'logits') and 'labels' in batch:
+            logits = outputs.logits  # Shape: [B, T, V]
+            labels = batch["labels"]  # Shape: [B, T]
+            
+            # TorchMetrics expects preds=[B, T, V], target=[B, T]
+            if len(logits.shape) == 3 and logits.shape[1] == labels.shape[1]:
+                self.train_perplexity(logits, labels)
         
         # Log loss per step AND per epoch
         self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True)
         self.log("train/loss_epoch", self.train_loss, on_step=False, on_epoch=True, prog_bar=False)
         
-        # Log perplexity using torchmetrics
-        self.log("train/perplexity_step", torch.exp(loss).clamp(max=1e4), on_step=True, prog_bar=True)
+        # Log perplexity - use simple exp(loss) for step, torchmetrics for epoch
+        perplexity_step = torch.exp(loss.clamp(max=10)).clamp(max=1e4)  # clamp loss first to avoid NaN
+        self.log("train/perplexity_step", perplexity_step, on_step=True, prog_bar=True)
         self.log("train/perplexity_epoch", self.train_perplexity, on_step=False, on_epoch=True, prog_bar=False)
         
         current_lr = self.optimizers().param_groups[0]['lr']
@@ -91,10 +108,20 @@ class T5LitModule(LightningModule):
         loss = outputs.loss
 
         self.val_loss(loss)
-        self.val_perplexity(loss)
+        
+        # Calculate perplexity correctly using logits and labels
+        if hasattr(outputs, 'logits') and 'labels' in batch:
+            logits = outputs.logits  # Shape: [B, T, V]
+            labels = batch["labels"]  # Shape: [B, T]
+            
+            # TorchMetrics expects preds=[B, T, V], target=[B, T]
+            if len(logits.shape) == 3 and logits.shape[1] == labels.shape[1]:
+                self.val_perplexity(logits, labels)
         
         self.log("val/loss", self.val_loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log("val/perplexity", self.val_perplexity, on_step=False, on_epoch=True, prog_bar=True)
+            
+        return loss
 
     def configure_optimizers(self):  # type: ignore[override]
         # Optimizer from Hydra config
@@ -157,7 +184,7 @@ class T5LitModule(LightningModule):
                 total_norm += param_norm.item() ** 2
                 param_count += 1
         
-        total_norm = total_norm ** (1. / 2)
+        total_norm = total_norm ** (1. / 2) if total_norm > 0 else 0.0
         self.log("train/grad_norm", total_norm, on_step=True)
         self.log("train/trainable_params", param_count, on_step=True)
     
