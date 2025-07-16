@@ -1,7 +1,7 @@
 _target_: src.data.t5_datamodule.T5DataModule
 
 # Using materialized text-based sliding windows 
-data_dir: /netscratch/nrauscher/projects/BA-hydra/data/windows_text_2025-07-02
+data_dir: /fscratch/nrauscher/projects/BA-hydra/data/cleaned_sliding_windows/text_2025-07-14
 
 tokenizer_name_or_path: t5-base
 
@@ -17,3 +17,4 @@ train_val_split: [0.95, 0.05]
 
 use_materialized_windows: true
 limit_files: -1  # No limit for production
+limit_documents: -1  # No limit for production

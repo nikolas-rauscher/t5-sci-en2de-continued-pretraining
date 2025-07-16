@@ -1,0 +1,72 @@
+# @package _global_
+
+# A100-80GB extensive test config 
+# Utilize full 80GB memory with larger batch sizes and more epochs
+
+defaults:
+  - override /data: t5_pretraining_text_windows
+  - override /model: t5_base
+  - override /trainer: gpu
+  - override /logger: wandb
+  - override /callbacks: default
+
+experiment_name: t5_debug_a100_text_windows
+
+tags: ["t5-base", "debug", "text-windows", "a100"]
+
+seed: 42
+
+# Disable testing for pretraining
+test: false
+train: true
+
+# A100-80GB optimized scale for extensive testing
+data:
+  batch_size: 48  # Push memory limits - utilize ~70-75GB VRAM
+  limit_files: 10  # More files for better data diversity
+  limit_documents: 50000  # 50K documents for substantial testing
+  num_workers: 60  # Utilize most of 66 CPU cores for data loading
+
+trainer:
+  max_epochs: 5  # More epochs for learning curve analysis
+  precision: 16-mixed
+  accumulate_grad_batches: 4  # Effective batch = 48*4 = 192 (optimal for T5)
+  devices: 1
+  gradient_clip_val: 1.0
+  check_val_every_n_epoch: 1
+  max_steps: 2000  # More steps for substantial training
+  val_check_interval: 200  # Validate every 200 steps
+  log_every_n_steps: 50   # Log every 50 steps
+
+model:
+  t5_model:
+    enable_gradient_checkpointing: true
+  
+  optimizer:
+    _target_: transformers.optimization.Adafactor
+    lr: 1e-3
+    relative_step_size: false
+    warmup_init: false
+    scale_parameter: false
+    beta1: null
+    _partial_: true
+  
+  scheduler:
+    _target_: transformers.optimization.get_inverse_sqrt_schedule
+    num_warmup_steps: 200
+    _partial_: true
+
+callbacks:
+  model_checkpoint:
+    save_top_k: 3  # Save top 3 models
+    monitor: "val/perplexity"
+    mode: "min"
+    save_last: true
+    every_n_epochs: 1
+    save_on_train_epoch_end: true
+
+logger:
+  wandb:
+    group: "extensive-test-a100"
+    name: "t5-extensive-test-a100-50k-docs-5epochs"
+    tags: ["extensive-test", "a100", "text-windows", "50k-docs", "5-epochs"]

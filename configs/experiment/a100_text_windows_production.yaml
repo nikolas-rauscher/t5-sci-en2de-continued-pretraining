@@ -1,0 +1,75 @@
+# @package _global_
+
+# A100-80GB production config for full dataset training
+# Conservative batch size with gradient accumulation
+
+defaults:
+  - override /data: t5_pretraining_text_windows
+  - override /model: t5_base
+  - override /trainer: gpu
+  - override /logger: wandb
+  - override /callbacks: default
+
+experiment_name: t5_production_a100_text_windows
+
+tags: ["t5-base", "production", "text-windows", "a100"]
+
+seed: 42
+
+# Disable testing for pretraining
+test: false
+train: true
+
+# Production scale settings
+data:
+  batch_size: 16  # Conservative start, can test up to 24-32
+  limit_files: -1  # Full dataset
+  limit_documents: -1  # Full dataset (all documents)
+  num_workers: 32
+
+trainer:
+  max_epochs: 10
+  precision: 16-mixed
+  accumulate_grad_batches: 8  # Effective batch = 128
+  devices: 1
+  gradient_clip_val: 1.0
+  check_val_every_n_epoch: 1
+  val_check_interval: 0.25  # Validate 4 times per epoch
+
+model:
+  t5_model:
+    enable_gradient_checkpointing: true
+  
+  optimizer:
+    _target_: transformers.optimization.Adafactor
+    lr: 1e-3
+    relative_step_size: false
+    warmup_init: false
+    scale_parameter: false
+    beta1: null
+    _partial_: true
+  
+  scheduler:
+    _target_: transformers.optimization.get_inverse_sqrt_schedule
+    num_warmup_steps: 1000
+    _partial_: true
+
+callbacks:
+  model_checkpoint:
+    save_top_k: 3
+    monitor: "val/perplexity"
+    mode: "min"
+    save_last: true
+    every_n_epochs: 1
+    
+  early_stopping:
+    monitor: "val/perplexity"
+    patience: 3
+    mode: "min"
+    min_delta: 0.01
+
+logger:
+  wandb:
+    group: "production-a100"
+    name: "t5-production-a100-full-dataset"
+    tags: ["production", "a100", "text-windows", "full-dataset"]
