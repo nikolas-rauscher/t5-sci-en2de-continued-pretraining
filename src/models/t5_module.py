@@ -17,6 +17,7 @@ import torch
 from lightning import LightningModule
 from torch.optim.optimizer import Optimizer
 from torchmetrics import MeanMetric
+from torchmetrics.text import Perplexity
 
 from transformers import get_cosine_with_hard_restarts_schedule_with_warmup
 
@@ -46,6 +47,8 @@ class T5LitModule(LightningModule):
 
         self.train_loss = MeanMetric()
         self.val_loss = MeanMetric()
+        self.train_perplexity = Perplexity()
+        self.val_perplexity = Perplexity()
 
     def forward(self, **batch):  # type: ignore[override]
         return self.model(**batch)
@@ -55,8 +58,15 @@ class T5LitModule(LightningModule):
         loss = outputs.loss
 
         self.train_loss(loss)
-        self.log("train/loss", self.train_loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("train/perplexity", torch.exp(self.train_loss.compute()), prog_bar=True, on_epoch=True)
+        self.train_perplexity(loss)
+        
+        # Log loss per step AND per epoch
+        self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True)
+        self.log("train/loss_epoch", self.train_loss, on_step=False, on_epoch=True, prog_bar=False)
+        
+        # Log perplexity using torchmetrics
+        self.log("train/perplexity_step", torch.exp(loss).clamp(max=1e4), on_step=True, prog_bar=True)
+        self.log("train/perplexity_epoch", self.train_perplexity, on_step=False, on_epoch=True, prog_bar=False)
         
         current_lr = self.optimizers().param_groups[0]['lr']
         self.log("train/learning_rate", current_lr, on_step=True, prog_bar=True)
@@ -81,37 +91,61 @@ class T5LitModule(LightningModule):
         loss = outputs.loss
 
         self.val_loss(loss)
+        self.val_perplexity(loss)
+        
         self.log("val/loss", self.val_loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("val/perplexity", torch.exp(self.val_loss.compute()), prog_bar=True, on_epoch=True)
+        self.log("val/perplexity", self.val_perplexity, on_step=False, on_epoch=True, prog_bar=True)
 
     def configure_optimizers(self):  # type: ignore[override]
-        optimizer_cfg = self.hparams.optimizer  # comes from Hydra instantiation
+        # Optimizer from Hydra config
+        optimizer_cfg = self.hparams.optimizer
         if isinstance(optimizer_cfg, Optimizer):
             optimizer = optimizer_cfg
+        elif hasattr(optimizer_cfg, 'func'):  # Hydra partial function
+            # Filter out null/None parameters before passing to optimizer
+            filtered_params = {}
+            for key, value in optimizer_cfg.keywords.items():
+                if value is not None:
+                    filtered_params[key] = value
+            
+            # Create a new partial with filtered parameters
+            from functools import partial
+            filtered_optimizer_cfg = partial(optimizer_cfg.func, **filtered_params)
+            optimizer = filtered_optimizer_cfg(self.parameters())
         else:
+            # Fallback
             optimizer = torch.optim.AdamW(self.parameters(), lr=1e-4)
 
+        # No scheduler case
         if self.hparams.scheduler is None:
             return optimizer
 
+        # Scheduler from Hydra config
         scheduler_cfg = self.hparams.scheduler
-        if isinstance(scheduler_cfg, dict):
+        
+        # Modern Hydra way - scheduler is already instantiated as partial
+        if hasattr(scheduler_cfg, 'func'):  # Check if it's a partial function
+            scheduler = scheduler_cfg(optimizer)
+        elif hasattr(scheduler_cfg, 'get'):  # Check if it's a dict
+            # Legacy fallback for dict config
             scheduler = get_cosine_with_hard_restarts_schedule_with_warmup(
                 optimizer,
                 num_warmup_steps=scheduler_cfg.get("num_warmup_steps", 1000),
                 num_training_steps=scheduler_cfg.get("num_training_steps", 100_000),
                 num_cycles=scheduler_cfg.get("num_cycles", 1),
             )
-            return {
-                "optimizer": optimizer,
-                "lr_scheduler": {
-                    "scheduler": scheduler,
-                    "interval": "step",
-                    "frequency": 1,
-                },
-            }
-
-        return optimizer
+        else:
+            # Fallback: assume it's a callable that takes optimizer
+            scheduler = scheduler_cfg(optimizer)
+            
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "interval": "step",
+                "frequency": 1,
+            },
+        }
     
     def on_before_optimizer_step(self, optimizer):
         total_norm = 0
