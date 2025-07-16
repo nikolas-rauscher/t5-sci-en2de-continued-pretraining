@@ -81,22 +81,27 @@ class T5LitModule(LightningModule):
         self.log("train/loss_epoch", self.train_loss, on_step=False, on_epoch=True, prog_bar=False)
         
         # Log perplexity - use simple exp(loss) for step, torchmetrics for epoch
-        perplexity_step = torch.exp(loss.clamp(max=10)).clamp(max=1e4)  # clamp loss first to avoid NaN
+        # Clamp loss to prevent overflow in exp calculation
+        perplexity_step = torch.exp(torch.clamp(loss, max=10)).clamp(max=1e4)
         self.log("train/perplexity_step", perplexity_step, on_step=True, prog_bar=True)
         self.log("train/perplexity_epoch", self.train_perplexity, on_step=False, on_epoch=True, prog_bar=False)
         
-        current_lr = self.optimizers().param_groups[0]['lr']
+        # Use Lightning's built-in optimizer access
+        current_lr = self.trainer.optimizers[0].param_groups[0]['lr']
         self.log("train/learning_rate", current_lr, on_step=True, prog_bar=True)
         
         batch_size = batch["input_ids"].size(0)
-        attention_mask = batch["attention_mask"]
-        real_tokens = attention_mask.sum().item()
-        total_tokens = attention_mask.numel()
-        padding_ratio = 1 - (real_tokens / total_tokens)
-        
         self.log("train/batch_size", batch_size, on_step=True)
-        self.log("train/padding_ratio", padding_ratio, on_step=True)
-        self.log("train/tokens_per_batch", real_tokens, on_step=True)
+        
+        # Use Lightning's built-in methods for token calculations
+        if "attention_mask" in batch:
+            attention_mask = batch["attention_mask"]
+            real_tokens = attention_mask.sum().item()
+            total_tokens = attention_mask.numel()
+            padding_ratio = 1 - (real_tokens / total_tokens)
+            
+            self.log("train/padding_ratio", padding_ratio, on_step=True)
+            self.log("train/tokens_per_batch", real_tokens, on_step=True)
         
         if batch_idx % 100 == 0 and self.tokenizer is not None:
             self._log_span_corruption_examples(batch, outputs)
@@ -175,18 +180,20 @@ class T5LitModule(LightningModule):
         }
     
     def on_before_optimizer_step(self, optimizer):
-        total_norm = 0
-        param_count = 0
+        # Use Lightning's built-in gradient norm calculation
+        # This is more efficient than manual calculation
+        if hasattr(self.trainer, 'gradient_clip_val') and self.trainer.gradient_clip_val:
+            # If gradient clipping is enabled, Lightning already calculated the norm
+            grad_norm = getattr(self.trainer, '_gradient_norm', 0.0)
+        else:
+            # Calculate manually using PyTorch's more efficient method
+            grad_norm = torch.nn.utils.clip_grad_norm_(self.parameters(), float('inf'))
         
-        for p in self.parameters():
-            if p.grad is not None:
-                param_norm = p.grad.detach().data.norm(2)
-                total_norm += param_norm.item() ** 2
-                param_count += 1
+        self.log("train/grad_norm", grad_norm, on_step=True)
         
-        total_norm = total_norm ** (1. / 2) if total_norm > 0 else 0.0
-        self.log("train/grad_norm", total_norm, on_step=True)
-        self.log("train/trainable_params", param_count, on_step=True)
+        # Count trainable parameters more efficiently
+        trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        self.log("train/trainable_params", trainable_params, on_step=True)
     
     def _log_span_corruption_examples(self, batch: Dict[str, torch.Tensor], outputs):
         if wandb is None or not hasattr(self.logger, 'experiment'):
