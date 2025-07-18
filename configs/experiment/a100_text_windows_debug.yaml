@@ -12,7 +12,7 @@ defaults:
 
 experiment_name: t5_debug_a100_text_windows
 
-tags: ["t5-base", "debug", "text-windows", "a100"]
+tags: ["t5-base", "debug", "text-windows", "a100", "lr-5e-4"]
 
 seed: 42
 
@@ -23,20 +23,20 @@ train: true
 # A100-80GB optimized scale for extensive testing
 data:
   batch_size: 48  # Push memory limits - utilize ~70-75GB VRAM
-  limit_files: 10  # More files for better data diversity
-  limit_documents: 50000  # 50K documents for substantial testing
-  num_workers: 60  # Utilize most of 66 CPU cores for data loading
+  limit_files: -1  # 5 files for reasonable data diversity
+  limit_documents: 20000  # 20K documents for fast but meaningful testing (~5-7 min per epoch)
+  num_workers: 60  # Fewer workers for smaller dataset
 
 trainer:
-  max_epochs: 5  # More epochs for learning curve analysis
+  max_epochs: 10  # 3 epochs for quick but meaningful testing
   precision: 16-mixed
   accumulate_grad_batches: 4  # Effective batch = 48*4 = 192 (optimal for T5)
   devices: 1
   gradient_clip_val: 1.0
   check_val_every_n_epoch: 1
-  max_steps: 2000  # More steps for substantial training
-  val_check_interval: 200  # Validate every 200 steps
-  log_every_n_steps: 50   # Log every 50 steps
+  max_steps: -1
+  val_check_interval: 0.1  # Validate twice per epoch
+  log_every_n_steps: 1     # Log every 5 steps for cleaner logs
 
 model:
   t5_model:
@@ -44,16 +44,18 @@ model:
   
   optimizer:
     _target_: transformers.optimization.Adafactor
-    lr: 1e-3
-    relative_step_size: false
+    lr: 5e-4
+    relative_step: false
     warmup_init: false
     scale_parameter: false
-    beta1: null
     _partial_: true
+    # Override all AdamW parameters to avoid inheritance
+    betas: null
+    weight_decay: null
   
   scheduler:
     _target_: transformers.optimization.get_inverse_sqrt_schedule
-    num_warmup_steps: 200
+    num_warmup_steps: 100  # ~30% of one epoch (100 steps per epoch)
     _partial_: true
 
 callbacks:
@@ -64,9 +66,16 @@ callbacks:
     save_last: true
     every_n_epochs: 1
     save_on_train_epoch_end: true
+  
+  early_stopping:
+    monitor: val/perplexity
+    mode: min
+    patience: 20                 # genug Luft für 10 Epochen
+    min_delta: 0.0
+    verbose: true
 
 logger:
   wandb:
-    group: "extensive-test-a100"
-    name: "t5-extensive-test-a100-50k-docs-5epochs"
-    tags: ["extensive-test", "a100", "text-windows", "50k-docs", "5-epochs"]
+    group: "debug-a100-text-windows"
+    name: "t5-debug-a100-text-windows-lr-5e-4-2k-docs"
+    tags: ["debug", "a100", "text-windows", "lr-5e-4", "2k-docs"]

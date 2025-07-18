@@ -1,0 +1,97 @@
+# @package _global_
+
+# 4 × A100-80 GB, final-nahes Pre-Training
+# Per-GPU bleiben 48 Sequenzen (wie Debug); dadurch ≈192 Sequenzen pro Opt-Step ohne Accum.
+
+defaults:
+  - override /data: t5_pretraining_text_windows
+  - override /model: t5_base
+  - override /trainer: gpu        # greift auf deine Trainer-Basiskonfig zurück
+  - override /logger: wandb
+  - override /callbacks: default
+  - _self_
+
+experiment_name: t5_train_a100_4gpu
+tags: ["t5-base", "4GPU", "a100-80gb", "text-windows", "lr-5e-4"]
+
+seed: 42
+train: true
+test: false
+
+# ------------------------------------------------------------------
+# DATA
+# ------------------------------------------------------------------
+data:
+  batch_size: 48          # pro GPU (global ~200 bei 4 GPUs; adjust via CLI wenn nötig)
+  limit_files: 100000            # -1 = alle Dateien; großer Dummywert verhinderte z.T. Start
+  limit_documents: -1     # GANZES Korpus
+  num_workers: 60         # pro Prozess; bei 4 Ranks => 48 Loader-Worker gesamt
+  use_materialized_windows: true
+
+# ------------------------------------------------------------------
+# TRAINER (DDP)
+# ------------------------------------------------------------------
+trainer:
+  accelerator: gpu
+  devices: 4
+  strategy: ddp            # Lightning wählt LightningDistributedStrategy
+  precision: 16-mixed
+  max_steps: 115000        # ≈10 B Tokens bei 192 seq / step
+  max_epochs: 20           # Schritte steuern Laufzeit
+  accumulate_grad_batches: 1   # 48 × 4 GPUs = 192 → wie Debug-Effektivbatch
+  gradient_clip_val: 1.0
+  log_every_n_steps: 1
+  val_check_interval: 5000     # alle 5 k Opt-Steps
+  check_val_every_n_epoch: null
+
+# ------------------------------------------------------------------
+# MODEL / OPT / SCHEDULER
+# ------------------------------------------------------------------
+model:
+  t5_model:
+    enable_gradient_checkpointing: true
+
+  optimizer:
+    _target_: transformers.optimization.Adafactor
+    lr: 5e-4
+    relative_step: false
+    warmup_init: false
+    scale_parameter: false
+    _partial_: true
+    betas: null
+    weight_decay: null
+
+  scheduler:
+    _target_: transformers.optimization.get_inverse_sqrt_schedule
+# NOTE: get_inverse_sqrt_schedule has no min_lr arg; floor must be handled externally if needed.
+    num_warmup_steps: 2000      # längeres Warm-up
+    _partial_: true
+
+# ------------------------------------------------------------------
+# CALLBACKS
+# ------------------------------------------------------------------
+callbacks:
+  model_checkpoint:
+    save_top_k: 4
+    monitor: val/loss
+    mode: min
+    save_last: true
+    every_n_train_steps: 10000   # alle 10 k Steps Checkpoint
+    save_on_train_epoch_end: false
+
+  early_stopping:
+    monitor: val/loss
+    mode: min
+    patience: 5                 # du kannst in der CLI weiter überschreiben
+    min_delta: 0.0
+    check_finite: false
+    verbose: true
+
+# ------------------------------------------------------------------
+# LOGGER
+# ------------------------------------------------------------------
+logger:
+  wandb:
+    group: "train-a100-4gpu"
+    name: "t5-a100-4gpu-full"
+    tags: ["t5-base", "4gpu", "full-run", "lr-5e-4"]
