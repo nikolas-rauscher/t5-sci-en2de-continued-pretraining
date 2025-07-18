@@ -1,0 +1,86 @@
+# @package _global_
+
+# 4-GPU A100-80GB T5 Pre-training Configuration
+# Scaled 4-GPU run on 10M docs (final-nah hyperparams)
+
+defaults:
+  - override /data: t5_pretraining_text_windows
+  - override /model: t5_base
+  - override /trainer: gpu
+  - override /logger: wandb
+  - override /callbacks: default
+
+experiment_name: t5_4gpu_10mdocs
+
+tags: ["t5-base", "4gpu", "text-windows", "a100", "10m-docs", "final-nah"]
+
+seed: 42
+
+# Disable testing for pretraining
+test: false
+train: true
+
+# 4-GPU training settings (memory optimized)
+data:
+  batch_size: 48  # per-GPU batch size (80GB)
+  limit_files: -1  # Use all files
+  limit_documents: -1  # 10M docs large-scale test
+  num_workers: 12  # total worker processes (distributed across ranks)
+  prefetch_factor: 2          # modest; increase if input stalls
+  persistent_workers: true    # avoid refork cost
+
+# 4-GPU distributed training settings (memory optimized)
+trainer:
+  max_epochs: 10  # step-based; control via max_steps
+  max_steps: -1  # train until all epochs complete
+  precision: 16-mixed
+  accumulate_grad_batches: 2  # Effective batch = 48 * 4 * 2 = 384 (same eff batch as 2GPU×4accum)
+  devices: 4
+  accelerator: gpu
+  strategy: ddp
+  gradient_clip_val: 1.0
+  check_val_every_n_epoch: null  # disable epoch-based val; using step interval
+  val_check_interval: 5000  # every 5k steps
+  log_every_n_steps: 1
+
+model:
+  t5_model:
+    enable_gradient_checkpointing: true
+  
+  optimizer:
+    _target_: transformers.optimization.Adafactor
+    lr: 5e-4
+    relative_step: false
+    warmup_init: false
+    scale_parameter: false
+    _partial_: true
+    # Override all AdamW parameters to avoid inheritance
+    betas: null
+    weight_decay: null
+  
+  scheduler:
+    _target_: transformers.optimization.get_inverse_sqrt_schedule
+    num_warmup_steps: 2000  # scaled warmup for larger run
+    _partial_: true
+
+callbacks:
+  model_checkpoint:
+    save_top_k: 3
+    monitor: "val/perplexity"
+    mode: "min"
+    save_last: true
+    every_n_train_steps: 10000  # save every 10k steps (large run)
+    save_on_train_epoch_end: false
+  early_stopping:
+    monitor: "val/loss"
+    mode: "min"
+    patience: 5
+    min_delta: 0.0
+    check_finite: false
+    verbose: true
+
+logger:
+  wandb:
+    group: "4gpu-10mdocs"
+    name: "t5-4gpu-10m-docs"
+    tags: ["4gpu", "a100", "text-windows", "10m-docs", "final-nah"]
