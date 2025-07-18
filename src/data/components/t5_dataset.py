@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import OrderedDict
 from pathlib import Path
 from typing import List, Tuple
 
@@ -13,18 +14,15 @@ log = RankedLogger(__name__, rank_zero_only=True)
 
 
 class _ParquetTextFile:
-    """Random access to parquet file with batch caching."""
+    """Random access to parquet file with efficient row-wise access and LRU cache."""
 
-    def __init__(self, path: Path):
-        self.file = pq.ParquetFile(path)
+    def __init__(self, path: Path, max_cached_rowgroups: int = 2):
+        # memory_map enables OS-level lazy loading
+        self.file = pq.ParquetFile(path, memory_map=True)
         self.num_rows = self.file.metadata.num_rows
-        # Disable caching in multiprocessing environments to avoid deadlocks
-        import os
-        self._use_cache = os.getenv('PYTORCH_DATALOADER_WORKERS', '0') == '0'
-        if self._use_cache:
-            self._cache = {}  # Cache for row groups
-            self._cache_size = 0
-            self._max_cache_size = 2  # Cache up to 2 row groups
+        # Always use small cache - safe for multiprocessing with limited size
+        self._cache = OrderedDict()  # LRU cache for row groups
+        self._max_cache_size = max_cached_rowgroups
 
     def __len__(self):
         return self.num_rows
@@ -33,29 +31,26 @@ class _ParquetTextFile:
         # find row group and local index
         row_group, row_index = self._locate(idx)
         
-        if self._use_cache:
-            # Check cache first
-            if row_group not in self._cache:
-                # Read entire row group
-                batch: pa.Table = self.file.read_row_group(row_group, columns=["text", "id", "metadata"])
-                batch_data = batch.to_pylist()
-                
-                # Manage cache size
-                if self._cache_size >= self._max_cache_size:
-                    # Remove oldest entry
-                    oldest_key = next(iter(self._cache))
-                    del self._cache[oldest_key]
-                    self._cache_size -= 1
-                
-                self._cache[row_group] = batch_data
-                self._cache_size += 1
-            
-            return self._cache[row_group][row_index]
+        # Check LRU cache first
+        table = self._cache.get(row_group)
+        if table is None:
+            # Read row group as Arrow table (stays in columnar format)
+            table = self.file.read_row_group(row_group, columns=["text", "id", "metadata"])
+            # LRU update: move to end (most recent)
+            self._cache[row_group] = table
+            # Remove oldest if cache full
+            if len(self._cache) > self._max_cache_size:
+                self._cache.popitem(last=False)  # Remove oldest (FIFO)
         else:
-            # No caching - direct read (safer for multiprocessing)
-            batch: pa.Table = self.file.read_row_group(row_group, columns=["text", "id", "metadata"])
-            row = batch.slice(row_index, 1).to_pylist()[0]
-            return row
+            # Move to end (mark as recently used)
+            self._cache.move_to_end(row_group)
+        
+        # Extract scalar values directly from Arrow columns (zero-copy)
+        col_text = table.column("text")[row_index].as_py()
+        col_id = table.column("id")[row_index].as_py()
+        col_meta = table.column("metadata")[row_index].as_py()
+        
+        return {"text": col_text, "id": col_id, "metadata": col_meta}
 
     def _locate(self, global_idx: int):
         rows_cum = 0
@@ -70,9 +65,9 @@ class _ParquetTextFile:
 class T5ParquetDataset(Dataset):
     """Concatenated parquet files dataset."""
 
-    def __init__(self, parquet_files: List[str | Path]):
+    def __init__(self, parquet_files: List[str | Path], max_cached_rowgroups: int = 2):
         super().__init__()
-        self.files = [_ParquetTextFile(Path(f)) for f in parquet_files]
+        self.files = [_ParquetTextFile(Path(f), max_cached_rowgroups) for f in parquet_files]
         self.cumulative_lengths = []
         total = 0
         for f in self.files:
@@ -102,10 +97,10 @@ class T5ParquetDataset(Dataset):
 class T5MaterializedWindowDataset(Dataset):
     """Text-only sliding windows dataset for efficient batch tokenization."""
     
-    def __init__(self, parquet_files: List[str | Path], limit_documents: int = -1):
+    def __init__(self, parquet_files: List[str | Path], limit_documents: int = -1, max_cached_rowgroups: int = 2):
         super().__init__()
         
-        self.base_dataset = T5ParquetDataset(parquet_files)
+        self.base_dataset = T5ParquetDataset(parquet_files, max_cached_rowgroups)
         self._verify_text_windows()
         
         # Apply document limit if specified
