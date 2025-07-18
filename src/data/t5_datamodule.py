@@ -25,6 +25,8 @@ class T5DataModule(LightningDataModule):
         batch_size: int = 8,
         num_workers: int = 4,
         pin_memory: bool = True,
+        persistent_workers: bool = True,
+        prefetch_factor: int = 4,
         train_val_split: Tuple[float, float] = (0.95, 0.05),
         max_length: int = 512,
         corruption_rate: float = 0.15,
@@ -109,10 +111,10 @@ class T5DataModule(LightningDataModule):
             batch_size=self.hparams.batch_size,
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,
+            persistent_workers=self.hparams.persistent_workers,
+            prefetch_factor=self.hparams.prefetch_factor,
             shuffle=True,
             collate_fn=self.collator,
-            persistent_workers=True,  # Keep workers alive between epochs
-            prefetch_factor=4,        # Prefetch 4 batches per worker
             drop_last=True,           # More consistent batch sizes
         )
 
@@ -122,9 +124,9 @@ class T5DataModule(LightningDataModule):
             batch_size=self.hparams.batch_size,
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,
+            persistent_workers=self.hparams.persistent_workers,
+            prefetch_factor=self.hparams.prefetch_factor,
             shuffle=False,
             collate_fn=self.collator,
-            persistent_workers=True,  # Keep workers alive 
-            prefetch_factor=4,        # Prefetch 4 batches per worker
             drop_last=False,          # Keep all validation data
         ) 
