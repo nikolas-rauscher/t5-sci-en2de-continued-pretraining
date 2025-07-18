@@ -1,0 +1,90 @@
+# @package _global_
+
+# Subset-Epoch-Method: 4-GPU H100 T5 Pre-training Configuration
+# Multiple epochs on subset for convergence analysis
+# 3 epochs on 30% of data for learning curve insights
+
+defaults:
+  - override /data: t5_pretraining_text_windows
+  - override /model: t5_base
+  - override /trainer: gpu
+  - override /logger: wandb
+  - override /callbacks: default
+
+experiment_name: subset_epoch_method_4gpu
+
+tags: ["subset-epoch", "4gpu", "h100", "3-epochs", "30pct-data", "convergence"]
+
+seed: 42
+
+# Disable testing for pretraining
+test: false
+train: true
+
+# Subset data settings (30% of data)
+data:
+  batch_size: 32  # H100 optimized
+  limit_files: -1  # Use all files
+  limit_documents: 78000000  # ~30% of 260M documents
+  num_workers: 12  # H100 optimized
+  prefetch_factor: 2
+  persistent_workers: true
+
+# Epoch-based trainer settings
+trainer:
+  max_epochs: 3  # 3 full epochs for convergence analysis
+  max_steps: -1  # Let epochs control training
+  precision: 16-mixed
+  accumulate_grad_batches: 4  # Effective batch = 32*4*4 = 512 sequences
+  devices: 4
+  accelerator: gpu
+  strategy: ddp
+  gradient_clip_val: 1.0
+  check_val_every_n_epoch: 1  # Validate every epoch
+  val_check_interval: 0.1  # Validate 10x per epoch for detailed learning curves
+  log_every_n_steps: 1  # Frequent logging for analysis
+
+# Standard T5 model settings (closer to original T5 than SciFive)
+model:
+  t5_model:
+    enable_gradient_checkpointing: true
+  
+  # Standard T5 optimizer (not SciFive's aggressive LR)
+  optimizer:
+    _target_: transformers.optimization.Adafactor
+    lr: 5e-4  # Standard T5 learning rate
+    relative_step: false
+    warmup_init: false
+    scale_parameter: false
+    _partial_: true
+    # Override all AdamW parameters
+    betas: null
+    weight_decay: null
+  
+  # Standard T5 scheduler
+  scheduler:
+    _target_: transformers.optimization.get_inverse_sqrt_schedule
+    num_warmup_steps: 5000  # Warmup for ~10% of first epoch
+    _partial_: true
+
+callbacks:
+  model_checkpoint:
+    save_top_k: 5
+    monitor: "val/perplexity"
+    mode: "min"
+    save_last: true
+    every_n_train_steps: 10000  # Save every 10k steps
+    save_on_train_epoch_end: true  # Save after each epoch
+  early_stopping:
+    monitor: "val/loss"
+    mode: "min"
+    patience: 3  # Early stopping after 3 epochs without improvement
+    min_delta: 0.001
+    check_finite: false
+    verbose: true
+
+logger:
+  wandb:
+    group: "subset-epoch-method"
+    name: "subset-3epochs-4gpu-h100"
+    tags: ["subset-epoch", "3-epochs", "4gpu", "h100", "30pct-data"]
