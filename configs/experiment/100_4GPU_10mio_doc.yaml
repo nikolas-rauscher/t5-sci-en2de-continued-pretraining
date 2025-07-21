@@ -1,7 +1,7 @@
 # @package _global_
 
-# 4-GPU A100-80GB T5 Pre-training Configuration
-# Scaled 4-GPU run on 10M docs (final-nah hyperparams)
+# 4-GPU H100-80GB T5 Pre-training Configuration  
+# 200k step production run with deterministic resume
 
 defaults:
   - override /data: t5_pretraining_text_windows
@@ -10,9 +10,9 @@ defaults:
   - override /logger: wandb
   - override /callbacks: default
 
-experiment_name: t5_4gpu_10mdocs
+experiment_name: t5_4gpu_100k_val_optimized
 
-tags: ["t5-base", "4gpu", "text-windows", "a100", "10m-docs", "final-nah"]
+tags: ["t5-base", "4gpu", "text-windows", "h100", "200k-steps", "100k-val", "validation-optimized"]
 
 seed: 42
 
@@ -24,24 +24,28 @@ train: true
 data:
   batch_size: 48  # per-GPU batch size (80GB)
   limit_files: -1  # Use all files
-  limit_documents: -1  # 10M docs large-scale test
-  num_workers: 12  # total worker processes (distributed across ranks)
+  limit_documents: -1  # Use all 260M docs for representative sampling
+  train_val_split: [0.999615, 0.000385]  # 100k val docs (521 batches) for 200k step run
+  num_workers: 6   # per-GPU workers (total 24 across 4 GPUs) - reduced for memory efficiency
   prefetch_factor: 2          # modest; increase if input stalls
   persistent_workers: true    # avoid refork cost
+  seed: 42                    # Seed for reproducible shuffling and resume
 
 # 4-GPU distributed training settings (memory optimized)
 trainer:
-  max_epochs: 10  # step-based; control via max_steps
-  max_steps: -1  # train until all epochs complete
+  max_epochs: -1  # unlimited epochs for continued pretraining
+  max_steps: 200000  # ~2-3 weeks of training (SciFive baseline)
   precision: 16-mixed
-  accumulate_grad_batches: 2  # Effective batch = 48 * 4 * 2 = 384 (same eff batch as 2GPU×4accum)
+  accumulate_grad_batches: 2  # Effective batch = 48 * 4 * 2 = 384 (same eff batch as 4GPUx2accum)
   devices: 4
   accelerator: gpu
   strategy: ddp
-  gradient_clip_val: 1.0
-  check_val_every_n_epoch: null  # disable epoch-based val; using step interval
-  val_check_interval: 5000  # every 5k steps
+  gradient_clip_val: 0.5
+  check_val_every_n_epoch: null  # disable epoch-based validation
+  limit_val_batches: null  # ensure no validation limiting
+  val_check_interval: 2500  # every 2.5k steps (~35 points per 24h job, 41min interval)
   log_every_n_steps: 1
+  use_distributed_sampler: true  # CRITICAL: Don't override our custom sampler (Lightning 2.0+)
 
 model:
   t5_model:
@@ -49,7 +53,7 @@ model:
   
   optimizer:
     _target_: transformers.optimization.Adafactor
-    lr: 5e-4
+    lr: 1e-4
     relative_step: false
     warmup_init: false
     scale_parameter: false
@@ -60,27 +64,28 @@ model:
   
   scheduler:
     _target_: transformers.optimization.get_inverse_sqrt_schedule
-    num_warmup_steps: 2000  # scaled warmup for larger run
+    num_warmup_steps: 10000  # longer warmup for stability
     _partial_: true
 
 callbacks:
   model_checkpoint:
-    save_top_k: 3
+    filename: "step-{step:06d}-val_ppl-{val/perplexity:.3f}"
+    save_top_k: 10
     monitor: "val/perplexity"
     mode: "min"
     save_last: true
-    every_n_train_steps: 10000  # save every 10k steps (large run)
+    every_n_train_steps: 1000  # Recovery safety: max 1k steps loss
     save_on_train_epoch_end: false
   early_stopping:
     monitor: "val/loss"
     mode: "min"
-    patience: 5
-    min_delta: 0.0
+    patience: 40  # Higher patience for 200k step run (40 * 2.5k = 100k steps patience)
+    min_delta: 0.01  # More significant improvement required
     check_finite: false
     verbose: true
 
 logger:
   wandb:
-    group: "4gpu-10mdocs"
-    name: "t5-4gpu-10m-docs"
-    tags: ["4gpu", "a100", "text-windows", "10m-docs", "final-nah"]
+    group: "H100-4GPU"
+    name: "200k-100k-val-optimized-validation-260M-docs"
+    tags: ["200k-steps", "100k-val-docs", "521-val-batches", "val-2500-interval", "260M-sampling", "optimized"]
