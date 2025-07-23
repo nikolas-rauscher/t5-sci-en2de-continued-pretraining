@@ -19,16 +19,20 @@ import torch
 from lightning import LightningModule
 from torch.optim.optimizer import Optimizer
 from torchmetrics import MeanMetric
-from torchmetrics.text import Perplexity
 
 from transformers import get_cosine_with_hard_restarts_schedule_with_warmup
 
 from .components.t5_model import T5Model
 
+from src.utils.pylogger import RankedLogger
+
 try:
     import wandb
 except ImportError:
     wandb = None
+
+# Initialize logger
+logger = RankedLogger(__name__, rank_zero_only=True)
 
 
 class T5LitModule(LightningModule):
@@ -57,8 +61,7 @@ class T5LitModule(LightningModule):
         if tokenizer is not None and hasattr(tokenizer, 'pad_token_id') and tokenizer.pad_token_id is not None:
             final_ignore_index = tokenizer.pad_token_id
         
-        self.train_perplexity = Perplexity(ignore_index=final_ignore_index)
-        self.val_perplexity = Perplexity(ignore_index=final_ignore_index)
+        # Use efficient exp(loss) perplexity calculation for both train and validation
         
         # Token throughput tracking
         self.step_start_time = None
@@ -77,28 +80,27 @@ class T5LitModule(LightningModule):
         return self.model(**batch)
 
     def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int):  # type: ignore[override]
+        # DDP Debug: Log unique doc_ids per rank (only first few steps)  
+        if self.global_step < 5 and batch_idx == 0:
+            # Extract doc_ids from input_ids for debugging (simplified check)
+            sample_tokens = batch.get('input_ids', torch.tensor([]))[0][:5].tolist() if len(batch.get('input_ids', [])) > 0 else []
+            logger.info(f"[RANK {self.global_rank}] Step {self.global_step} sample_tokens: {sample_tokens}")
+        
         outputs = self.forward(**batch)
         loss = outputs.loss
 
         self.train_loss(loss)
         
-        # Calculate perplexity correctly using logits and labels
-        if hasattr(outputs, 'logits') and 'labels' in batch:
-            logits = outputs.logits  # Shape: [B, T, V]
-            labels = batch["labels"]  # Shape: [B, T]
-            
-            # TorchMetrics expects preds=[B, T, V], target=[B, T]
-            if len(logits.shape) == 3 and logits.shape[1] == labels.shape[1]:
-                self.train_perplexity(logits, labels)
+        # Calculate perplexity efficiently using exp(loss) instead of expensive softmax
+        # Note: For language modeling, perplexity = exp(cross_entropy_loss)
+        train_perplexity = torch.exp(loss.detach())  # Detach to avoid grad graph issues
         
         # Log loss per step AND per epoch
         self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True)
         self.log("train/loss_epoch", self.train_loss, on_step=False, on_epoch=True, prog_bar=False)
         
-        # Log perplexity - use simple exp(loss) for step, torchmetrics for epoch
-        perplexity_step = torch.exp(loss)
-        self.log("train/perplexity_step", perplexity_step, on_step=True, prog_bar=True)
-        self.log("train/perplexity_epoch", self.train_perplexity, on_step=False, on_epoch=True, prog_bar=False)
+        # Log perplexity - use efficient exp(loss) calculation  
+        self.log("train/perplexity", train_perplexity, on_step=True, on_epoch=True, prog_bar=True)
         
         current_lr = self.optimizers().param_groups[0]['lr']
         self.log("train/learning_rate", current_lr, on_step=True, prog_bar=True)
@@ -136,17 +138,15 @@ class T5LitModule(LightningModule):
 
         self.val_loss(loss)
         
-        # Calculate perplexity correctly using logits and labels
-        if hasattr(outputs, 'logits') and 'labels' in batch:
-            logits = outputs.logits  # Shape: [B, T, V]
-            labels = batch["labels"]  # Shape: [B, T]
-            
-            # TorchMetrics expects preds=[B, T, V], target=[B, T]
-            if len(logits.shape) == 3 and logits.shape[1] == labels.shape[1]:
-                self.val_perplexity(logits, labels)
+        # Debug: Check for NaN loss
+        if torch.isnan(loss):
+            print(f"WARNING: NaN loss detected at validation step {batch_idx}")
         
         self.log("val/loss", self.val_loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("val/perplexity", self.val_perplexity, on_step=False, on_epoch=True, prog_bar=True)
+        
+        # Calculate perplexity efficiently using exp(loss) - same as training
+        val_perplexity = torch.exp(self.val_loss.compute().detach())
+        self.log("val/perplexity", val_perplexity, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
             
         return loss
 

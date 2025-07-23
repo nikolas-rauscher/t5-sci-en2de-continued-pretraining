@@ -16,6 +16,11 @@ tags: ["t5-base", "4gpu", "text-windows", "h100", "200k-steps", "100k-val", "val
 
 seed: 42
 
+# Use separate directory for production training logs
+hydra:
+  run:
+    dir: pretraining_logs/train/runs/${now:%Y-%m-%d_%H-%M-%S}
+
 # Disable testing for pretraining
 test: false
 train: true
@@ -26,7 +31,7 @@ data:
   limit_files: -1  # Use all files
   limit_documents: -1  # Use all 260M docs for representative sampling
   train_val_split: [0.999615, 0.000385]  # 100k val docs (521 batches) for 200k step run
-  num_workers: 6   # per-GPU workers (total 24 across 4 GPUs) - reduced for memory efficiency
+  num_workers: 3   # per-GPU workers (total 12 across 4 GPUs) - optimized for fscratch I/O
   prefetch_factor: 2          # modest; increase if input stalls
   persistent_workers: true    # avoid refork cost
   seed: 42                    # Seed for reproducible shuffling and resume
@@ -43,7 +48,7 @@ trainer:
   gradient_clip_val: 0.5
   check_val_every_n_epoch: null  # disable epoch-based validation
   limit_val_batches: null  # ensure no validation limiting
-  val_check_interval: 2500  # every 2.5k steps (~35 points per 24h job, 41min interval)
+  val_check_interval: 5000  # every 2.5k optimization steps (~35 points per 24h job, 41min interval)
   log_every_n_steps: 1
   use_distributed_sampler: true  # CRITICAL: Don't override our custom sampler (Lightning 2.0+)
 
@@ -69,13 +74,28 @@ model:
 
 callbacks:
   model_checkpoint:
+    dirpath: "checkpoints/best/"
     filename: "step-{step:06d}-val_ppl-{val/perplexity:.3f}"
     save_top_k: 10
     monitor: "val/perplexity"
     mode: "min"
     save_last: true
-    every_n_train_steps: 1000  # Recovery safety: max 1k steps loss
     save_on_train_epoch_end: false
+    save_weights_only: false
+  step_checkpoint:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: "checkpoints/steps/"
+    filename: "step-{step:06d}"
+    every_n_train_steps: 5000  # Checkpoint every 2500 optimization steps (with accumulate_grad_batches: 2)
+    save_last: true
+    save_top_k: 10     # Keep last 10 step checkpoints (25k steps back)
+    monitor: "step"    # Monitor step number  
+    mode: "max"        # Keep highest step numbers (newest)
+    save_weights_only: false
+  timer:
+    _target_: lightning.pytorch.callbacks.Timer
+    duration: "00:23:55:00"  # Stop after 23h 55min (DD:HH:MM:SS format)
+    interval: "step"         # Stop at step level for continuous training
   early_stopping:
     monitor: "val/loss"
     mode: "min"
@@ -86,6 +106,6 @@ callbacks:
 
 logger:
   wandb:
-    group: "H100-4GPU"
-    name: "200k-100k-val-optimized-validation-260M-docs"
+    group: "H100-4GPU-final"
+    name: "final-200k-100k-val-2500steps-validation-260M-docs"
     tags: ["200k-steps", "100k-val-docs", "521-val-batches", "val-2500-interval", "260M-sampling", "optimized"]

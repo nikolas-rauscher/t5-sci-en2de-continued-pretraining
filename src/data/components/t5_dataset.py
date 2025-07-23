@@ -95,13 +95,16 @@ class T5ParquetDataset(Dataset):
 
 
 class T5MaterializedWindowDataset(Dataset):
-    """Text-only sliding windows dataset for efficient batch tokenization."""
+    """Text-only sliding windows dataset for efficient batch tokenization with resume support."""
     
     def __init__(self, parquet_files: List[str | Path], limit_documents: int = -1, max_cached_rowgroups: int = 2):
         super().__init__()
         
         self.base_dataset = T5ParquetDataset(parquet_files, max_cached_rowgroups)
         self._verify_text_windows()
+        
+        # Dataset length for external references (resume calculation)
+        self.total_dataset_length = len(self.base_dataset)
         
         # Apply document limit if specified
         self.limit_documents = limit_documents
@@ -163,7 +166,7 @@ class T5MaterializedWindowDataset(Dataset):
         return self.actual_length
     
     def __getitem__(self, idx: int) -> dict:
-        """Get text window - much faster than pre-tokenized version."""
+        """Get text window with resume support - exact sample position tracking."""
         
         if idx >= self.actual_length:
             raise IndexError(f"Index {idx} out of range for dataset of size {self.actual_length}")
@@ -172,7 +175,7 @@ class T5MaterializedWindowDataset(Dataset):
         if self.limit_documents > 0 and idx >= self.limit_documents:
             raise IndexError(f"Index {idx} exceeds document limit {self.limit_documents}")
         
-        # Get window data (direct access, no caching needed)
+        # Direct index access (no offset - handled by sampler)
         doc_data = self.base_dataset[idx]
         text = doc_data.get("text", "")
         metadata = doc_data.get("metadata", {})
@@ -193,7 +196,7 @@ class T5MaterializedWindowDataset(Dataset):
                     "window_idx": metadata.get("window_idx", 0),
                     "original_metadata": metadata.get("original_metadata", {})
                 }
-            except ValueError:
+            except (ValueError, AttributeError):
                 # Not pre-tokenized, treat as text
                 pass
         

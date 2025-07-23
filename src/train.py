@@ -84,7 +84,51 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
 
     if cfg.get("train"):
         log.info("Starting training!")
-        trainer.fit(model=model, datamodule=datamodule, ckpt_path=cfg.get("ckpt_path"))
+        
+        # Setup datamodule first 
+        datamodule.setup()
+        
+        # Auto-resume support: set sampler position if resuming from checkpoint
+        ckpt_path = cfg.get("ckpt_path")
+        if ckpt_path:
+            import torch
+            log.info(f"Resuming from checkpoint: {ckpt_path}")
+            
+            # Load checkpoint to get step count
+            checkpoint = torch.load(ckpt_path, map_location="cpu")
+            completed_steps = checkpoint.get("global_step", 0)
+            
+            # CRITICAL: Create train_dataloader to initialize sampler
+            train_loader = datamodule.train_dataloader()
+            
+            # Set sampler position for exact resume (NEW: sampler-based approach)
+            if hasattr(datamodule, 'train_sampler'):
+                samples_per_step = cfg.data.batch_size * cfg.trainer.devices * cfg.trainer.accumulate_grad_batches
+                total_samples_processed = completed_steps * samples_per_step
+                
+                # Set global start position in sampler
+                datamodule.train_sampler.set_global_start(total_samples_processed)
+                
+                # Calculate coverage for logging
+                if hasattr(datamodule, 'full_dataset'):
+                    total_length = datamodule.full_dataset.total_dataset_length
+                else:
+                    total_length = len(datamodule.train_dataset.dataset) if hasattr(datamodule.train_dataset, 'dataset') else len(datamodule.train_dataset)
+                
+                coverage_pct = (total_samples_processed / total_length) * 100
+                
+                log.info(f"Resume calculation: completed_steps={completed_steps}, "
+                        f"samples_per_step={samples_per_step}, total_samples_processed={total_samples_processed}")
+                log.info(f"Dataset coverage: {coverage_pct:.3f}% ({total_samples_processed}/{total_length})")
+                log.info(f"Sampler global start position: {total_samples_processed % total_length}")
+            else:
+                log.warning("No train_sampler found - resume may not be exact")
+        
+        # DEBUG: Check validation interval at runtime
+        log.info(f"DEBUG: trainer.val_check_interval = {trainer.val_check_interval}")
+        log.info(f"DEBUG: trainer.check_val_every_n_epoch = {trainer.check_val_every_n_epoch}")
+        
+        trainer.fit(model=model, datamodule=datamodule, ckpt_path=ckpt_path)
 
     train_metrics = trainer.callback_metrics
 

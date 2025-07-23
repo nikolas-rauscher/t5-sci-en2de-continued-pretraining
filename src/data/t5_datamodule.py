@@ -6,6 +6,7 @@ from typing import List, Tuple
 import torch
 from lightning import LightningDataModule
 from torch.utils.data import DataLoader, random_split
+from .components.deterministic_sampler import DeterministicGlobalSampler
 from transformers import (
     PreTrainedTokenizerFast,
     T5TokenizerFast,
@@ -35,6 +36,7 @@ class T5DataModule(LightningDataModule):
         use_materialized_windows: bool = True,  # Use materialized windows by default 
         limit_files: int = -1,
         limit_documents: int = -1,  # Limit total number of windows/documents
+        seed: int = 42,  # Seed for reproducible shuffling
     ) -> None:
         super().__init__()
 
@@ -83,6 +85,9 @@ class T5DataModule(LightningDataModule):
             parquet_files=parquet_files,
             limit_documents=self.hparams.limit_documents
         )
+        
+        # Store reference to full dataset for resume support
+        self.full_dataset = full_dataset
 
         # Compute split lengths
         train_ratio, val_ratio = self.hparams.train_val_split
@@ -106,6 +111,30 @@ class T5DataModule(LightningDataModule):
 
     # Dataloaders
     def train_dataloader(self): 
+        # Import here to avoid circular imports
+        import lightning as L
+        
+        # Get distributed info - handle both distributed and single GPU cases
+        if torch.distributed.is_available() and torch.distributed.is_initialized():
+            world_size = torch.distributed.get_world_size()
+            rank = torch.distributed.get_rank()
+        else:
+            # Single GPU or not yet initialized
+            world_size = 1  
+            rank = 0
+            
+        # CRITICAL: Use DeterministicGlobalSampler for exact resume support
+        sampler = DeterministicGlobalSampler(
+            dataset_length=len(self.train_dataset),
+            world_size=world_size,
+            rank=rank,
+            seed=self.hparams.seed,
+            drop_last=True
+        )
+        
+        # Store sampler reference for resume support
+        self.train_sampler = sampler
+        
         return DataLoader(
             self.train_dataset,
             batch_size=self.hparams.batch_size,
@@ -113,9 +142,8 @@ class T5DataModule(LightningDataModule):
             pin_memory=self.hparams.pin_memory,
             persistent_workers=self.hparams.persistent_workers,
             prefetch_factor=self.hparams.prefetch_factor,
-            shuffle=True,
+            sampler=sampler,
             collate_fn=self.collator,
-            drop_last=True,           # More consistent batch sizes
         )
 
     def val_dataloader(self): 
