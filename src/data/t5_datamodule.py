@@ -139,17 +139,15 @@ class T5DataModule(LightningDataModule):
             world_size = 1  
             rank = 0
             
-        # CRITICAL: Use DeterministicGlobalSampler for exact resume support
-        # IMPORTANT: Use FULL dataset length, not train split length for proper epoch calculation
+        # CRITICAL: Use DeterministicGlobalSampler for exact resume support  
+        # IMPORTANT: Must match the dataset we actually iterate over (train_dataset)
         sampler = DeterministicGlobalSampler(
-            dataset_length=len(self.full_dataset),  # Use full 260M, not train split (~65M)
+            dataset_length=len(self.train_dataset),  # Must match DataLoader dataset
             world_size=world_size,
             rank=rank,
             seed=self.hparams.seed,
             drop_last=True
-        )
-        
-        # Store sampler reference for resume support
+        )        # Store sampler reference for resume support
         self.train_sampler = sampler
         
         # DEBUG: Log dataset lengths for epoch calculation verification
