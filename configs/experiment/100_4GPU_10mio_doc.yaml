@@ -1,7 +1,7 @@
 # @package _global_
 
 # 4-GPU H100-80GB T5 Pre-training Configuration  
-# 200k step production run with deterministic resume
+# 600k step production run with deterministic resume
 
 defaults:
   - override /data: t5_pretraining_text_windows
@@ -12,7 +12,7 @@ defaults:
 
 experiment_name: t5_4gpu_100k_val_optimized
 
-tags: ["t5-base", "4gpu", "text-windows", "h100", "200k-steps", "100k-val", "validation-optimized"]
+tags: ["t5-base", "4gpu", "text-windows", "h100", "600k-steps", "100k-val", "validation-optimized"]
 
 seed: 42
 
@@ -30,7 +30,7 @@ data:
   batch_size: 48  # per-GPU batch size (80GB)
   limit_files: -1  # Use all files
   limit_documents: -1  # Use all 260M docs for representative sampling
-  train_val_split: [0.999615, 0.000385]  # 100k val docs (521 batches) for 200k step run
+  train_val_split: [0.999615, 0.000385]  # 100k val docs (521 batches) for 600k step run
   num_workers: 3   # per-GPU workers (total 12 across 4 GPUs) - optimized for fscratch I/O
   prefetch_factor: 2          # modest; increase if input stalls
   persistent_workers: true    # avoid refork cost
@@ -39,8 +39,8 @@ data:
 # 4-GPU distributed training settings (memory optimized)
 trainer:
   max_epochs: -1  # unlimited epochs for continued pretraining
-  max_steps: 200000  # ~2-3 weeks of training (SciFive baseline)
-  precision: 16-mixed
+  max_steps: 600000  # ~7 days of training at current pace
+  precision: bf16-mixed
   accumulate_grad_batches: 2  # Effective batch = 48 * 4 * 2 = 384 (same eff batch as 4GPUx2accum)
   devices: 4
   accelerator: gpu
@@ -99,7 +99,7 @@ callbacks:
   early_stopping:
     monitor: "val/loss"
     mode: "min"
-    patience: 40  # Higher patience for 200k step run (40 * 2.5k = 100k steps patience)
+    patience: 80  # Higher patience for 600k step run (80 * 2.5k = 200k steps patience)
     min_delta: 0.01  # More significant improvement required
     check_finite: false
     verbose: true
@@ -107,5 +107,5 @@ callbacks:
 logger:
   wandb:
     group: "H100-4GPU-final"
-    name: "final-200k-100k-val-2500steps-validation-260M-docs"
-    tags: ["200k-steps", "100k-val-docs", "521-val-batches", "val-2500-interval", "260M-sampling", "optimized"]
+    name: "final-600k-100k-val-2500steps-validation-260M-docs"
+    tags: ["600k-steps", "100k-val-docs", "521-val-batches", "val-2500-interval", "260M-sampling", "optimized"]

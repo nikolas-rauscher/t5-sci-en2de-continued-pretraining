@@ -6,6 +6,7 @@ from typing import List, Tuple
 import torch
 from lightning import LightningDataModule
 from torch.utils.data import DataLoader, random_split
+from lightning.fabric.utilities.types import _Stateful
 from .components.deterministic_sampler import DeterministicGlobalSampler
 from transformers import (
     PreTrainedTokenizerFast,
@@ -16,6 +17,21 @@ from transformers import (
 from .components.optimized_t5_collator import DataCollatorForT5MLM
 
 from .components.t5_dataset import T5ParquetDataset, T5MaterializedWindowDataset
+
+
+class StatefulDataLoader(DataLoader, _Stateful):
+    """DataLoader that implements Lightning's _Stateful interface for resumability."""
+    
+    def state_dict(self):
+        """Return state for checkpoint saving."""
+        if hasattr(self.sampler, 'get_state'):
+            return {'sampler_state': self.sampler.get_state()}
+        return {}
+    
+    def load_state_dict(self, state_dict):
+        """Load state from checkpoint."""
+        if 'sampler_state' in state_dict and hasattr(self.sampler, 'set_state'):
+            self.sampler.set_state(state_dict['sampler_state'])
 
 
 class T5DataModule(LightningDataModule):
@@ -124,8 +140,9 @@ class T5DataModule(LightningDataModule):
             rank = 0
             
         # CRITICAL: Use DeterministicGlobalSampler for exact resume support
+        # IMPORTANT: Use FULL dataset length, not train split length for proper epoch calculation
         sampler = DeterministicGlobalSampler(
-            dataset_length=len(self.train_dataset),
+            dataset_length=len(self.full_dataset),  # Use full 260M, not train split (~65M)
             world_size=world_size,
             rank=rank,
             seed=self.hparams.seed,
@@ -135,7 +152,19 @@ class T5DataModule(LightningDataModule):
         # Store sampler reference for resume support
         self.train_sampler = sampler
         
-        return DataLoader(
+        # DEBUG: Log dataset lengths for epoch calculation verification
+        from src.utils.pylogger import RankedLogger
+        log = RankedLogger(__name__, rank_zero_only=True)
+        log.info(f"Dataset length verification:")
+        log.info(f"  - Full dataset length: {len(self.full_dataset):,}")
+        log.info(f"  - Train split length: {len(self.train_dataset):,}")
+        log.info(f"  - Sampler dataset_length (used): {sampler.dataset_length:,}")
+        log.info(f"  - Sampler samples_per_rank: {sampler.samples_per_rank:,}")
+        log.info(f"  - Sampler len(): {len(sampler):,}")
+        log.info(f"  - Expected batches per epoch per rank: {len(sampler) // self.hparams.batch_size:,}")
+        log.info(f"  - Expected optimizer steps per epoch: {(len(sampler) // self.hparams.batch_size) // 2:,} (with accumulate=2)")
+        
+        return StatefulDataLoader(
             self.train_dataset,
             batch_size=self.hparams.batch_size,
             num_workers=self.hparams.num_workers,
@@ -157,4 +186,16 @@ class T5DataModule(LightningDataModule):
             shuffle=False,
             collate_fn=self.collator,
             drop_last=False,          # Keep all validation data
-        ) 
+        )
+
+    def state_dict(self) -> dict:
+        """Get datamodule state for Lightning resumability."""
+        state = {}
+        if hasattr(self, 'train_sampler'):
+            state['sampler_state'] = self.train_sampler.get_state()
+        return state
+    
+    def load_state_dict(self, state_dict: dict) -> None:
+        """Load datamodule state for Lightning resumability."""
+        if 'sampler_state' in state_dict and hasattr(self, 'train_sampler'):
+            self.train_sampler.set_state(state_dict['sampler_state']) 

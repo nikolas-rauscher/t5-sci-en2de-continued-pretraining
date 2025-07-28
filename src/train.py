@@ -98,6 +98,21 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
             checkpoint = torch.load(ckpt_path, map_location="cpu")
             completed_steps = checkpoint.get("global_step", 0)
             
+            # CRITICAL: Restore max_steps for Lightning progress bar (Lightning loses this on resume)
+            # NOTE: trainer.max_steps is read-only in newer Lightning versions, skip this fix
+            # if cfg.trainer.get("max_steps"):
+            #     trainer.max_steps = cfg.trainer.max_steps
+            #     log.info(f"Restored trainer.max_steps = {trainer.max_steps} for progress bar")
+            
+            # CRITICAL: Fix Lightning's epoch jumping bug on resume
+            # Lightning incorrectly increments current_epoch when resuming with StatefulDataLoader
+            # For step-based training (max_steps), we want to stay in epoch 0
+            # NOTE: Temporarily disabled to test dataset_length fix first
+            # log.info(f"Before epoch fix: trainer.current_epoch = {trainer.current_epoch}")
+            # trainer.current_epoch = 0
+            # trainer.fit_loop.epoch_loop.batch_progress.current.completed = completed_steps
+            # log.info(f"After epoch fix: trainer.current_epoch = {trainer.current_epoch} (corrected for step-based training)")
+            
             # CRITICAL: Create train_dataloader to initialize sampler
             train_loader = datamodule.train_dataloader()
             

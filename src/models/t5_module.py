@@ -264,6 +264,13 @@ class T5LitModule(LightningModule):
         step_end_time = time.time()
         step_duration = step_end_time - self.step_start_time
         
+        # Track recent step times for better ETA calculation (last 100 steps)
+        if not hasattr(self, 'recent_step_times'):
+            self.recent_step_times = []
+        self.recent_step_times.append(step_duration)
+        if len(self.recent_step_times) > 100:
+            self.recent_step_times.pop(0)
+        
         # Calculate tokens for this batch (across all GPUs)
         attention_mask = batch["attention_mask"]
         real_tokens = attention_mask.sum().item()
@@ -333,7 +340,11 @@ class T5LitModule(LightningModule):
         
         # Time estimates
         if steps_completed > 0:
-            avg_time_per_step = elapsed_time / steps_completed
+            # Use recent step timing instead of total elapsed time for more accurate ETA
+            if hasattr(self, 'recent_step_times') and len(self.recent_step_times) > 0:
+                avg_time_per_step = sum(self.recent_step_times) / len(self.recent_step_times)
+            else:
+                avg_time_per_step = elapsed_time / steps_completed
             eta_seconds = avg_time_per_step * steps_remaining
             eta_hours = eta_seconds / 3600
             eta_days = eta_hours / 24
