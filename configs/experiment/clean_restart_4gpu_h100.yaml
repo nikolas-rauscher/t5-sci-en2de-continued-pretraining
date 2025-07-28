@@ -1,0 +1,108 @@
+# @package _global_
+
+# 4-GPU H100-80GB T5 Pre-training Configuration  
+# 600k step production run with deterministic resume
+
+defaults:
+  - override /data: t5_pretraining_text_windows
+  - override /model: t5_base
+  - override /trainer: gpu
+  - override /logger: wandb
+  - override /callbacks: default
+
+experiment_name: t5_4gpu_clean_restart_fixed_sampler
+
+tags: ["t5-base", "4gpu", "text-windows", "h100", "600k-steps", "100k-val", "clean-restart", "fixed-sampler"]
+
+seed: 42
+
+# Use separate directory for production training logs
+hydra:
+  run:
+    dir: clean_restart_logs/train/runs/${now:%Y-%m-%d_%H-%M-%S}
+
+# Disable testing for pretraining
+test: false
+train: true
+
+# 4-GPU training settings (memory optimized)
+data:
+  batch_size: 48  # per-GPU batch size (80GB)
+  limit_files: -1  # Use all files
+  limit_documents: -1  # Use all 260M docs for representative sampling
+  train_val_split: [0.999615, 0.000385]  # 100k val docs (521 batches) for 600k step run
+  num_workers: 4   # per-GPU workers (total 16 across 4 GPUs) - optimized for 4x larger epochs
+  prefetch_factor: 2          # modest; increase if input stalls
+  persistent_workers: true    # avoid refork cost
+  seed: 42                    # Seed for reproducible shuffling and resume
+
+# 4-GPU distributed training settings (memory optimized)
+trainer:
+  max_epochs: -1  # unlimited epochs for continued pretraining
+  max_steps: 600000  # ~7 days of training at current pace
+  precision: bf16-mixed
+  accumulate_grad_batches: 2  # Effective batch = 48 * 4 * 2 = 384 (same eff batch as 4GPUx2accum)
+  devices: 4
+  accelerator: gpu
+  strategy: ddp
+  gradient_clip_val: 0.5
+  check_val_every_n_epoch: null  # disable epoch-based validation
+  limit_val_batches: null  # ensure no validation limiting
+  val_check_interval: 5000  # every 2.5k optimization steps (~35 points per 24h job, 41min interval)
+  log_every_n_steps: 1
+  use_distributed_sampler: false  # CRITICAL: Our DeterministicGlobalSampler already handles distribution
+
+model:
+  t5_model:
+    enable_gradient_checkpointing: true
+  
+  optimizer:
+    _target_: transformers.optimization.Adafactor
+    lr: 1e-4
+    relative_step: false
+    warmup_init: false
+    scale_parameter: false
+    _partial_: true
+    # Override all AdamW parameters to avoid inheritance
+    betas: null
+    weight_decay: null
+  
+  scheduler:
+    _target_: transformers.optimization.get_inverse_sqrt_schedule
+    num_warmup_steps: 15000  # longer warmup for full dataset diversity (2.5% of 600k steps)
+    _partial_: true
+
+callbacks:
+  model_checkpoint:
+    dirpath: "${hydra:runtime.output_dir}/checkpoints/best/"
+    filename: "step-{step:06d}-val_ppl-{val/perplexity:.3f}"
+    save_top_k: 10
+    monitor: "val/perplexity"
+    mode: "min"
+    save_last: true
+    save_on_train_epoch_end: false
+    save_weights_only: false
+  step_checkpoint:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: "${hydra:runtime.output_dir}/checkpoints/steps/"
+    filename: "step-{step:06d}"
+    every_n_train_steps: 5000  # Checkpoint every 2500 optimization steps (with accumulate_grad_batches: 2)
+    save_last: true
+    save_top_k: 10     # Keep last 10 step checkpoints (25k steps back)
+    monitor: "step"    # Monitor step number  
+    mode: "max"        # Keep highest step numbers (newest)
+    save_weights_only: false
+  early_stopping:
+    monitor: "val/loss"
+    mode: "min"
+    patience: 80  # Higher patience for 600k step run (80 * 2.5k = 200k steps patience)
+    min_delta: 0.01  # More significant improvement required
+    check_finite: false
+    verbose: true
+  rich_progress_bar: null  # Disable RichProgressBar to fix resume crash
+
+logger:
+  wandb:
+    group: "H100-4GPU-clean-restart"
+    name: "clean-restart-600k-15k-warmup-fixed-sampler-260M-docs"
+    tags: ["600k-steps", "100k-val-docs", "15k-warmup", "fixed-sampler", "clean-restart", "260M-full-diversity"]
