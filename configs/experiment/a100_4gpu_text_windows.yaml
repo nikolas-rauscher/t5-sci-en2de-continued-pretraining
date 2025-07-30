@@ -23,9 +23,11 @@ test: false
 # ------------------------------------------------------------------
 data:
   batch_size: 48          # pro GPU (global ~200 bei 4 GPUs; adjust via CLI wenn nötig)
-  limit_files: 100000            # -1 = alle Dateien; großer Dummywert verhinderte z.T. Start
+  limit_files: -1 #100000            # -1 = alle Dateien; großer Dummywert verhinderte z.T. Start
   limit_documents: -1     # GANZES Korpus
-  num_workers: 60         # pro Prozess; bei 4 Ranks => 48 Loader-Worker gesamt
+  num_workers: 12         # pro Prozess; bei 4 Ranks => 24 Loader-Worker gesamt
+  persistent_workers: true  # Keep workers alive between epochs
+  prefetch_factor: 4        # Prefetch 8 batches per worker (aggressive)
   use_materialized_windows: true
 
 # ------------------------------------------------------------------
@@ -36,8 +38,8 @@ trainer:
   devices: 4
   strategy: ddp            # Lightning wählt LightningDistributedStrategy
   precision: 16-mixed
-  max_steps: 115000        # ≈10 B Tokens bei 192 seq / step
-  max_epochs: 20           # Schritte steuern Laufzeit
+  max_steps: null #115000        # ≈10 B Tokens bei 192 seq / step
+  max_epochs: 2           # Schritte steuern Laufzeit
   accumulate_grad_batches: 1   # 48 × 4 GPUs = 192 → wie Debug-Effektivbatch
   gradient_clip_val: 1.0
   log_every_n_steps: 1

@@ -1,7 +1,7 @@
 _target_: src.data.t5_datamodule.T5DataModule
 
-# Using materialized text-based sliding windows 
-data_dir: /fscratch/nrauscher/projects/BA-hydra/data/cleaned_sliding_windows/text_2025-07-14
+# Using validated materialized text-based sliding windows 
+data_dir: /fscratch/nrauscher/projects/BA-hydra/data/validated_sliding_windows/validated
 
 tokenizer_name_or_path: t5-base
 

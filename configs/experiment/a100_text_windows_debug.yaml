@@ -12,31 +12,28 @@ defaults:
 
 experiment_name: t5_debug_a100_text_windows
 
-tags: ["t5-base", "debug", "text-windows", "a100", "lr-5e-4"]
+tags: ["t5-base", "debug", "text-windows", "a100", "lr-5e-4", "20k-docs", "val-check-0.25"]
 
 seed: 42
-
-# Disable testing for pretraining
 test: false
 train: true
 
-# A100-80GB optimized scale for extensive testing
 data:
-  batch_size: 48  # Push memory limits - utilize ~70-75GB VRAM
-  limit_files: -1  # 5 files for reasonable data diversity
-  limit_documents: 20000  # 20K documents for fast but meaningful testing (~5-7 min per epoch)
-  num_workers: 60  # Fewer workers for smaller dataset
+  batch_size: 48
+  limit_files: -1
+  limit_documents: 20000        # echtes Debug-Sample (vorher 2k)
+  num_workers: 60
 
 trainer:
-  max_epochs: 10  # 3 epochs for quick but meaningful testing
+  max_epochs: 11                # Multi-Epochen-Test
   precision: 16-mixed
-  accumulate_grad_batches: 4  # Effective batch = 48*4 = 192 (optimal for T5)
+  accumulate_grad_batches: 1 # war 4 
   devices: 1
   gradient_clip_val: 1.0
   check_val_every_n_epoch: 1
-  max_steps: -1
-  val_check_interval: 0.1  # Validate twice per epoch
-  log_every_n_steps: 1     # Log every 5 steps for cleaner logs
+  max_steps: -1                  # kein Step-Cap
+  val_check_interval: 0.25        # ~2x pro Epoche (statt 10x)
+  log_every_n_steps: 1          # weniger Spam, noch fein
 
 model:
   t5_model:
@@ -49,24 +46,23 @@ model:
     warmup_init: false
     scale_parameter: false
     _partial_: true
-    # Override all AdamW parameters to avoid inheritance
     betas: null
     weight_decay: null
   
   scheduler:
     _target_: transformers.optimization.get_inverse_sqrt_schedule
-    num_warmup_steps: 100  # ~30% of one epoch (100 steps per epoch)
+    num_warmup_steps: 100        # ~1 Epoche (bleibt final-nah fürs Verhalten)
     _partial_: true
 
 callbacks:
   model_checkpoint:
-    save_top_k: 3  # Save top 3 models
+    save_top_k: 3
     monitor: "val/perplexity"
     mode: "min"
     save_last: true
     every_n_epochs: 1
     save_on_train_epoch_end: true
-  
+
   early_stopping:
     monitor: val/perplexity
     mode: min
@@ -77,5 +73,5 @@ callbacks:
 logger:
   wandb:
     group: "debug-a100-text-windows"
-    name: "t5-debug-a100-text-windows-lr-5e-4-2k-docs"
-    tags: ["debug", "a100", "text-windows", "lr-5e-4", "2k-docs"]
+    name: "t5-debug-a100-text-windows-lr-5e-4-20k-docs"
+    tags: ["debug", "a100", "text-windows", "lr-5e-4", "20k-docs"]
