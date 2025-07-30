@@ -162,4 +162,6 @@ doc/temp_docs/*
 wandb/*
 .venv_pretraining/*
 
-pretraining_logs/
+pretraining_logs/*
+temp_code/*
+clean_restart_logs/*
