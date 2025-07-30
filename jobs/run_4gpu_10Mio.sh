@@ -1,22 +1,22 @@
 #!/bin/bash
-#SBATCH --job-name=fixed_4gpu_H100_production
+#SBATCH --job-name=t5_4gpu_test
 #SBATCH --partition=H100-PCI,H100-SLT,H200
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=4
 #SBATCH --gres=gpu:4
 #SBATCH --cpus-per-task=12
 #SBATCH --mem=600G
-#SBATCH --time=24:00:00
+#SBATCH --time=4:00:00
 
-#SBATCH --output=/netscratch/nrauscher/projects/BA-hydra/logs/slurm_%j_fixed_4gpu_H100_production.out
-#SBATCH --error=/netscratch/nrauscher/projects/BA-hydra/logs/slurm_%j_fixed_4gpu_H100_production.err
+#SBATCH --output=/netscratch/nrauscher/projects/BA-hydra/logs/slurm_%j_4gpu_10mio.out
+#SBATCH --error=/netscratch/nrauscher/projects/BA-hydra/logs/slurm_%j_4gpu_10mio.err
 
 # =============================================================================
-# FINAL 4-GPU H100/H200 T5 200k Steps Production Run - Bachelor Thesis
+# 4-GPU A100-80GB T5 Pre-training Test - Config Validation
 # =============================================================================
 
 echo "=============================================="
-echo "Starting FIXED 4-GPU H100/H200 Production Run"
+echo "Starting 4-GPU T5 Pre-training Test"
 echo "Job ID: $SLURM_JOB_ID"
 echo "Node: $SLURM_NODELIST"  
 echo "Start time: $(date)"
@@ -87,6 +87,6 @@ echo "Final GPU memory status:"
 nvidia-smi --query-gpu=name,memory.used,memory.free --format=csv
 
 echo "Test completed. Check logs at:"
-echo "- SLURM logs: /netscratch/nrauscher/projects/BA-hydra/logs/slurm_${SLURM_JOB_ID}_fixed_4gpu_H100_production.*"
+echo "- SLURM logs: /netscratch/nrauscher/projects/BA-hydra/logs/slurm_${SLURM_JOB_ID}_4gpu_10mio.*"
 echo "- Training logs: outputs/[timestamp]/logs/"
 echo "- Wandb: https://wandb.ai/[your-username]/BA-thesis-t5-final-runs"

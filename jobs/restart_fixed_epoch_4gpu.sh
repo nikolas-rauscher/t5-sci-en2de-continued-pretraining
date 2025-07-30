@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=fixed_4gpu_H100_production
+#SBATCH --job-name=restart_fixed_epoch_4gpu
 #SBATCH --partition=H100-PCI,H100-SLT,H200
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=4
@@ -8,18 +8,20 @@
 #SBATCH --mem=600G
 #SBATCH --time=24:00:00
 
-#SBATCH --output=/netscratch/nrauscher/projects/BA-hydra/logs/slurm_%j_fixed_4gpu_H100_production.out
-#SBATCH --error=/netscratch/nrauscher/projects/BA-hydra/logs/slurm_%j_fixed_4gpu_H100_production.err
+#SBATCH --output=/netscratch/nrauscher/projects/BA-hydra/logs/slurm_%j_restart_fixed_epoch_4gpu.out
+#SBATCH --error=/netscratch/nrauscher/projects/BA-hydra/logs/slurm_%j_restart_fixed_epoch_4gpu.err
 
 # =============================================================================
-# FINAL 4-GPU H100/H200 T5 200k Steps Production Run - Bachelor Thesis
+# RESTART with Fixed DataLoader Resume from Step 145k - Correct Epochs
 # =============================================================================
 
 echo "=============================================="
-echo "Starting FIXED 4-GPU H100/H200 Production Run"
+echo "Starting RESTART with Fixed DataLoader Resume"
 echo "Job ID: $SLURM_JOB_ID"
 echo "Node: $SLURM_NODELIST"  
 echo "Start time: $(date)"
+echo "Restarting from: step-145000.ckpt"
+echo "Expected: Correct Epoch 0 display"
 echo "=============================================="
 
 # Check if fscratch is mounted
@@ -28,12 +30,22 @@ if [ ! -d "/fscratch" ]; then
     exit 1
 fi
 
-if [ ! -d "/fscratch/nrauscher/projects/BA-hydra/data/cleaned_sliding_windows/text_2025-07-14" ]; then
+if [ ! -d "/fscratch/nrauscher/projects/BA-hydra/data/validated_sliding_windows/validated" ]; then
     echo "ERROR: Training data not found"
     exit 1
 fi
 
 echo "✅ fscratch mounted and data accessible"
+
+# Check if checkpoint exists
+CHECKPOINT_PATH="pretraining_logs/train/runs/2025-07-24_02-18-57/checkpoints/steps/last.ckpt"
+if [ ! -f "$CHECKPOINT_PATH" ]; then
+    echo "ERROR: Checkpoint not found: $CHECKPOINT_PATH"
+    exit 1
+fi
+
+echo "✅ Checkpoint found: $CHECKPOINT_PATH"
+RESUME_CMD="ckpt_path=$CHECKPOINT_PATH"
 echo ""
 
 # Critical environment variables for GPU visibility
@@ -60,12 +72,13 @@ echo "GPUs available: $(python -c 'import torch; print(torch.cuda.device_count()
 nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv
 echo "=============================================="
 
-# Run T5 pre-training test with 4-GPU configuration
-echo "Starting T5 training test with 4-GPU configuration..."
+# Run T5 pre-training with fixed DataLoader resume
+echo "Starting T5 training with FIXED DataLoader resume..."
 echo "Configuration: configs/experiment/100_4GPU_10mio_doc.yaml"
-echo "Expected duration: <30 minutes"
-echo "Target: 1 epoch over 10k samples"
+echo "Resume from: step-145000.ckpt (before epoch bug)"
+echo "Target: 600k steps with correct epoch counting"
 echo "Effective batch size: 384 (48*4*2)"
+echo "Expected: Epoch 0 display, correct progression"
 
 srun -K \
     --container-image=/netscratch/nrauscher/containers/hydra_pytorch_25.05.25-final.sqsh \
@@ -73,12 +86,12 @@ srun -K \
     --container-workdir=/netscratch/nrauscher/projects/BA-hydra \
     /bin/bash -c "
         source .venv_pretraining/bin/activate && \
-        python src/train.py experiment=100_4GPU_10mio_doc trainer.log_every_n_steps=1
+        python src/train.py experiment=100_4GPU_10mio_doc trainer.log_every_n_steps=1 $RESUME_CMD
     "
 
 # Log completion
 echo "=============================================="
-echo "Test completed at: $(date)"
+echo "Training completed at: $(date)"
 echo "Exit code: $?"
 echo "=============================================="
 
@@ -86,7 +99,7 @@ echo "=============================================="
 echo "Final GPU memory status:"
 nvidia-smi --query-gpu=name,memory.used,memory.free --format=csv
 
-echo "Test completed. Check logs at:"
-echo "- SLURM logs: /netscratch/nrauscher/projects/BA-hydra/logs/slurm_${SLURM_JOB_ID}_fixed_4gpu_H100_production.*"
-echo "- Training logs: outputs/[timestamp]/logs/"
-echo "- Wandb: https://wandb.ai/[your-username]/BA-thesis-t5-final-runs"
+echo "Training completed. Check logs at:"
+echo "- SLURM logs: /netscratch/nrauscher/projects/BA-hydra/logs/slurm_${SLURM_JOB_ID}_restart_fixed_epoch_4gpu.*"
+echo "- Training logs: pretraining_logs/train/runs/[timestamp]/"
+echo "- Wandb: Check for correct epoch progression starting from Epoch 0"
