@@ -21,7 +21,7 @@ echo "=============================================="
 # Function to find latest checkpoint
 find_latest_checkpoint() {
     # Find all pretraining run directories
-    RUN_DIRS=$(find pretraining_logs/train/runs -name "20*" -type d 2>/dev/null | sort -r)
+    RUN_DIRS=$(find clean_restart_logs/train/runs -name "20*" -type d 2>/dev/null | sort -r)
     
     if [[ -n "$RUN_DIRS" ]]; then
         # Try each run directory from newest to oldest
@@ -37,7 +37,7 @@ find_latest_checkpoint() {
         done
         
         # Fallback: find latest numbered checkpoint
-        LATEST_CKPT=$(find pretraining_logs/train/runs -name "step-*.ckpt" 2>/dev/null | sort -V | tail -1)
+        LATEST_CKPT=$(find clean_restart_logs/train/runs -name "step-*.ckpt" 2>/dev/null | sort -V | tail -1)
         echo "$LATEST_CKPT"
     fi
 }
@@ -71,7 +71,7 @@ export PYTHONFAULTHANDLER=1
 cd /netscratch/nrauscher/projects/BA-hydra
 
 echo "Starting T5 training with smart resume..."
-echo "Configuration: configs/experiment/100_4GPU_10mio_doc.yaml"
+echo "Configuration: configs/experiment/clean_restart_4gpu_h100.yaml"
 echo "Effective batch size: 384 (48*4*2)"
 
 srun -K \
@@ -80,7 +80,7 @@ srun -K \
     --container-workdir=/netscratch/nrauscher/projects/BA-hydra \
     /bin/bash -c "
         source .venv_pretraining/bin/activate && \
-        python src/train.py experiment=100_4GPU_10mio_doc trainer.log_every_n_steps=1 $RESUME_CMD
+        python src/train.py experiment=clean_restart_4gpu_h100 trainer.log_every_n_steps=1 $RESUME_CMD
     "
 
 echo "=============================================="
