@@ -6,6 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
+# Downloaded datasets and cache
+data/mmlu_datasets/
+data/huggingface_cache/
+
 # Distribution / packaging
 .Python
 build/
@@ -165,3 +169,6 @@ wandb/*
 pretraining_logs/*
 temp_code/*
 clean_restart_logs/*
+.venv_eval/*
+scifive_style_logs/*
+scifive_style_lr002_logs/*
