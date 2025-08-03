@@ -1,0 +1,107 @@
+# @package _global_
+
+# SciFive-Style with Higher LR Test - 4-GPU H100-80GB Configuration  
+# Testing higher lr=0.002 (2x SciFive's 0.001) for potentially faster convergence
+
+defaults:
+  - override /data: t5_pretraining_text_windows
+  - override /model: t5_base
+  - override /trainer: gpu
+  - override /logger: wandb
+  - override /callbacks: default
+
+experiment_name: t5_4gpu_scifive_style_lr002_test
+
+tags: ["t5-base", "4gpu", "text-windows", "h100", "600k-steps", "scifive-style", "constant-lr-0.002", "lr-experiment"]
+
+seed: 42
+
+# Use separate directory for higher LR test
+hydra:
+  run:
+    dir: scifive_style_lr002_logs/train/runs/${now:%Y-%m-%d_%H-%M-%S}
+
+# Disable testing for pretraining
+test: false
+train: true
+
+# 4-GPU training settings (same as current run)
+data:
+  batch_size: 48  # per-GPU batch size (80GB)
+  limit_files: -1  # Use all files
+  limit_documents: -1  # Use all 260M docs for representative sampling
+  train_val_split: [0.999615, 0.000385]  # 100k val docs for comparison
+  num_workers: 4   # per-GPU workers (total 16 across 4 GPUs)
+  prefetch_factor: 2
+  persistent_workers: true
+  seed: 42  # Same seed for fair comparison
+
+# 4-GPU distributed training settings (same as current run)
+trainer:
+  max_epochs: -1  # unlimited epochs for continued pretraining
+  max_steps: 600000  # same 600k steps for comparison
+  precision: bf16-mixed
+  accumulate_grad_batches: 2  # Effective batch = 48 * 4 * 2 = 384
+  devices: 4
+  accelerator: gpu
+  strategy: ddp
+  gradient_clip_val: 0.5
+  check_val_every_n_epoch: null
+  limit_val_batches: null
+  val_check_interval: 5000  # every 2.5k optimization steps
+  log_every_n_steps: 1
+  use_distributed_sampler: false  # Our DeterministicGlobalSampler handles distribution
+
+model:
+  t5_model:
+    enable_gradient_checkpointing: true
+  
+  # HIGHER LEARNING RATE EXPERIMENT
+  optimizer:
+    _target_: transformers.optimization.Adafactor
+    lr: 0.002  # 2x SciFive's learning rate for faster convergence test
+    relative_step: false
+    warmup_init: false
+    scale_parameter: false
+    _partial_: true
+    # Override all AdamW parameters to avoid inheritance
+    betas: null
+    weight_decay: null
+  
+  # NO SCHEDULER - keeping SciFive's constant learning rate approach
+  scheduler: null
+
+callbacks:
+  model_checkpoint:
+    dirpath: "${hydra:runtime.output_dir}/checkpoints/best/"
+    filename: "step-{step:06d}-val_ppl-{val/perplexity:.3f}"
+    save_top_k: 10
+    monitor: "val/perplexity"
+    mode: "min"
+    save_last: true
+    save_on_train_epoch_end: false
+    save_weights_only: false
+  step_checkpoint:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: "${hydra:runtime.output_dir}/checkpoints/steps/"
+    filename: "step-{step:06d}"
+    every_n_train_steps: 5000  # Checkpoint every 2500 optimization steps
+    save_last: true
+    save_top_k: 10
+    monitor: "step"
+    mode: "max"
+    save_weights_only: false
+  early_stopping:
+    monitor: "val/loss"
+    mode: "min"
+    patience: 80  # Same patience as current run
+    min_delta: 0.01
+    check_finite: false
+    verbose: true
+  rich_progress_bar: null  # Disable RichProgressBar to fix resume crash
+
+logger:
+  wandb:
+    group: "H100-4GPU-SciFive-Style-LR002"
+    name: "scifive-style-constant-lr-0.002-600k-steps"
+    tags: ["600k-steps", "scifive-style", "constant-lr-0.002", "lr-experiment", "2x-scifive-lr", "no-scheduler"]

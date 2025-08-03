@@ -75,7 +75,7 @@ model:
 callbacks:
   model_checkpoint:
     dirpath: "${hydra:runtime.output_dir}/checkpoints/best/"
-    filename: "step-{step:06d}-val_ppl-{val/perplexity:.3f}"
+    filename: "step-{step:06d}-val_ppl-{val/perplexity:.5f}"
     save_top_k: 10
     monitor: "val/perplexity"
     mode: "min"
