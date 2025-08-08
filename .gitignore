@@ -172,3 +172,5 @@ clean_restart_logs/*
 .venv_eval/*
 scifive_style_logs/*
 scifive_style_lr002_logs/*
+evaluation/logs/*
+scifive_style_v2_logs/*

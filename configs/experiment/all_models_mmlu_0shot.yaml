@@ -1,0 +1,31 @@
+# @package _global_
+
+# All Trained Models MMLU Comparison - 0-shot only (to verify SciQ issue)
+
+experiment_name: "all_models_mmlu_0shot_comparison"
+description: "Comparing all trained models on MMLU benchmark to verify SciQ results (0-shot only)"
+
+models:
+  # T5 Base Baseline
+  - source_path: "t5-base"
+    
+  # T5 Base Pretrained
+  - source_path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/best/step-285000-val_ppl-1.401.ckpt"
+    
+  # SciFive Style Models (subset for quick test)
+  - source_path: "/netscratch/nrauscher/projects/BA-hydra/scifive_style_logs/train/runs/2025-08-01_20-57-52/checkpoints/best/step-075000-val_ppl-1.397.ckpt"
+    
+  - source_path: "/netscratch/nrauscher/projects/BA-hydra/scifive_style_logs/train/runs/2025-08-02_22-04-12/checkpoints/best/step-152500-val_ppl-1.387.ckpt"
+
+benchmarks:
+  - name: "mmlu"
+    shots: [0]
+    extra_args:
+      limit: 100  # Quick test - just 100 samples
+
+logger:
+  wandb:
+    project: "BA-T5-Evaluation"
+    entity: "nikolas-rauscher-dfki"
+    group: "MMLU-vs-SciQ-Debug"
+    tags: ["debug", "mmlu", "0shot", "limited"]

@@ -1,0 +1,40 @@
+# @package _global_
+
+# All Trained Models SciQ Comparison - 0-shot only
+# Metadata extracted automatically from checkpoints
+
+experiment_name: "all_models_sciq_0shot_comparison"
+description: "Comparing all trained models on SciQ benchmark: T5-base, pretrained, and all SciFive-style variants (0-shot only)"
+
+models:
+  # T5 Base Baseline
+  - source_path: "t5-base"
+    # → "t5-base"
+    
+  # T5 Base Pretrained
+  - source_path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/best/step-285000-val_ppl-1.401.ckpt"
+    # → "t5_base_pretrained_step285k_ppl1401"
+    
+  # SciFive Style Models
+  - source_path: "/netscratch/nrauscher/projects/BA-hydra/scifive_style_logs/train/runs/2025-08-01_20-57-52/checkpoints/best/step-075000-val_ppl-1.397.ckpt"
+    # → "scifive_style_75k_ppl1397"
+    
+  - source_path: "/netscratch/nrauscher/projects/BA-hydra/scifive_style_logs/train/runs/2025-08-02_22-04-12/checkpoints/best/step-152500-val_ppl-1.387.ckpt"
+    # → "scifive_style_152k_ppl1387"
+    
+  - source_path: "/netscratch/nrauscher/projects/BA-hydra/scifive_style_lr002_logs/train/runs/2025-08-02_20-59-01/checkpoints/best/step-075000-val_ppl-1.400.ckpt"
+    # → "scifive_style_lr002_75k_ppl1400"
+    
+  - source_path: "/netscratch/nrauscher/projects/BA-hydra/scifive_style_v2_logs/train/runs/2025-08-03_18-44-38/checkpoints/best/step-012500-val_ppl-1.427.ckpt"
+    # → "scifive_style_v2_12k_ppl1427" (gradient clip 1.0)
+
+benchmarks:
+  - name: "sciq"
+    shots: [0]
+
+logger:
+  wandb:
+    project: "BA-T5-Evaluation"
+    entity: "nikolas-rauscher-dfki"
+    group: "All-Models-SciQ-0shot"
+    tags: ["all-models", "sciq", "0shot", "comparison"]

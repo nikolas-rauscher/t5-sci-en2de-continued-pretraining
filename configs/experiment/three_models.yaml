@@ -1,0 +1,30 @@
+# @package _global_
+
+# Three Model Comparison - Super simplified config
+# Metadata extracted automatically from checkpoints
+
+experiment_name: "three_models_comparison"
+description: "Comparing t5-base vs pretrained-285k vs SciFive-style checkpoint"
+
+models:
+  # Namen automatisch aus Ordnerstruktur + Val-Perplexity generiert
+  - source_path: "t5-base"
+    # → "t5-base"
+    
+  - source_path: "evaluation/models/t5-base-pretrained-step285k"  
+    # → "t5_base_pretrained_285k" (keine val_ppl in path)
+    
+  - source_path: "scifive_style_logs/train/runs/2025-08-01_20-57-52/checkpoints/best/step-075000-val_ppl-1.397.ckpt"
+    # → "scifive_style_75k_ppl1397"
+
+benchmarks:
+  - name: "mmlu"
+    shots: [0, 5]
+  - name: "sciq"
+    shots: [0, 5]
+
+logger:
+  wandb:
+    project: "BA-T5-Evaluation"
+    entity: "nikolas-rauscher-dfki"
+    tags: ["three-models", "mmlu", "comparison"]

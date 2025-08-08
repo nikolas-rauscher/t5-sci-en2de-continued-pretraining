@@ -1,0 +1,21 @@
+# @package _global_
+
+# SciQ Test - T5-base only with limit
+experiment_name: "sciq_test_t5base"
+description: "Testing SciQ benchmark with T5-base only (limited samples)"
+
+models:
+  - source_path: "t5-base"
+    # → "t5-base"
+
+benchmarks:
+  - name: "sciq"
+    shots: [0, 5]
+    extra_args:
+      limit: 100  # Only test 100 samples first
+
+logger:
+  wandb:
+    project: "BA-T5-Evaluation"
+    entity: "nikolas-rauscher-dfki"
+    tags: ["sciq-test", "t5-base", "limited", "test"]

@@ -1,0 +1,33 @@
+# @package _global_
+
+# Final Comprehensive MMLU Test - T5-optimized vs Standard templates
+experiment_name: "final_mmlu_comprehensive"
+description: "Comprehensive MMLU evaluation: T5-optimized prompts vs standard templates on all models"
+
+models:
+  # Baseline comparison
+  - source_path: "t5-base"
+    
+  # Best SciFive model  
+  - source_path: "/netscratch/nrauscher/projects/BA-hydra/scifive_style_logs/train/runs/2025-08-02_22-04-12/checkpoints/best/step-152500-val_ppl-1.387.ckpt"
+    
+  # Clean restart model
+  - source_path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/best/step-285000-val_ppl-1.401.ckpt"
+
+benchmarks:
+  # T5-optimized template
+  - name: "t5_base_mmlu"  
+    shots: [0]
+    extra_args:
+      include_path: "custom_tasks"
+      
+  # Standard MMLU template for comparison
+  - name: "mmlu"
+    shots: [0]
+
+logger:
+  wandb:
+    project: "BA-T5-Evaluation"
+    entity: "nikolas-rauscher-dfki"
+    group: "Final-MMLU-Analysis"
+    tags: ["comprehensive", "t5-optimized", "standard-template", "final-comparison", "0shot"]
