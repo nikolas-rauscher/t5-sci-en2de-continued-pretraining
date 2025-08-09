@@ -417,7 +417,7 @@ class BenchmarkRunner:
             
             # Build command
             cmd = self._build_evaluation_command(
-                model_path, benchmark_config, shot, output_dir
+                model_path, model_name, benchmark_config, shot, output_dir
             )
             
             # Run evaluation
@@ -488,7 +488,7 @@ class BenchmarkRunner:
                 
         return results
     
-    def _build_evaluation_command(self, model_path: str, benchmark_config: Dict, 
+    def _build_evaluation_command(self, model_path: str, model_name: str, benchmark_config: Dict, 
                                 shots: int, output_dir: Path) -> List[str]:
         """Build the evaluation command for lm-eval with native W&B integration"""
         
@@ -509,8 +509,8 @@ class BenchmarkRunner:
         
         # ✅ NATIVE W&B INTEGRATION - Syntax validated and working!
         if self.cfg.logger.get('wandb', {}).get('project'):
-            # Extract model name from path for W&B run naming
-            model_name_for_wandb = Path(model_path).name if '/' in model_path else model_path
+            # Use the actual model name from config for W&B run naming
+            model_name_for_wandb = model_name
             
             # Build W&B args using the validated comma-separated syntax
             wandb_args_parts = [
