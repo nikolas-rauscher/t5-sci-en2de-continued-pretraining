@@ -1,0 +1,35 @@
+# @package _global_
+
+experiment_name: "final_three_runs_clp_candidates"
+description: "MMLU evaluation of best checkpoints from all three final training runs for CLP-Transfer selection"
+
+models:
+  # Original baseline models
+  - source_path: "t5-base"
+    name: "t5-base-original"
+    
+  - source_path: "google/flan-t5-base"  
+    name: "flan-t5-base-original"
+    
+  # Our continued pretraining models
+  - source_path: "flan_t5_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_16-11-27/checkpoints/best/step-237500-val_ppl-1.36184.ckpt"
+    name: "run5-flan-t5-237k-lr001"
+    
+  - source_path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_21-54-58/checkpoints/best/step-267500-val_ppl-1.37970.ckpt"
+    name: "run4-t5-pretrained-267k-lr001"
+    
+  - source_path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-665000-val_ppl-1.39532.ckpt"
+    name: "run1-t5-conservative-665k-lr0001"
+
+benchmarks:
+  - name: "mmlu"
+    shots: [0, 5]
+
+# W&B logging configuration
+logger:
+  wandb:
+    project: "BA-T5-Evaluation"
+    entity: "nikolas-rauscher-dfki"
+    group: "Final-CLP-Candidates"
+    name: "final_three_runs_mmlu"
+    tags: ["final-models", "clp-candidates", "mmlu-evaluation"]
