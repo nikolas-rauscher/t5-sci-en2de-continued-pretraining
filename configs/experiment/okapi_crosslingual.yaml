@@ -24,11 +24,13 @@ benchmarks:
   - name: "okapi_mmlu_en"
     tasks: ["m_mmlu_en"]
     shots: [0, 5]
+    seed: 42
 
   # OKAPI MMLU German
   - name: "okapi_mmlu_de"
     tasks: ["m_mmlu_de"]
     shots: [0, 5]
+    seed: 42
 
 # W&B logging configuration
 logger:
