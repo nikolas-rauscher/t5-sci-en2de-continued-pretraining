@@ -1,7 +1,7 @@
 # @package _global_
 
 # 4-GPU H100-80GB T5 Pre-training Configuration  
-# 600k step production run with deterministic resume
+# Full epoch production run with deterministic resume
 
 defaults:
   - override /data: t5_pretraining_text_windows
@@ -12,7 +12,7 @@ defaults:
 
 experiment_name: t5_4gpu_clean_restart_fixed_sampler
 
-tags: ["t5-base", "4gpu", "text-windows", "h100", "600k-steps", "100k-val", "clean-restart", "fixed-sampler"]
+tags: ["t5-base", "4gpu", "text-windows", "h100", "679k-steps", "full-epoch", "100k-val", "clean-restart", "fixed-sampler"]
 
 seed: 42
 
@@ -38,8 +38,8 @@ data:
 
 # 4-GPU distributed training settings (memory optimized)
 trainer:
-  max_epochs: -1  # unlimited epochs for continued pretraining
-  max_steps: 600000  # ~7 days of training at current pace
+  max_epochs: 1  # exactly one full epoch
+  max_steps: -1  # unlimited steps (controlled by epochs)
   precision: bf16-mixed
   accumulate_grad_batches: 2  # Effective batch = 48 * 4 * 2 = 384 (same eff batch as 4GPUx2accum)
   devices: 4
@@ -95,7 +95,7 @@ callbacks:
   early_stopping:
     monitor: "val/loss"
     mode: "min"
-    patience: 80  # Higher patience for 600k step run (80 * 2.5k = 200k steps patience)
+    patience: 90  # Higher patience for full epoch run (90 * 2.5k = 225k steps patience)
     min_delta: 0.01  # More significant improvement required
     check_finite: false
     verbose: true
@@ -105,4 +105,4 @@ logger:
   wandb:
     group: "H100-4GPU-clean-restart"
     name: "clean-restart-600k-15k-warmup-fixed-sampler-260M-docs"
-    tags: ["600k-steps", "100k-val-docs", "15k-warmup", "fixed-sampler", "clean-restart", "260M-full-diversity"]
+    tags: ["679k-steps", "full-epoch", "100k-val-docs", "15k-warmup", "fixed-sampler", "clean-restart", "260M-full-diversity"]
