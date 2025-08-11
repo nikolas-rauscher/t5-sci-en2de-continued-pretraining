@@ -1,0 +1,54 @@
+# @package _global_
+
+experiment_name: "run1_perplexity_milestones"
+description: "Scientific milestone analysis of Run 1 based on validation perplexity improvements - adaptive sampling by learning progress"
+
+models:
+  # Training Start (1.419 ppl)
+  - source_path: "clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/best/step-052500-val_ppl-1.419.ckpt"
+    name: "clean_restart_lr0001_ppl1419_52k"
+    
+  # First Major Improvement (1.414 ppl) 
+  - source_path: "clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/best/step-075000-val_ppl-1.414.ckpt"
+    name: "clean_restart_lr0001_ppl1414_75k"
+    
+  # Breaking 1.41 Barrier (1.408 ppl)
+  - source_path: "clean_restart_logs/train/runs/2025-07-29_20-56-27/checkpoints/best/step-120000-val_ppl-1.408.ckpt"
+    name: "clean_restart_lr0001_ppl1408_120k"
+    
+  # Mid-training Progress (1.403 ppl)
+  - source_path: "clean_restart_logs/train/runs/2025-07-30_20-57-08/checkpoints/best/step-225000-val_ppl-1.403.ckpt"
+    name: "clean_restart_lr0001_ppl1403_225k"
+    
+  # Breaking 1.40 Barrier (1.400 ppl)
+  - source_path: "clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/best/step-300000-val_ppl-1.400.ckpt"
+    name: "clean_restart_lr0001_ppl1400_300k"
+    
+  # Late Training Progress (1.398 ppl)
+  - source_path: "clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/best/step-455000-val_ppl-1.39776.ckpt"
+    name: "clean_restart_lr0001_ppl1398_455k"
+    
+  # Final Convergence (1.397 ppl)  
+  - source_path: "clean_restart_logs/train/runs/2025-08-04_06-12-28/checkpoints/best/step-530000-val_ppl-1.39654.ckpt"
+    name: "clean_restart_lr0001_ppl1397_530k"
+    
+  # Absolute Peak (1.395 ppl - BEST)
+  - source_path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-665000-val_ppl-1.39532.ckpt"
+    name: "clean_restart_lr0001_ppl1395_665k"
+    
+  # Baseline comparison
+  - source_path: "t5-base"
+    name: "t5_base_original"
+
+benchmarks:
+  - name: "mmlu"
+    shots: [0]
+
+# W&B logging configuration
+logger:
+  wandb:
+    project: "BA-T5-Evaluation"
+    entity: "nikolas-rauscher-dfki"
+    group: "Run1-PPL-Milestones"
+    name: "run1_scientific_milestones"
+    tags: ["run1", "milestones", "perplexity", "scientific", "adaptive-sampling", "mmlu"]

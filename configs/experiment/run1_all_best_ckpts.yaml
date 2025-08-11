@@ -1,0 +1,54 @@
+# @package _global_
+
+experiment_name: "run1_all_best_ckpts"
+description: "Evaluate all best checkpoints from Run 1 (2025-08-06_18-44-33) on MMLU 0-shot with fixed seed"
+
+models:
+  - source_path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/last.ckpt"
+    name: "run1-last"
+
+  - source_path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-627500-val_ppl-1.39572.ckpt"
+    name: "run1-627500-ppl139572"
+
+  - source_path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-632500-val_ppl-1.39575.ckpt"
+    name: "run1-632500-ppl139575"
+
+  - source_path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-642500-val_ppl-1.39587.ckpt"
+    name: "run1-642500-ppl139587"
+
+  - source_path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-650000-val_ppl-1.39560.ckpt"
+    name: "run1-650000-ppl139560"
+
+  - source_path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-652500-val_ppl-1.39592.ckpt"
+    name: "run1-652500-ppl139592"
+
+  - source_path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-660000-val_ppl-1.39579.ckpt"
+    name: "run1-660000-ppl139579"
+
+  - source_path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-662500-val_ppl-1.39559.ckpt"
+    name: "run1-662500-ppl139559"
+
+  - source_path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-665000-val_ppl-1.39532.ckpt"
+    name: "run1-665000-ppl139532"
+
+  - source_path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-667500-val_ppl-1.39572.ckpt"
+    name: "run1-667500-ppl139572"
+
+  - source_path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-675000-val_ppl-1.39571.ckpt"
+    name: "run1-675000-ppl139571"
+
+benchmarks:
+  - name: "m_mmlu_en"
+    shots: [0]
+    extra_args:
+      seed: 42
+
+logger:
+  wandb:
+    project: "BA-T5-Evaluation"
+    entity: "nikolas-rauscher-dfki"
+    group: "Run1-Best-Checkpoints"
+    name: "run1_all_best_ckpts_mmlu0"
+    tags: ["run1", "best-checkpoints", "mmlu", "0-shot", "seed42"]
+
+
