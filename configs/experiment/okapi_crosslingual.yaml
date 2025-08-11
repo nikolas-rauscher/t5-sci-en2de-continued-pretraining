@@ -1,0 +1,42 @@
+# @package _global_
+
+experiment_name: "okapi_crosslingual_matrix"
+description: "Cross-lingual OKAPI MMLU (EN/DE) evaluation: English and German models on both languages (0/5-shot)"
+
+models:
+  # English baselines
+  - source_path: "t5-base"
+    name: "t5-base-original"
+
+  - source_path: "google/flan-t5-base"
+    name: "flan-t5-base-original"
+
+  # Our English continued pretraining (best checkpoint)
+  - source_path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-665000-val_ppl-1.39532.ckpt"
+    name: "run1-t5-conservative-665k-lr0001"
+
+  # German baseline
+  - source_path: "GermanT5/t5-efficient-gc4-german-base-nl36"
+    name: "t5-efficient-german-base-nl36"
+
+benchmarks:
+  # OKAPI MMLU English
+  - name: "okapi_mmlu_en"
+    tasks: ["m_mmlu_en"]
+    shots: [0, 5]
+
+  # OKAPI MMLU German
+  - name: "okapi_mmlu_de"
+    tasks: ["m_mmlu_de"]
+    shots: [0, 5]
+
+# W&B logging configuration
+logger:
+  wandb:
+    project: "BA-T5-Evaluation"
+    entity: "nikolas-rauscher-dfki"
+    group: "OKAPI-MMLU-Crosslingual"
+    name: "okapi_crosslingual_matrix"
+    tags: ["okapi", "mmlu", "crosslingual", "en", "de"]
+
+
