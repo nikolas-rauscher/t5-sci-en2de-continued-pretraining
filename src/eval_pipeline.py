@@ -17,6 +17,7 @@ import re
 import logging
 import subprocess
 import time
+import csv
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Union, Any, Tuple
@@ -521,6 +522,10 @@ class BenchmarkRunner:
             if self.cfg.logger.wandb.get('entity'):
                 wandb_args_parts.append(f"entity={self.cfg.logger.wandb.entity}")
                 
+            # Add group if configured
+            if self.cfg.logger.wandb.get('group'):
+                wandb_args_parts.append(f"group={self.cfg.logger.wandb.group}")
+                
             # Add descriptive run name with model and benchmark info
             run_name = f"{model_name_for_wandb}_{benchmark_config['name']}_{shots}shot"
             wandb_args_parts.append(f"name={run_name}")
@@ -961,6 +966,76 @@ def save_results(cfg: DictConfig, results: Dict):
     log.info(f"Results saved to: {results_file}")
 
 
+def export_results_to_csv(summary_data: Dict, csv_file: Path):
+    """Export evaluation results to CSV format for easy analysis"""
+    
+    try:
+        rows = []
+        
+        # Extract experiment info
+        exp_info = summary_data.get('experiment_info', {})
+        experiment_name = exp_info.get('name', 'unknown')
+        timestamp = exp_info.get('timestamp', 'unknown')
+        
+        # Process each model's results
+        for model_name, model_data in summary_data.get('models', {}).items():
+            if model_data.get('status') != 'success':
+                continue
+                
+            metadata = model_data.get('metadata', {})
+            benchmarks = model_data.get('benchmarks', {})
+            
+            # Create base row with model info
+            base_row = {
+                'experiment_name': experiment_name,
+                'timestamp': timestamp,
+                'model_name': model_name,
+                'source_path': model_data.get('source_path', ''),
+                'source_type': metadata.get('source_type', ''),
+                'training_steps': metadata.get('training_steps', ''),
+                'val_perplexity': metadata.get('val_perplexity', ''),
+                'learning_rate': metadata.get('learning_rate', ''),
+                'run_date': metadata.get('run_date', ''),
+                'training_style': metadata.get('training_style', '')
+            }
+            
+            # Add benchmark results
+            for benchmark_name, benchmark_data in benchmarks.items():
+                for shot_type, shot_data in benchmark_data.items():
+                    if isinstance(shot_data, dict) and 'overall_accuracy' in shot_data:
+                        row = base_row.copy()
+                        row.update({
+                            'benchmark': benchmark_name,
+                            'shot_type': shot_type,
+                            'overall_accuracy': shot_data['overall_accuracy'],
+                            'status': shot_data.get('status', 'success')
+                        })
+                        
+                        # Add category scores
+                        categories = shot_data.get('categories', {})
+                        for cat_name, cat_score in categories.items():
+                            row[f'{cat_name}_accuracy'] = cat_score
+                            
+                        rows.append(row)
+        
+        if not rows:
+            log.warning("No successful results to export to CSV")
+            return
+            
+        # Write CSV
+        with open(csv_file, 'w', newline='', encoding='utf-8') as f:
+            if rows:
+                fieldnames = rows[0].keys()
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(rows)
+                
+        log.info(f"📄 CSV results exported to: {csv_file}")
+        
+    except Exception as e:
+        log.error(f"Failed to export CSV: {e}")
+
+
 def save_compact_summary(cfg: DictConfig, results: Dict):
     """Save compact evaluation summary with key metrics and metadata"""
     
@@ -1095,6 +1170,10 @@ def save_compact_summary(cfg: DictConfig, results: Dict):
         json.dump(compact_summary, f, indent=2, default=str)
         
     log.info(f"📊 Compact summary saved to: {summary_file}")
+    
+    # Create CSV export for easy analysis
+    csv_file = output_dir / f"{cfg.experiment_name}_results_{timestamp}.csv"
+    export_results_to_csv(compact_summary, csv_file)
     
     return summary_file
 

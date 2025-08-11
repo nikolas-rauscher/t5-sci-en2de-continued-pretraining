@@ -4,9 +4,9 @@
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=64G
-#SBATCH --time=02:30:00
+#SBATCH --cpus-per-task=32
+#SBATCH --mem=128G
+#SBATCH --time=04:00:00
 #SBATCH --output=/netscratch/nrauscher/projects/BA-hydra/evaluation/logs/flexible_eval_%j.out
 #SBATCH --error=/netscratch/nrauscher/projects/BA-hydra/evaluation/logs/flexible_eval_%j.err
 
