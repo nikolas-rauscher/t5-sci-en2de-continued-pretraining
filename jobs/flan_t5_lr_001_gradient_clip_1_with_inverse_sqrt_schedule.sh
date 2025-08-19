@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=flan_t5_lr001_clip1
-#SBATCH --partition=H100-PCI,H100-SLT,H200
+#SBATCH --partition=H200
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=4
 #SBATCH --gres=gpu:4
