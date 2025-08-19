@@ -1,0 +1,82 @@
+# @package _global_
+
+# CONFIG 2: Comprehensive Top 5 Best Performance Analysis  
+# Peak performance identification for optimal cross-lingual transfer candidates
+
+# Weights & Biases configuration
+logger:
+  wandb:
+    project: "eval-mmlu"
+    entity: "nikolas-rauscher-dfki"
+    group: "Top5-Peak-Performance"
+    tags: ["mmlu", "peak-performance", "best-checkpoints", "transfer-candidates", "top5-analysis"]
+
+# Top 5 best validation perplexity checkpoints per run
+models:
+  # FLAN-T5 RUN - Top 5 Best (OVERALL BEST PERFORMANCE)
+  - name: "flan_best1_237k_ppl136184"
+    path: "/netscratch/nrauscher/projects/BA-hydra/flan_t5_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_16-11-27/checkpoints/best/step-237500-val_ppl-1.36184.ckpt"
+  
+  - name: "flan_best2_235k_ppl136285"
+    path: "/netscratch/nrauscher/projects/BA-hydra/flan_t5_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_16-11-27/checkpoints/best/step-235000-val_ppl-1.36285.ckpt"
+  
+  - name: "flan_best3_232k_ppl136291"
+    path: "/netscratch/nrauscher/projects/BA-hydra/flan_t5_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_16-11-27/checkpoints/best/step-232500-val_ppl-1.36291.ckpt"
+  
+  - name: "flan_best4_225k_ppl136369"
+    path: "/netscratch/nrauscher/projects/BA-hydra/flan_t5_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_16-11-27/checkpoints/best/step-225000-val_ppl-1.36369.ckpt"
+  
+  - name: "flan_best5_217k_ppl136391"
+    path: "/netscratch/nrauscher/projects/BA-hydra/flan_t5_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_16-11-27/checkpoints/best/step-217500-val_ppl-1.36391.ckpt"
+
+  # GREEN RUN - Top 5 Best (T5-base optimized)
+  - name: "green_best1_577k_ppl137768"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/best/step-577500-val_ppl-1.37768.ckpt"
+  
+  - name: "green_best2_510k_ppl137922"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/best/step-510000-val_ppl-1.37922.ckpt"
+  
+  - name: "green_best3_517k_ppl137927"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/best/step-517500-val_ppl-1.37927.ckpt"
+  
+  - name: "green_best4_520k_ppl137930"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/best/step-520000-val_ppl-1.37930.ckpt"
+  
+  - name: "green_best5_532k_ppl137935"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/best/step-532500-val_ppl-1.37935.ckpt"
+
+  # RED RUN - Top 5 Best (Conservative baseline)
+  - name: "red_best1_665k_ppl139532"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-665000-val_ppl-1.39532.ckpt"
+  
+  - name: "red_best2_662k_ppl139559"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-662500-val_ppl-1.39559.ckpt"
+  
+  - name: "red_best3_650k_ppl139560"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-650000-val_ppl-1.39560.ckpt"
+  
+  - name: "red_best4_675k_ppl139571"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-675000-val_ppl-1.39571.ckpt"
+  
+  - name: "red_best5_627k_ppl139572"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-627500-val_ppl-1.39572.ckpt"
+
+  # Baseline model for comparison
+  - name: "t5_base_original"
+    path: "t5-base"
+
+# MMLU benchmark - both 0-shot and 5-shot for peak performance analysis
+benchmarks:
+  - name: "mmlu"
+    shots: [0, 5]
+
+# Evaluation configuration
+batch_size: auto
+max_length: 512
+temperature: 0.0
+device: "auto"
+seed: 42
+
+# Export results
+export_csv: true
+csv_filename: "comprehensive_top5_best_eval_results.csv"

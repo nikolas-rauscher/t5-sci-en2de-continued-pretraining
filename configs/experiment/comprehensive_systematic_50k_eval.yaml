@@ -1,0 +1,139 @@
+# @package _global_
+
+# CONFIG 1: Comprehensive Systematic Progression Analysis
+# Systematic 50k step intervals to map complete training curves and overfitting patterns
+
+# Weights & Biases configuration
+logger:
+  wandb:
+    project: "eval-mmlu"
+    entity: "nikolas-rauscher-dfki"
+    group: "Systematic-50k-Progression"
+    tags: ["mmlu", "systematic-progression", "overfitting-analysis", "complete-curve", "50k-intervals"]
+
+# Systematic 50k step progression across all three runs
+models:
+  # GREEN RUN - T5-base optimized (LR 0.001, clip 1.0) - Complete progression
+  - name: "green_50k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-05_21-51-57/checkpoints/steps/step-step=050000.ckpt"
+  
+  - name: "green_70k_systematic" 
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-05_21-51-57/checkpoints/steps/step-step=070000.ckpt"
+  
+  - name: "green_100k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-06_21-54-45/checkpoints/steps/step-step=100000.ckpt"
+  
+  - name: "green_130k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-06_21-54-45/checkpoints/steps/step-step=130000.ckpt"
+  
+  - name: "green_160k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-07_21-54-19/checkpoints/steps/step-step=160000.ckpt"
+  
+  - name: "green_200k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-07_21-54-19/checkpoints/steps/step-step=200000.ckpt"
+  
+  - name: "green_250k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_21-54-58/checkpoints/steps/step-step=250000.ckpt"
+  
+  - name: "green_300k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-09_22-02-24/checkpoints/steps/step-step=300000.ckpt"
+  
+  - name: "green_350k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-09_22-02-24/checkpoints/steps/step-step=350000.ckpt"
+  
+  - name: "green_400k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-10_22-02-58/checkpoints/steps/step-step=400000.ckpt"
+  
+  - name: "green_450k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_22-15-41/checkpoints/steps/step-step=450000.ckpt"
+  
+  - name: "green_500k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_22-15-41/checkpoints/steps/step-step=500000.ckpt"
+  
+  - name: "green_550k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/steps/step-step=550000.ckpt"
+
+  # RED RUN - Conservative baseline (LR 0.0001, clip 0.5) - Complete progression  
+  - name: "red_50k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/steps/step-step=050000.ckpt"
+  
+  - name: "red_100k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-29_20-56-27/checkpoints/steps/step-step=100000.ckpt"
+  
+  - name: "red_150k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-29_20-56-27/checkpoints/steps/step-step=150000.ckpt"
+  
+  - name: "red_200k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-30_20-57-08/checkpoints/steps/step-step=200000.ckpt"
+  
+  - name: "red_250k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/steps/step-step=250000.ckpt"
+  
+  - name: "red_300k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/steps/step-step=300000.ckpt"
+  
+  - name: "red_350k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-08-01_22-03-45/checkpoints/steps/step-step=350000.ckpt"
+  
+  - name: "red_400k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/steps/step-step=400000.ckpt"
+  
+  - name: "red_450k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/steps/step-step=450000.ckpt"
+  
+  - name: "red_500k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-08-04_06-12-28/checkpoints/steps/step-step=500000.ckpt"
+  
+  - name: "red_550k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-08-05_18-39-59/checkpoints/steps/step-step=550000.ckpt"
+  
+  - name: "red_600k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-08-05_18-39-59/checkpoints/steps/step-step=600000.ckpt"
+  
+  - name: "red_650k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/steps/step-step=650000.ckpt"
+
+  # FLAN-T5 RUN - Instruction-tuned baseline - Complete progression
+  - name: "flan_50k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/flan_t5_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-05_22-06-09/checkpoints/steps/step-step=050000.ckpt"
+  
+  - name: "flan_100k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/flan_t5_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-07_16-10-44/checkpoints/steps/step-step=100000.ckpt"
+  
+  - name: "flan_150k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/flan_t5_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-07_16-10-44/checkpoints/steps/step-step=150000.ckpt"
+  
+  - name: "flan_200k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/flan_t5_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_16-11-27/checkpoints/steps/step-step=200000.ckpt"
+  
+  - name: "flan_250k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/flan_t5_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-09_21-55-51/checkpoints/steps/step-step=250000.ckpt"
+  
+  - name: "flan_300k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/flan_t5_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_16-08-37/checkpoints/steps/step-step=300000.ckpt"
+  
+  - name: "flan_350k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/flan_t5_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_16-08-37/checkpoints/steps/step-step=350000.ckpt"
+  
+  - name: "flan_400k_systematic"
+    path: "/netscratch/nrauscher/projects/BA-hydra/flan_t5_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-15_04-01-34/checkpoints/steps/step-step=400000.ckpt"
+
+  # Baseline model for comparison
+  - name: "t5_base_original"
+    path: "t5-base"
+
+# MMLU benchmark - zero shot only for systematic analysis
+benchmarks:
+  - name: "mmlu"
+    shots: [0]
+
+# Evaluation configuration
+batch_size: auto
+max_length: 512
+temperature: 0.0
+device: "auto"
+seed: 42
+
+# Export results
+export_csv: true
+csv_filename: "comprehensive_systematic_50k_eval_results.csv"
