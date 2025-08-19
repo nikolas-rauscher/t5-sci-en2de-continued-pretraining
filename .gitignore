@@ -168,9 +168,16 @@ wandb/*
 
 pretraining_logs/*
 temp_code/*
-clean_restart_logs/*
 .venv_eval/*
+clean_restart_logs/*
 scifive_style_logs/*
 scifive_style_lr002_logs/*
+
+flan_t5_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/*
+pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/*
+
 evaluation/logs/*
 scifive_style_v2_logs/*
+
+evaluation/models/temp/*
+.yoyo/
