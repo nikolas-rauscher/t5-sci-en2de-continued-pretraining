@@ -311,11 +311,14 @@ class MMComparisonBarChart:
         finally:
             plt.close()
     
-    def analyze_run_directory(self, run_dir: str, output_dir: str = "comparison_results"):
+    def analyze_run_directory(self, run_dir: str, output_dir: str = None):
         """Main analysis function to create the comparison bar chart."""
         print("🚀 Starting MMLU comparison analysis...")
         
-        # Create output directory
+        # Create output directory - use run name from run_dir
+        if output_dir is None:
+            run_name = Path(run_dir).name  # e.g., "2025-08-17_03-57-04"
+            output_dir = f"evaluation/evaluation_results/{run_name}"
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
         
