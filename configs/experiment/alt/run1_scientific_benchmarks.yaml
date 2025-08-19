@@ -1,0 +1,84 @@
+# @package _global_
+
+# Run 1 Scientific Benchmark Evaluation
+# Tests domain specialization vs general knowledge trade-off using scientific benchmarks
+# Expected: Middle checkpoints (225k-455k) should perform better on scientific tasks than MMLU suggests
+
+# Weights & Biases configuration
+logger:
+  wandb:
+    project: "BA-CLP-Transfer"
+    entity: "nikolas-rauscher-dfki"  # Use your actual W&B username
+    group: "Run1-Scientific-Benchmarks"
+    tags: ["scientific-benchmarks", "domain-evaluation", "run1-analysis", "sciq", "pubmedqa", "arc"]
+
+# Models to evaluate - key checkpoints from Run 1 analysis
+models:
+  - name: "clean_restart_lr0001_ppl1454_75k"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/steps/step-step=075000.ckpt"
+    description: "Early checkpoint - best MMLU performance, retained general knowledge"
+  
+  - name: "clean_restart_lr0001_ppl1414_120k" 
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-29_20-56-27/checkpoints/steps/step-step=120000.ckpt"
+    description: "Peak general knowledge before domain specialization"
+  
+  - name: "clean_restart_lr0001_ppl1408_225k"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-30_20-57-08/checkpoints/steps/step-step=225000.ckpt"
+    description: "Domain specialization begins - worst MMLU but potentially best scientific"
+  
+  - name: "clean_restart_lr0001_ppl1400_300k"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/steps/step-step=300000.ckpt"
+    description: "Peak domain specialization - maximum scientific focus"
+  
+  - name: "clean_restart_lr0001_ppl1398_455k"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/steps/step-step=455000.ckpt"
+    description: "Late domain specialization - still poor MMLU"
+  
+  - name: "clean_restart_lr0001_ppl1395_665k"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/steps/step-step=665000.ckpt"
+    description: "Final checkpoint - partial recovery of general knowledge"
+
+# Baseline model for comparison
+  - name: "t5_base_original"
+    path: "t5-base"
+    description: "Original T5-base - general knowledge baseline"
+
+# Optimized benchmark suite - scientific domains + general knowledge comparison
+benchmarks:
+  # Core scientific reasoning benchmarks
+  - name: "sciq"
+    shots: [0, 5]
+    description: "General science (Physics, Chemistry, Biology) - 13,679 questions"
+  
+  - name: "pubmedqa" 
+    shots: [0, 5]
+    description: "Biomedical QA - domain-specific medical knowledge"
+  
+  - name: "arc_challenge"
+    shots: [0, 5] 
+    description: "Scientific reasoning and problem-solving"
+  
+  - name: "arc_easy"
+    shots: [0, 5]
+    description: "Basic scientific literacy baseline"
+
+  # General knowledge comparison (already have results, but include for completeness)
+  - name: "mmlu"
+    shots: [0, 5]
+    description: "General knowledge baseline - expect opposite pattern to scientific benchmarks"
+
+# Evaluation configuration  
+batch_size: auto
+max_length: 512
+temperature: 0.0
+device: "auto"
+seed: 42  # For reproducible evaluations
+
+# Export results
+export_csv: true
+csv_filename: "run1_scientific_benchmarks_results.csv"
+
+# Hypothesis:
+# - MMLU: Early checkpoints (75k-120k) best → Late checkpoints (665k) recovery
+# - Scientific benchmarks: Should show OPPOSITE pattern - middle checkpoints (225k-455k) best
+# - This would prove domain specialization, not overfitting

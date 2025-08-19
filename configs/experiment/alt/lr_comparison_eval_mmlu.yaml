@@ -1,0 +1,71 @@
+# @package _global_
+
+# LR Comparison MMLU Evaluation 
+# Compare lr:0.0001 with clip 0.5 vs lr:0.001 with clip 1.0 progression
+
+# Weights & Biases configuration
+logger:
+  wandb:
+    project: "eval-mmlu"
+    entity: "nikolas-rauscher-dfki"
+    group: "LR-Comparison"
+    tags: ["mmlu", "lr-comparison", "overfitting-study", "progression-analysis"]
+
+# Models to evaluate - LR 0.0001 with clip 0.5 (Red Run) - BEST checkpoints
+models:
+  - name: "lr0001_clip05_75k_best"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/best/step-075000-val_ppl-1.414.ckpt"
+  
+  - name: "lr0001_clip05_225k_best"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-30_20-57-08/checkpoints/best/step-225000-val_ppl-1.403.ckpt"
+  
+  - name: "lr0001_clip05_300k_best"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/best/step-300000-val_ppl-1.400.ckpt"
+  
+  - name: "lr0001_clip05_455k_best"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/best/step-455000-val_ppl-1.39776.ckpt"
+  
+  - name: "lr0001_clip05_530k_best"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-08-04_06-12-28/checkpoints/best/step-530000-val_ppl-1.39654.ckpt"
+  
+  - name: "lr0001_clip05_665k_best"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-665000-val_ppl-1.39532.ckpt"
+
+# Models to evaluate - LR 0.001 with clip 1.0 (Green Run) - BEST checkpoints
+  - name: "lr001_clip1_67k_best"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-05_21-51-57/checkpoints/best/step-067500-val_ppl-1.39545.ckpt"
+  
+  - name: "lr001_clip1_137k_best"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-06_21-54-45/checkpoints/best/step-137500-val_ppl-1.38471.ckpt"
+  
+  - name: "lr001_clip1_207k_best"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-07_21-54-19/checkpoints/best/step-207500-val_ppl-1.38039.ckpt"
+  
+  - name: "lr001_clip1_262k_best"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_21-54-58/checkpoints/best/step-262500-val_ppl-1.37921.ckpt"
+  
+  - name: "lr001_clip1_362k_best"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-09_22-02-24/checkpoints/best/step-362500-val_ppl-1.37874.ckpt"
+  
+  - name: "lr001_clip1_435k_best"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-10_22-02-58/checkpoints/best/step-435000-val_ppl-1.37895.ckpt"
+
+# Baseline model for comparison
+  - name: "t5_base_original"
+    path: "t5-base"
+
+# MMLU benchmark - zero shot only
+benchmarks:
+  - name: "mmlu"
+    shots: [0]
+
+# Evaluation configuration
+batch_size: auto
+max_length: 512
+temperature: 0.0
+device: "auto"
+seed: 42
+
+# Export results
+export_csv: true
+csv_filename: "lr_comparison_eval_mmlu_results.csv"

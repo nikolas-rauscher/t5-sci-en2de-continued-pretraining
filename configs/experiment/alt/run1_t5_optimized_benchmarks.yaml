@@ -1,0 +1,108 @@
+# @package _global_
+
+# Run 1 T5-Optimized Benchmark Evaluation
+# Tests scientific domain specialization using T5's native text-to-text capabilities
+# Focus on generative tasks rather than multiple choice to leverage T5's seq2seq strengths
+
+# Weights & Biases configuration
+logger:
+  wandb:
+    project: "BA-CLP-Transfer"
+    entity: "nrauscher"
+    group: "Run1-T5-Optimized"
+    tags: ["t5-optimized", "text-generation", "summarization", "scientific-qa", "seq2seq"]
+
+# Models to evaluate - key checkpoints from Run 1 analysis
+models:
+  - name: "clean_restart_lr0001_ppl1454_75k"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/2024-07-28_13-29-18/checkpoints/step-075000-val_ppl-1.45399.ckpt"
+    description: "Early checkpoint - best MMLU performance, retained general knowledge"
+  
+  - name: "clean_restart_lr0001_ppl1414_120k" 
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/2024-07-28_13-29-18/checkpoints/step-120000-val_ppl-1.41439.ckpt"
+    description: "Peak general knowledge before domain specialization"
+  
+  - name: "clean_restart_lr0001_ppl1408_225k"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/2024-07-28_13-29-18/checkpoints/step-225000-val_ppl-1.40799.ckpt"
+    description: "Domain specialization begins - expect best scientific generation"
+  
+  - name: "clean_restart_lr0001_ppl1400_300k"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/2024-07-28_13-29-18/checkpoints/step-300000-val_ppl-1.40049.ckpt"
+    description: "Peak domain specialization - maximum scientific focus"
+  
+  - name: "clean_restart_lr0001_ppl1398_455k"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/2024-07-28_13-29-18/checkpoints/step-455000-val_ppl-1.39799.ckpt"
+    description: "Late domain specialization - still expect strong scientific performance"
+  
+  - name: "clean_restart_lr0001_ppl1395_665k"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/2024-07-28_13-29-18/checkpoints/step-665000-val_ppl-1.39532.ckpt"
+    description: "Final checkpoint - balanced performance"
+
+# Baseline model for comparison
+  - name: "t5_base_original"
+    path: "t5-base"
+    description: "Original T5-base - general knowledge baseline"
+
+# T5-Optimized Benchmark Suite - leverages text-to-text and generative strengths
+benchmarks:
+  # === SCIENTIFIC TEXT GENERATION (HIGHEST PRIORITY) ===
+  - name: "qasper_freeform"
+    shots: [0, 5]
+    description: "Scientific paper QA - tests domain-specific reading comprehension and generation"
+  
+  - name: "mimic_repsum"
+    shots: [0, 5]
+    description: "Medical summarization - tests scientific domain summarization skills"
+  
+  - name: "pubmedqa" 
+    shots: [0, 5]
+    description: "Biomedical QA - domain-specific medical knowledge generation"
+
+  # === SUMMARIZATION TASKS (T5's CORE STRENGTH) ===
+  - name: "cnn_dailymail"
+    shots: [0, 5]
+    description: "News summarization - T5's original training task, general baseline"
+  
+  - name: "xsum"
+    shots: [0, 5] 
+    description: "Abstractive summarization - tests creative text generation"
+
+  # === GENERATIVE KNOWLEDGE TASKS ===
+  - name: "mmlu_college_biology_generative"
+    shots: [0, 5]
+    description: "Biological knowledge generation - must generate A/B/C/D answers"
+  
+  - name: "mmlu_college_chemistry_generative"
+    shots: [0, 5]
+    description: "Chemistry knowledge generation - tests scientific fact generation"
+  
+  - name: "triviaqa"
+    shots: [0, 5]
+    description: "Factual knowledge generation - open-domain fact retrieval"
+  
+  - name: "nq_open"
+    shots: [0, 5]
+    description: "Open-domain QA - real-world question answering"
+
+  # === BASELINE COMPARISON ===
+  - name: "mmlu"
+    shots: [0, 5]
+    description: "General knowledge baseline - multiple choice for comparison"
+
+# Evaluation configuration optimized for text generation
+batch_size: auto  # Lower batch size for generation tasks
+max_length: 512
+temperature: 0.0
+device: "auto"
+seed: 42  # For reproducible evaluations
+
+# Export results
+export_csv: true
+csv_filename: "run1_t5_optimized_benchmarks_results.csv"
+
+# Hypothesis for T5-Optimized Evaluation:
+# 1. Scientific generation tasks (QASPER, MIMIC) should peak at 225k-455k steps (domain specialization)
+# 2. General summarization (CNN/DM, XSum) should show steady improvement or maintain baseline
+# 3. Generative MMLU should show similar pattern to multiple-choice MMLU
+# 4. Overall: Middle checkpoints should excel at scientific text generation despite poor MMLU multiple-choice
+# 5. This proves domain adaptation benefits in T5's native text-to-text format

@@ -1,0 +1,52 @@
+# @package _global_
+
+# Run 1 MMLU Evaluation
+# Tests general knowledge across all Run 1 checkpoints
+
+# Weights & Biases configuration
+logger:
+  wandb:
+    project: "eval-mmlu"
+    entity: "nikolas-rauscher-dfki"
+    group: "Run1-MMLU"
+    tags: ["mmlu", "general-knowledge", "multiple-choice", "run1-analysis"]
+
+# Models to evaluate - CORRECTED PATHS (August 2025)
+models:
+  - name: "clean_restart_lr0001_ppl1414_75k"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/best/step-075000-val_ppl-1.414.ckpt"
+  
+  - name: "clean_restart_lr0001_ppl1408_120k" 
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-29_20-56-27/checkpoints/best/step-120000-val_ppl-1.408.ckpt"
+  
+  - name: "clean_restart_lr0001_ppl1403_225k"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-30_20-57-08/checkpoints/best/step-225000-val_ppl-1.403.ckpt"
+  
+  - name: "clean_restart_lr0001_ppl1400_300k"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/best/step-300000-val_ppl-1.400.ckpt"
+  
+  - name: "clean_restart_lr0001_ppl1398_455k"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/best/step-455000-val_ppl-1.39776.ckpt"
+  
+  - name: "clean_restart_lr0001_ppl1395_665k"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-665000-val_ppl-1.39532.ckpt"
+
+# Baseline model for comparison
+  - name: "t5_base_original"
+    path: "t5-base"
+
+# MMLU benchmark only
+benchmarks:
+  - name: "mmlu"
+    shots: [0, 5]
+
+# Evaluation configuration
+batch_size: auto
+max_length: 512
+temperature: 0.0
+device: "auto"
+seed: 42
+
+# Export results
+export_csv: true
+csv_filename: "run1_eval_mmlu_results.csv"

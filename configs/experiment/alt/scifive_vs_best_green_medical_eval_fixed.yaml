@@ -1,0 +1,46 @@
+# @package _global_
+
+# SciFive vs Best Green Model Medical/Scientific Comparison - FIXED
+# Focus on biomedical and scientific domains where SciFive specializes
+
+# Weights & Biases configuration
+logger:
+  wandb:
+    project: "eval-mmlu"
+    entity: "nikolas-rauscher-dfki"
+    group: "SciFive-vs-Green-Medical-Fixed"
+    tags: ["mmlu", "scifive-comparison", "medical-focus", "biomedical", "scientific-domains", "online-download"]
+
+# Models to evaluate - Medical/Scientific Domain Specialists
+models:
+  # Our Best Green Model (Peak Performance)
+  - name: "green_500k_systematic_BEST"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_22-15-41/checkpoints/steps/step-step=500000.ckpt"
+  
+  # Our Best Green Model (Best Val PPL)  
+  - name: "green_577k_best_val_ppl"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/best/step-577500-val_ppl-1.37768.ckpt"
+
+  # Baseline for comparison
+  - name: "t5_base_original"
+    path: "t5-base"
+
+# MMLU benchmark - focus on medical/scientific subtasks
+benchmarks:
+  - name: "mmlu"
+    shots: [0, 5]
+
+# Evaluation configuration
+batch_size: auto
+max_length: 512
+temperature: 0.0
+device: "auto"
+seed: 42
+
+# Allow online downloads for SciFive (remove local_files_only restriction)
+trust_remote_code: true
+local_files_only: false
+
+# Export results
+export_csv: true
+csv_filename: "scifive_vs_green_medical_eval_fixed_results.csv"

@@ -1,0 +1,55 @@
+# @package _global_
+
+# Run 1 Summarization Tasks Evaluation
+# Tests T5's core strength: text summarization across different domains
+
+# Weights & Biases configuration
+logger:
+  wandb:
+    project: "eval-summarization"
+    entity: "nikolas-rauscher-dfki"
+    group: "Run1-Summarization"
+    tags: ["summarization", "text-generation", "cnn-dailymail", "xsum", "abstractive"]
+
+# Models to evaluate - CORRECTED PATHS (August 2025)
+models:
+  - name: "clean_restart_lr0001_ppl1414_75k"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/best/step-075000-val_ppl-1.414.ckpt"
+  
+  - name: "clean_restart_lr0001_ppl1408_120k" 
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-29_20-56-27/checkpoints/best/step-120000-val_ppl-1.408.ckpt"
+  
+  - name: "clean_restart_lr0001_ppl1403_225k"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-30_20-57-08/checkpoints/best/step-225000-val_ppl-1.403.ckpt"
+  
+  - name: "clean_restart_lr0001_ppl1400_300k"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/best/step-300000-val_ppl-1.400.ckpt"
+  
+  - name: "clean_restart_lr0001_ppl1398_455k"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/best/step-455000-val_ppl-1.39776.ckpt"
+  
+  - name: "clean_restart_lr0001_ppl1395_665k"
+    path: "/netscratch/nrauscher/projects/BA-hydra/clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-665000-val_ppl-1.39532.ckpt"
+
+# Baseline model for comparison
+  - name: "t5_base_original"
+    path: "t5-base"
+
+# Summarization benchmarks - T5's core strength  
+benchmarks:
+  - name: "cnn_dailymail"
+    shots: [0]
+  
+  - name: "xsum"
+    shots: [0]
+
+# Evaluation configuration optimized for text generation
+batch_size: auto
+max_length: 512
+temperature: 0.0
+device: "auto"
+seed: 42
+
+# Export results
+export_csv: true
+csv_filename: "run1_eval_summarization_results.csv"

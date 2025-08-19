@@ -1,0 +1,37 @@
+# @package _global_
+
+# SciFive Only Test - Download and evaluate SciFive model
+
+# Weights & Biases configuration
+logger:
+  wandb:
+    project: "eval-mmlu"
+    entity: "nikolas-rauscher-dfki"
+    group: "SciFive-Only-Test"
+    tags: ["mmlu", "scifive-test", "biomedical", "download-test"]
+
+# Models to evaluate - Only SciFive
+models:
+  # SciFive Base Model (Biomedical Specialist) - allow download
+  - name: "scifive_base_pubmed"
+    path: "razent/SciFive-base-Pubmed_PMC"
+
+  # Baseline for comparison
+  - name: "t5_base_original"
+    path: "t5-base"
+
+# MMLU benchmark - 0-shot only for quick test
+benchmarks:
+  - name: "mmlu"
+    shots: [0]
+
+# Evaluation configuration
+batch_size: auto
+max_length: 512
+temperature: 0.0
+device: "auto"
+seed: 42
+
+# Export results
+export_csv: true
+csv_filename: "scifive_only_test_results.csv"

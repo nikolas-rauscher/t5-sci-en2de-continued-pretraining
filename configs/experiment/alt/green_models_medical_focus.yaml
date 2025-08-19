@@ -1,0 +1,46 @@
+# @package _global_
+
+# Green Models Medical Focus Evaluation
+# Test our best green models on medical/scientific domains without SciFive
+
+# Weights & Biases configuration
+logger:
+  wandb:
+    project: "eval-mmlu"
+    entity: "nikolas-rauscher-dfki"
+    group: "Green-Medical-Focus"
+    tags: ["mmlu", "green-models", "medical-focus", "biomedical", "scientific-domains"]
+
+# Models to evaluate - Our Best Green Models
+models:
+  # Our Best Green Model (Peak Performance - 27.56%)
+  - name: "green_500k_systematic_BEST"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_22-15-41/checkpoints/steps/step-step=500000.ckpt"
+  
+  # Our Best Green Model (Best Val PPL - 1.377)
+  - name: "green_577k_best_val_ppl"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/best/step-577500-val_ppl-1.37768.ckpt"
+
+  # Alternative Green checkpoint for comparison
+  - name: "green_510k_best_val"
+    path: "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/best/step-510000-val_ppl-1.37922.ckpt"
+
+  # Baseline for comparison
+  - name: "t5_base_original"
+    path: "t5-base"
+
+# MMLU benchmark - both 0-shot and 5-shot
+benchmarks:
+  - name: "mmlu"
+    shots: [0, 5]
+
+# Evaluation configuration
+batch_size: auto
+max_length: 512
+temperature: 0.0
+device: "auto"
+seed: 42
+
+# Export results
+export_csv: true
+csv_filename: "green_models_medical_focus_results.csv"
