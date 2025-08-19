@@ -26,6 +26,7 @@ import hydra
 import rootutils
 import torch
 import wandb
+from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 from transformers import T5Config, T5ForConditionalGeneration, T5Tokenizer
 
@@ -179,7 +180,10 @@ class ModelManager:
         """Prepare model for evaluation and return path + enriched metadata"""
         
         source_type = model_config.get('source_type', 'auto')
-        source_path = model_config['source_path']
+        # Accept both 'source_path' and legacy 'path' keys
+        source_path = model_config.get('source_path', model_config.get('path'))
+        if not source_path:
+            raise KeyError("Model config must include 'source_path' (or legacy alias 'path')")
         
         # Auto-detect source type if not specified
         if source_type == 'auto':
@@ -396,6 +400,16 @@ class BenchmarkRunner:
         os.environ['HF_HOME'] = str(hf_cache)
         os.environ['HF_HUB_CACHE'] = str(hf_cache / "hub")
         os.environ['PYTHONUNBUFFERED'] = '1'  # Force unbuffered output
+        # Determinism-related environment variables for sub-process
+        try:
+            seed_value = self.cfg.get('seed', 42)
+        except Exception:
+            seed_value = 42
+        os.environ['PYTHONHASHSEED'] = str(seed_value)
+        os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':16:8'
+        os.environ['NVIDIA_TF32_OVERRIDE'] = '0'
+        # Avoid tokenizer thread races changing order
+        os.environ['TOKENIZERS_PARALLELISM'] = os.environ.get('TOKENIZERS_PARALLELISM', 'false')
         
         log.info(f"Using MMLU datasets cache: {mmlu_cache}")
         log.info(f"Using HuggingFace cache: {hf_cache}")
@@ -404,7 +418,9 @@ class BenchmarkRunner:
         """Run a benchmark evaluation on a model"""
         
         results = {}
-        output_base = self.project_root / self.cfg.paths.output_dir / f"evaluation/results/universal/{self.cfg.experiment_name}"
+        # Use Hydra's automatic output directory
+        hydra_output_dir = Path(HydraConfig.get().runtime.output_dir)
+        output_base = hydra_output_dir / "evaluation/results/universal" / self.cfg.experiment_name
         output_base.mkdir(parents=True, exist_ok=True)
         
         shots = benchmark_config.get('shots', [0, 5])
@@ -493,16 +509,48 @@ class BenchmarkRunner:
                                 shots: int, output_dir: Path) -> List[str]:
         """Build the evaluation command for lm-eval with native W&B integration"""
         
+        # Check if model_path is a local path (not a HuggingFace model name)
+        is_local_path = Path(model_path).exists() or '/' in model_path
+        
+        if is_local_path:
+            # For local paths, use trust_remote_code and local_files_only to avoid HF validation
+            model_args = f"pretrained={model_path},trust_remote_code=True,local_files_only=True"
+        else:
+            # For HuggingFace model names, use standard format
+            model_args = f"pretrained={model_path}"
+        
+        # Use FLAN T5 template with loglikelihood for MMLU instead of default generative template
+        task_name = benchmark_config['name']
+        if task_name == 'mmlu':
+            task_name = 'mmlu_flan_n_shot_loglikelihood'
+        
         cmd = [
             "python", "-m", "lm_eval",
             "--model", "hf",
-            "--model_args", f"pretrained={model_path}",
-            "--tasks", benchmark_config['name'],
+            "--model_args", model_args,
+            "--tasks", task_name,
             "--device", benchmark_config.get('device', 'cuda'),
             "--batch_size", benchmark_config.get('batch_size', 'auto'),
             "--output_path", str(output_dir),
-            "--num_fewshot", str(shots)
+            "--num_fewshot", str(shots),
+            "--trust_remote_code"
         ]
+        
+        # Add --write_out flag for diagnostic purposes if enabled
+        # Priority: benchmark-specific > global diagnostics config > default (False)
+        write_out_enabled = benchmark_config.get('write_out', 
+                                                self.cfg.get('diagnostics', {}).get('write_out', False))
+        if write_out_enabled:
+            cmd.append("--write_out")
+            log.info(f"📝 Enabled write_out diagnostics for {benchmark_config['name']} - will show prompts and targets")
+        
+        # Ensure a deterministic seed is always set (priority: benchmark_config.seed > cfg.seed > 42)
+        try:
+            cfg_seed = self.cfg.get('seed', None)
+        except Exception:
+            cfg_seed = None
+        seed_value = benchmark_config.get('seed', cfg_seed if cfg_seed is not None else 42)
+        cmd.extend(["--seed", str(seed_value)])
         
         # Add specific tasks if configured
         if 'tasks' in benchmark_config:
@@ -873,7 +921,7 @@ def evaluate(cfg: DictConfig) -> Dict[str, Any]:
             
             log.info(f"\n{'='*60}")
             log.info(f"Processing model: {model_name}")
-            log.info(f"Source: {model_config['source_path']}")
+            log.info(f"Source: {model_config.get('source_path', model_config.get('path', 'unknown'))}")
             log.info(f"{'='*60}")
             
             try:
@@ -943,7 +991,9 @@ def evaluate(cfg: DictConfig) -> Dict[str, Any]:
 def save_results(cfg: DictConfig, results: Dict):
     """Save results to JSON file"""
     
-    output_dir = Path(cfg.paths.root_dir) / cfg.paths.output_dir / "evaluation/results/universal"
+    # Use Hydra's automatic output directory
+    hydra_output_dir = Path(HydraConfig.get().runtime.output_dir)
+    output_dir = hydra_output_dir / "evaluation/results/universal"
     output_dir.mkdir(parents=True, exist_ok=True)
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -966,18 +1016,154 @@ def save_results(cfg: DictConfig, results: Dict):
     log.info(f"Results saved to: {results_file}")
 
 
-def export_results_to_csv(summary_data: Dict, csv_file: Path):
-    """Export evaluation results to CSV format for easy analysis"""
+def find_baseline_model(cfg: DictConfig, results: Dict) -> str:
+    """Automatically detect baseline model from config"""
+    
+    for model_config in cfg.models:
+        model_name = model_config.get('name', '')
+        model_path = model_config.get('source_path', model_config.get('path', ''))
+        
+        # Check if path contains t5-base (most common baseline)
+        if 't5-base' in model_path:
+            return model_name or 'baseline'
+        
+        # Check if name contains baseline  
+        if 'baseline' in model_name.lower():
+            return model_name
+            
+        # Check if name contains 'original' (like t5_base_original)
+        if 'original' in model_name.lower():
+            return model_name
+    
+    # Fallback: first model in config
+    if cfg.models:
+        first_model = cfg.models[0]
+        return first_model.get('name', 'baseline')
+    
+    return None
+
+
+def extract_all_subtasks(shot_results: Dict, benchmark_name: str) -> Dict:
+    """Extract all available subtasks and categories for any benchmark type"""
+    
+    result = {
+        'subtasks': {},
+        'categories': {},
+        'metadata': {'benchmark_type': benchmark_name}
+    }
+    
+    if benchmark_name == 'mmlu' or benchmark_name.startswith('mmlu'):
+        # MMLU: Extract subset tasks and categories
+        if 'subset_tasks' in shot_results:
+            result['subtasks'] = shot_results['subset_tasks']
+            result['metadata']['num_tasks'] = shot_results.get('num_tasks', len(shot_results['subset_tasks']))
+        
+        # MMLU categories
+        mmlu_categories = ['humanities', 'social_sciences', 'stem', 'other']
+        for category in mmlu_categories:
+            value = shot_results.get(category)
+            if value is not None and value != "N/A" and isinstance(value, (int, float)):
+                result['categories'][f'mmlu_{category}'] = value
+    
+    elif 'raw_results' in shot_results and 'results' in shot_results['raw_results']:
+        # Generic extraction from raw lm-eval results
+        raw_results = shot_results['raw_results']['results']
+        
+        # Extract all individual task results
+        for task_name, task_data in raw_results.items():
+            if isinstance(task_data, dict):
+                # Find primary metric for this task
+                for metric in ['acc,none', 'acc_norm,none', 'exact_match,none', 'rouge1,none', 'rouge2,none', 'rougeL,none']:
+                    if metric in task_data:
+                        result['subtasks'][task_name] = task_data[metric]
+                        break
+        
+        result['metadata']['num_tasks'] = len(result['subtasks'])
+    
+    return result
+
+
+def calculate_baseline_comparison(all_model_scores: Dict, baseline_model_name: str) -> Dict:
+    """Calculate differences and improvements relative to detected baseline model"""
+    
+    comparisons = {}
+    
+    # Find baseline scores using detected baseline model name
+    baseline_scores = all_model_scores.get(baseline_model_name, {})
+    
+    if not baseline_scores:
+        log.warning(f"Baseline model '{baseline_model_name}' not found in current results. Skipping baseline comparisons.")
+        return {}
+    
+    log.info(f"📊 Using '{baseline_model_name}' as baseline for comparisons")
+    
+    # Calculate comparisons for all models
+    for model_name, scores in all_model_scores.items():
+        comparisons[model_name] = {}
+        
+        for benchmark_shot, score in scores.items():
+            baseline_score = baseline_scores.get(benchmark_shot)
+            
+            if baseline_score and isinstance(baseline_score, (int, float)) and baseline_score > 0:
+                difference = score - baseline_score
+                improvement_percent = (difference / baseline_score) * 100
+                
+                comparisons[model_name][f'{benchmark_shot}_vs_baseline_diff'] = difference
+                comparisons[model_name][f'{benchmark_shot}_vs_baseline_improvement_pct'] = improvement_percent
+            else:
+                comparisons[model_name][f'{benchmark_shot}_vs_baseline_diff'] = None
+                comparisons[model_name][f'{benchmark_shot}_vs_baseline_improvement_pct'] = None
+    
+    return comparisons
+
+
+def export_results_to_csv(summary_data: Dict, csv_file: Path, cfg: DictConfig = None):
+    """Enhanced CSV export with comprehensive subtask details and baseline comparisons"""
     
     try:
         rows = []
+        all_model_scores = {}  # For baseline calculations
+        all_subtasks = set()   # Track all unique subtasks across models
+        all_categories = set() # Track all unique categories across models
         
         # Extract experiment info
         exp_info = summary_data.get('experiment_info', {})
         experiment_name = exp_info.get('name', 'unknown')
         timestamp = exp_info.get('timestamp', 'unknown')
         
-        # Process each model's results
+        # Detect baseline model from config
+        baseline_model_name = None
+        if cfg:
+            baseline_model_name = find_baseline_model(cfg, summary_data.get('models', {}))
+            log.info(f"🎯 Detected baseline model: {baseline_model_name}")
+        
+        # First pass: collect all model scores and identify all subtasks/categories
+        for model_name, model_data in summary_data.get('models', {}).items():
+            if model_data.get('status') != 'success':
+                continue
+                
+            all_model_scores[model_name] = {}
+            benchmarks = model_data.get('benchmarks', {})
+            
+            for benchmark_name, benchmark_data in benchmarks.items():
+                for shot_type, shot_data in benchmark_data.items():
+                    if isinstance(shot_data, dict) and shot_data.get('status') == 'success':
+                        # Collect scores for baseline comparison
+                        if 'overall_accuracy' in shot_data:
+                            key = f"{benchmark_name}_{shot_type.replace('_shot', '')}_shot"
+                            all_model_scores[model_name][key] = shot_data['overall_accuracy']
+                        
+                        # Extract and catalog all subtasks/categories
+                        subtask_data = extract_all_subtasks(shot_data, benchmark_name)
+                        all_subtasks.update(subtask_data['subtasks'].keys())
+                        all_categories.update(subtask_data['categories'].keys())
+        
+        # Calculate baseline comparisons if baseline detected
+        baseline_comparisons = {}
+        if baseline_model_name:
+            baseline_comparisons = calculate_baseline_comparison(all_model_scores, baseline_model_name)
+        
+        # Second pass: create comprehensive CSV rows
         for model_name, model_data in summary_data.get('models', {}).items():
             if model_data.get('status') != 'success':
                 continue
@@ -996,33 +1182,63 @@ def export_results_to_csv(summary_data: Dict, csv_file: Path):
                 'val_perplexity': metadata.get('val_perplexity', ''),
                 'learning_rate': metadata.get('learning_rate', ''),
                 'run_date': metadata.get('run_date', ''),
-                'training_style': metadata.get('training_style', '')
+                'training_style': metadata.get('training_style', ''),
+                'baseline_model': baseline_model_name or ''
             }
             
             # Add benchmark results
             for benchmark_name, benchmark_data in benchmarks.items():
                 for shot_type, shot_data in benchmark_data.items():
-                    if isinstance(shot_data, dict) and 'overall_accuracy' in shot_data:
+                    if isinstance(shot_data, dict) and shot_data.get('status') == 'success':
                         row = base_row.copy()
+                        
+                        # Basic benchmark info
                         row.update({
                             'benchmark': benchmark_name,
                             'shot_type': shot_type,
-                            'overall_accuracy': shot_data['overall_accuracy'],
+                            'overall_accuracy': shot_data.get('overall_accuracy'),
+                            'primary_metric_name': shot_data.get('parse_status', 'overall_accuracy'),
+                            'primary_metric_value': shot_data.get('overall_accuracy') or shot_data.get('primary_score'),
+                            'duration_minutes': shot_data.get('duration_minutes', ''),
                             'status': shot_data.get('status', 'success')
                         })
                         
-                        # Add category scores
-                        categories = shot_data.get('categories', {})
-                        for cat_name, cat_score in categories.items():
-                            row[f'{cat_name}_accuracy'] = cat_score
-                            
+                        # Add baseline comparisons if available
+                        if baseline_comparisons and model_name in baseline_comparisons:
+                            shot_key = f"{benchmark_name}_{shot_type.replace('_shot', '')}_shot"
+                            comparison_data = baseline_comparisons[model_name]
+                            row.update({
+                                'baseline_difference': comparison_data.get(f'{shot_key}_vs_baseline_diff', ''),
+                                'baseline_improvement_percent': comparison_data.get(f'{shot_key}_vs_baseline_improvement_pct', '')
+                            })
+                        else:
+                            row.update({
+                                'baseline_difference': '',
+                                'baseline_improvement_percent': ''
+                            })
+                        
+                        # Extract comprehensive subtask and category data
+                        subtask_data = extract_all_subtasks(shot_data, benchmark_name)
+                        
+                        # Add all subtasks (with empty values for missing ones)
+                        for subtask_name in sorted(all_subtasks):
+                            clean_name = subtask_name.replace('mmlu_', '').replace('_', ' ')
+                            row[f'subtask_{clean_name}'] = subtask_data['subtasks'].get(subtask_name, '')
+                        
+                        # Add all categories (with empty values for missing ones)  
+                        for category_name in sorted(all_categories):
+                            row[f'category_{category_name}'] = subtask_data['categories'].get(category_name, '')
+                        
+                        # Add metadata
+                        row['num_subtasks'] = subtask_data['metadata'].get('num_tasks', len(subtask_data['subtasks']))
+                        
                         rows.append(row)
         
         if not rows:
             log.warning("No successful results to export to CSV")
             return
             
-        # Write CSV
+        # Write comprehensive CSV
         with open(csv_file, 'w', newline='', encoding='utf-8') as f:
             if rows:
                 fieldnames = rows[0].keys()
@@ -1030,16 +1246,22 @@ def export_results_to_csv(summary_data: Dict, csv_file: Path):
                 writer.writeheader()
                 writer.writerows(rows)
                 
-        log.info(f"📄 CSV results exported to: {csv_file}")
+        log.info(f"📄 Enhanced CSV with {len(all_subtasks)} subtasks and {len(all_categories)} categories exported to: {csv_file}")
+        if baseline_model_name and baseline_comparisons:
+            log.info(f"📊 Baseline comparisons calculated relative to: {baseline_model_name}")
         
     except Exception as e:
-        log.error(f"Failed to export CSV: {e}")
+        log.error(f"Failed to export enhanced CSV: {e}")
+        import traceback
+        log.error(traceback.format_exc())
 
 
 def save_compact_summary(cfg: DictConfig, results: Dict):
     """Save compact evaluation summary with key metrics and metadata"""
     
-    output_dir = Path(cfg.paths.root_dir) / cfg.paths.output_dir / "evaluation/results/universal"
+    # Use Hydra's automatic output directory
+    hydra_output_dir = Path(HydraConfig.get().runtime.output_dir)
+    output_dir = hydra_output_dir / "evaluation/results/universal"
     output_dir.mkdir(parents=True, exist_ok=True)
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1173,7 +1395,7 @@ def save_compact_summary(cfg: DictConfig, results: Dict):
     
     # Create CSV export for easy analysis
     csv_file = output_dir / f"{cfg.experiment_name}_results_{timestamp}.csv"
-    export_results_to_csv(compact_summary, csv_file)
+    export_results_to_csv(compact_summary, csv_file, cfg)
     
     return summary_file
 
