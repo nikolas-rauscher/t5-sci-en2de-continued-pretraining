@@ -638,10 +638,9 @@ class EvaluationAnalyzer:
             if not matrix_data:
                 continue
             
-            # Create the heatmap with optimized size
-            fig_width = min(max(len(steps) * 0.3, 12), 30)  # Limit width
-            fig_height = min(max(len(subjects_list) * 0.3, 15), 25)  # Limit height
-            plt.figure(figsize=(fig_width, fig_height))
+            # Create quadratic heatmap
+            fig_size = min(max(max(len(steps), len(subjects_list)) * 0.4, 20), 30)  # Square format
+            plt.figure(figsize=(fig_size, fig_size))
             
             # Convert to numpy array and add average column
             matrix = np.array(matrix_data)
@@ -650,27 +649,68 @@ class EvaluationAnalyzer:
             averages = np.nanmean(matrix, axis=1, keepdims=True)
             matrix_with_avg = np.concatenate([matrix, averages], axis=1)
             
-            # Create heatmap (subjects_list is sorted with best first, so default origin shows best at TOP)
-            im = plt.imshow(matrix_with_avg, cmap='viridis', aspect='auto', interpolation='nearest')
+            # Get official MMLU overall scores for each step
+            mmlu_overall_scores = []
+            # Check available MMLU overall columns (try different naming patterns)
+            mmlu_overall_patterns = ['mmlu_overall', 'mmlu_flan_n_shot_loglikelihood', 'mmlu_0shot', 'mmlu_5shot']
+            mmlu_col = None
+            for pattern in mmlu_overall_patterns:
+                if pattern in run_data.columns:
+                    mmlu_col = pattern
+                    break
+            
+            for step in steps:
+                # Find checkpoint data for this step
+                step_data = run_data[run_data['step'] == step]
+                if not step_data.empty and mmlu_col and mmlu_col in step_data.columns:
+                    mmlu_score = step_data[mmlu_col].iloc[0]
+                    mmlu_overall_scores.append(mmlu_score if pd.notna(mmlu_score) else np.nan)
+                else:
+                    mmlu_overall_scores.append(np.nan)
+            
+            # Add average MMLU overall score as last column
+            mmlu_avg = np.nanmean(mmlu_overall_scores) if mmlu_overall_scores else np.nan
+            mmlu_overall_row = np.array(mmlu_overall_scores + [mmlu_avg]).reshape(1, -1)
+            
+            # Calculate simple average for each step (column) from individual tasks
+            col_averages = np.nanmean(matrix_with_avg, axis=0, keepdims=True)
+            
+            # Add both rows: MMLU Official first, then Simple Average
+            matrix_with_both_avg_rows = np.concatenate([mmlu_overall_row, col_averages, matrix_with_avg], axis=0)
+            
+            # Create heatmap with both average rows at top
+            im = plt.imshow(matrix_with_both_avg_rows, cmap='viridis', aspect='auto', interpolation='nearest')
             
             # Set up the plot
             plt.title(f'MMLU Subtasks Progression Over Training Steps\n{run_type.replace("_", " ").title()} Run', 
                      fontweight='bold', fontsize=16, pad=20)
             
-            # Y-axis: subjects with average values
-            clean_subjects = []
+            # Y-axis: add both average rows at top, then subjects with average values
+            clean_subjects = ['MMLU OFFICIAL', 'SIMPLE AVERAGE (All Tasks)']  # Two top row labels
             for i, subj in enumerate(subjects_list):
                 avg_val = averages[i, 0]
                 clean_name = subj.replace('_', ' ').title()
                 clean_subjects.append(f'{clean_name} (Avg: {avg_val:.3f})')
             
-            plt.yticks(range(len(subjects_list)), clean_subjects, fontsize=9)
+            plt.yticks(range(len(clean_subjects)), clean_subjects, fontsize=6)
             plt.ylabel('MMLU Subtasks (with Averages)', fontweight='bold', fontsize=14)
             
             # X-axis: steps + average column  
             step_labels = [f'{int(step/1000)}k' for step in steps] + ['AVG']
-            plt.xticks(range(len(step_labels)), step_labels, rotation=45, ha='right', fontsize=10)
+            plt.xticks(range(len(step_labels)), step_labels, rotation=45, ha='right', fontsize=8)
             plt.xlabel('Training Steps + Average', fontweight='bold', fontsize=14)
+            
+            
+            # Add vertical line to separate average column from training steps
+            ax = plt.gca()
+            line_x = len(steps) - 0.5  # Position between last step and average column
+            ax.axvline(x=line_x, color='white', linewidth=3, linestyle='-')
+            ax.axvline(x=line_x, color='black', linewidth=1, linestyle='--')
+            
+            # Add horizontal line to separate average rows from individual subjects
+            line_y = 1.5  # Position between 2nd average row and first subject
+            ax.axhline(y=line_y, color='white', linewidth=3, linestyle='-')
+            ax.axhline(y=line_y, color='black', linewidth=1, linestyle='--')
             
             # Add colorbar
             cbar = plt.colorbar(im, shrink=0.8)
@@ -695,17 +735,444 @@ class EvaluationAnalyzer:
                            edgecolor='none', format='png', transparent=False)
                 print(f"📊 Subtasks progression heatmap saved to: {run_save_path}")
                 
-                # Also save the heatmap data as CSV table (with average column)
+                # Also save the heatmap data as CSV table (with average column and both top rows)
                 csv_save_path = run_save_path.replace('.png', '_data.csv')
-                heatmap_df = pd.DataFrame(matrix_with_avg, 
-                                        index=[f'{subj.replace("_", " ").title()} (Avg: {averages[i,0]:.3f})' 
-                                              for i, subj in enumerate(subjects_list)],
+                row_labels = ['MMLU OFFICIAL', 'SIMPLE AVERAGE (All Tasks)'] + [f'{subj.replace("_", " ").title()} (Avg: {averages[i,0]:.3f})' 
+                                                                               for i, subj in enumerate(subjects_list)]
+                heatmap_df = pd.DataFrame(matrix_with_both_avg_rows, 
+                                        index=row_labels,
                                         columns=[f'{int(step/1000)}k' for step in steps] + ['AVG'])
                 heatmap_df.to_csv(csv_save_path)
                 print(f"📋 Heatmap data table with averages saved to: {csv_save_path}")
                 
             except Exception as e:
                 print(f"⚠️  Error saving subtasks heatmap: {e}")
+                return None
+            finally:
+                plt.close()
+        
+        return save_path
+    
+    def create_performance_sorted_heatmap(self, results: List[Dict], save_path: str = "performance_sorted_heatmap.png"):
+        """Create heatmap with checkpoints sorted by MMLU official performance (worst to best)."""
+        df = pd.DataFrame(results)
+        
+        if df.empty:
+            print("⚠️  No data available for performance sorted heatmap")
+            return None
+        
+        # Filter out baseline models for progression analysis
+        df_checkpoints = df[~df['is_baseline']].copy()
+        
+        if df_checkpoints.empty:
+            print("⚠️  No checkpoint data available for performance sorted heatmap")
+            return None
+        
+        # Extract all individual MMLU subjects from the data
+        all_subjects = set()
+        for result in results:
+            for key in result.keys():
+                if key.startswith('mmlu_subject_') and not key.endswith('_stderr'):
+                    subject = key.replace('mmlu_subject_', '')
+                    all_subjects.add(subject)
+        
+        if not all_subjects:
+            print("⚠️  No individual MMLU subjects found")
+            return None
+        
+        # Create performance sorted data for each run type
+        run_types = [rt for rt in df_checkpoints['run_type'].unique() if rt != 'unknown']
+        
+        for run_type in run_types:
+            run_data = df_checkpoints[df_checkpoints['run_type'] == run_type].copy()
+            
+            if run_data.empty:
+                continue
+            
+            # Get MMLU official scores for sorting
+            mmlu_overall_patterns = ['mmlu_overall', 'mmlu_flan_n_shot_loglikelihood', 'mmlu_0shot', 'mmlu_5shot']
+            mmlu_col = None
+            for pattern in mmlu_overall_patterns:
+                if pattern in run_data.columns:
+                    mmlu_col = pattern
+                    break
+            
+            if not mmlu_col:
+                print(f"⚠️  No MMLU overall column found for {run_type}")
+                continue
+            
+            # Sort by MMLU official performance (worst to best)
+            run_data = run_data.sort_values(mmlu_col, ascending=True)
+            
+            # Sort subjects by average performance across all checkpoints (best first)
+            subjects_list = sorted(list(all_subjects))
+            subject_averages = {}
+            
+            for subject in subjects_list:
+                subject_key = f'mmlu_subject_{subject}'
+                if subject_key in run_data.columns:
+                    subject_scores = run_data[subject_key].dropna()
+                    if not subject_scores.empty:
+                        subject_averages[subject] = subject_scores.mean()
+                    else:
+                        subject_averages[subject] = 0
+                else:
+                    subject_averages[subject] = 0
+            
+            # Sort subjects by performance (best first)
+            subjects_list = sorted(subjects_list, key=lambda x: subject_averages[x], reverse=True)
+            
+            # Create matrix data
+            matrix_data = []
+            steps = run_data['step'].tolist()
+            
+            for subject in subjects_list:
+                row_data = []
+                subject_key = f'mmlu_subject_{subject}'
+                
+                for step in steps:
+                    step_data = run_data[run_data['step'] == step]
+                    if not step_data.empty and subject_key in step_data.columns:
+                        score = step_data[subject_key].iloc[0]
+                        row_data.append(score if pd.notna(score) else np.nan)
+                    else:
+                        row_data.append(np.nan)
+                
+                matrix_data.append(row_data)
+            
+            if not matrix_data:
+                continue
+            
+            # Create quadratic heatmap
+            fig_size = min(max(max(len(steps), len(subjects_list)) * 0.4, 20), 30)  # Square format
+            plt.figure(figsize=(fig_size, fig_size))
+            
+            # Convert to numpy array and add average column
+            matrix = np.array(matrix_data)
+            
+            # Calculate average for each subject (row) and add as additional column
+            averages = np.nanmean(matrix, axis=1, keepdims=True)
+            matrix_with_avg = np.concatenate([matrix, averages], axis=1)
+            
+            # Get official MMLU overall scores for each checkpoint (already sorted)
+            mmlu_overall_scores = []
+            for step in steps:
+                step_data = run_data[run_data['step'] == step]
+                if not step_data.empty and mmlu_col in step_data.columns:
+                    mmlu_score = step_data[mmlu_col].iloc[0]
+                    mmlu_overall_scores.append(mmlu_score if pd.notna(mmlu_score) else np.nan)
+                else:
+                    mmlu_overall_scores.append(np.nan)
+            
+            # Add average MMLU overall score as last column
+            mmlu_avg = np.nanmean(mmlu_overall_scores) if mmlu_overall_scores else np.nan
+            mmlu_overall_row = np.array(mmlu_overall_scores + [mmlu_avg]).reshape(1, -1)
+            
+            # Calculate simple average for each checkpoint from individual tasks
+            col_averages = np.nanmean(matrix_with_avg, axis=0, keepdims=True)
+            
+            # Add both rows: MMLU Official first, then Simple Average
+            matrix_with_both_avg_rows = np.concatenate([mmlu_overall_row, col_averages, matrix_with_avg], axis=0)
+            
+            # Create heatmap with both average rows at top
+            im = plt.imshow(matrix_with_both_avg_rows, cmap='viridis', aspect='auto', interpolation='nearest')
+            
+            # Set up the plot
+            plt.title(f'MMLU Performance - Checkpoints Sorted by Official Score (Worst → Best)\n{run_type.replace("_", " ").title()} Run', 
+                     fontweight='bold', fontsize=16, pad=20)
+            
+            # Y-axis: add both average rows at top, then subjects sorted by performance
+            clean_subjects = ['MMLU OFFICIAL', 'SIMPLE AVERAGE (All Tasks)']
+            for i, subj in enumerate(subjects_list):
+                avg_val = averages[i, 0]
+                clean_name = subj.replace('_', ' ').title()
+                clean_subjects.append(f'{clean_name} (Avg: {avg_val:.3f})')
+            
+            plt.yticks(range(len(clean_subjects)), clean_subjects, fontsize=6)
+            plt.ylabel('MMLU Subtasks (Sorted by Performance)', fontweight='bold', fontsize=14)
+            
+            # X-axis: steps sorted by performance + average column (simple labels only)
+            step_labels = [f'{int(step/1000)}k' for step in steps] + ['AVG']
+            
+            plt.xticks(range(len(step_labels)), step_labels, rotation=45, ha='right', fontsize=6)
+            plt.xlabel('Checkpoints Sorted by MMLU Official Score (Worst → Best) + Average', fontweight='bold', fontsize=14)
+            
+            # Add vertical line to separate average column from training steps
+            ax = plt.gca()
+            line_x = len(steps) - 0.5
+            ax.axvline(x=line_x, color='white', linewidth=3, linestyle='-')
+            ax.axvline(x=line_x, color='black', linewidth=1, linestyle='--')
+            
+            # Add horizontal line to separate average rows from individual subjects
+            line_y = 1.5
+            ax.axhline(y=line_y, color='white', linewidth=3, linestyle='-')
+            ax.axhline(y=line_y, color='black', linewidth=1, linestyle='--')
+            
+            # Add colorbar
+            cbar = plt.colorbar(im, shrink=0.8)
+            cbar.set_label('MMLU Accuracy', fontweight='bold', fontsize=12)
+            
+            # Tight layout
+            plt.tight_layout()
+            
+            # Save with run-specific filename
+            run_save_path = save_path.replace('.png', f'_performance_sorted_{run_type}.png')
+            
+            try:
+                plt.savefig(run_save_path, dpi=300, bbox_inches='tight', facecolor='white',
+                           edgecolor='none', format='png', transparent=False)
+                print(f"📊 Performance sorted heatmap saved to: {run_save_path}")
+                
+                # Also save the heatmap data as CSV table
+                csv_save_path = run_save_path.replace('.png', '_data.csv')
+                row_labels = ['MMLU OFFICIAL', 'SIMPLE AVERAGE (All Tasks)'] + [f'{subj.replace("_", " ").title()} (Avg: {averages[i,0]:.3f})' 
+                                                                               for i, subj in enumerate(subjects_list)]
+                heatmap_df = pd.DataFrame(matrix_with_both_avg_rows, 
+                                        index=row_labels,
+                                        columns=step_labels)
+                heatmap_df.to_csv(csv_save_path)
+                print(f"📋 Performance sorted data saved to: {csv_save_path}")
+                
+            except Exception as e:
+                print(f"⚠️  Error saving performance sorted heatmap: {e}")
+                return None
+            finally:
+                plt.close()
+        
+        return save_path
+    
+    def create_baseline_relative_performance_sorted_heatmap(self, results: List[Dict], save_path: str = "baseline_relative_performance_sorted_heatmap.png"):
+        """Create baseline-relative heatmap with checkpoints sorted by MMLU official performance (worst to best)."""
+        if not results:
+            print("⚠️  No results provided for baseline relative performance sorted heatmap")
+            return None
+            
+        df = pd.DataFrame(results)
+        
+        # Get baseline results (step 0 or run_type 'baseline')
+        baseline_results = df[(df['step'] == 0) | (df['run_type'] == 'baseline')].copy()
+        if baseline_results.empty:
+            print("⚠️  No baseline results found")
+            return None
+            
+        # Get all MMLU subject columns
+        all_subjects = set()
+        for col in df.columns:
+            if col.startswith('mmlu_subject_'):
+                subject = col.replace('mmlu_subject_', '')
+                all_subjects.add(subject)
+        
+        if not all_subjects:
+            print("⚠️  No individual MMLU subjects found for baseline comparison")
+            return None
+        
+        # Calculate baseline averages for each subject
+        baseline_averages = {}
+        for subject in all_subjects:
+            subject_key = f'mmlu_subject_{subject}'
+            if subject_key in baseline_results.columns:
+                baseline_scores = baseline_results[subject_key].dropna()
+                if not baseline_scores.empty:
+                    baseline_averages[subject] = baseline_scores.mean()
+                else:
+                    baseline_averages[subject] = 0.25  # default random chance
+            else:
+                baseline_averages[subject] = 0.25
+        
+        # Also calculate baseline average for MMLU overall score
+        mmlu_overall_patterns = ['mmlu_overall', 'mmlu_flan_n_shot_loglikelihood', 'mmlu_0shot', 'mmlu_5shot']
+        for pattern in mmlu_overall_patterns:
+            if pattern in baseline_results.columns:
+                baseline_mmlu_scores = baseline_results[pattern].dropna()
+                if not baseline_mmlu_scores.empty:
+                    baseline_averages[pattern] = baseline_mmlu_scores.mean()
+                else:
+                    baseline_averages[pattern] = 0.25
+        
+        # Filter out baseline and unknown results for trained models
+        df_trained = df[(df['run_type'] != 'baseline') & (df['run_type'] != 'unknown') & (df['step'] > 0)].copy()
+        
+        if df_trained.empty:
+            print("⚠️  No trained model results found")
+            return None
+        
+        # Sort subjects by average improvement across all checkpoints (best first)
+        subjects_list = sorted(list(all_subjects))
+        
+        # Generate improvement data for each run type
+        run_types = [rt for rt in df_trained['run_type'].unique() if rt != 'unknown']
+        
+        for run_type in run_types:
+            run_data = df_trained[df_trained['run_type'] == run_type].copy()
+            
+            if run_data.empty:
+                continue
+            
+            # Get MMLU official scores for sorting
+            mmlu_overall_patterns = ['mmlu_overall', 'mmlu_flan_n_shot_loglikelihood', 'mmlu_0shot', 'mmlu_5shot']
+            mmlu_col = None
+            for pattern in mmlu_overall_patterns:
+                if pattern in run_data.columns:
+                    mmlu_col = pattern
+                    break
+            
+            if not mmlu_col:
+                print(f"⚠️  No MMLU overall column found for {run_type}")
+                continue
+            
+            # Sort by MMLU official performance (worst to best)
+            run_data = run_data.sort_values(mmlu_col, ascending=True)
+            
+            # Calculate average improvement for each subject across all checkpoints to sort subjects
+            subject_improvements = {}
+            for subject in subjects_list:
+                subject_key = f'mmlu_subject_{subject}'
+                baseline_val = baseline_averages[subject]
+                
+                if subject_key in run_data.columns:
+                    improvements = []
+                    for _, row in run_data.iterrows():
+                        current_score = row[subject_key]
+                        if pd.notna(current_score) and baseline_val > 0:
+                            improvement = ((current_score - baseline_val) / baseline_val) * 100
+                            improvements.append(improvement)
+                    
+                    if improvements:
+                        subject_improvements[subject] = np.mean(improvements)
+                    else:
+                        subject_improvements[subject] = 0
+                else:
+                    subject_improvements[subject] = 0
+            
+            # Sort subjects by average improvement (best first)
+            subjects_list = sorted(subjects_list, key=lambda x: subject_improvements[x], reverse=True)
+            
+            # Create matrix data
+            matrix_data = []
+            steps = run_data['step'].tolist()
+            
+            for subject in subjects_list:
+                row_data = []
+                subject_key = f'mmlu_subject_{subject}'
+                baseline_val = baseline_averages[subject]
+                
+                for step in steps:
+                    step_data = run_data[run_data['step'] == step]
+                    if not step_data.empty and subject_key in step_data.columns:
+                        current_score = step_data[subject_key].iloc[0]
+                        if pd.notna(current_score) and baseline_val > 0:
+                            improvement = ((current_score - baseline_val) / baseline_val) * 100
+                            row_data.append(improvement)
+                        else:
+                            row_data.append(np.nan)
+                    else:
+                        row_data.append(np.nan)
+                
+                matrix_data.append(row_data)
+            
+            if not matrix_data:
+                continue
+            
+            # Create quadratic heatmap
+            fig_size = min(max(max(len(steps), len(subjects_list)) * 0.4, 20), 30)  # Square format
+            plt.figure(figsize=(fig_size, fig_size))
+            
+            # Convert to numpy array and add average improvement column
+            matrix = np.array(matrix_data)
+            
+            # Calculate average improvement for each subject (row) and add as additional column
+            avg_improvements = np.nanmean(matrix, axis=1, keepdims=True)
+            matrix_with_avg = np.concatenate([matrix, avg_improvements], axis=1)
+            
+            # Get official MMLU overall improvement scores for each checkpoint (already sorted)
+            mmlu_overall_improvements = []
+            baseline_mmlu_overall = baseline_averages.get(mmlu_col, np.nan) if mmlu_col else np.nan
+            
+            for step in steps:
+                step_data = run_data[run_data['step'] == step]
+                if not step_data.empty and mmlu_col and mmlu_col in step_data.columns:
+                    mmlu_score = step_data[mmlu_col].iloc[0]
+                    if pd.notna(mmlu_score) and pd.notna(baseline_mmlu_overall):
+                        improvement = ((mmlu_score - baseline_mmlu_overall) / baseline_mmlu_overall) * 100
+                        mmlu_overall_improvements.append(improvement)
+                    else:
+                        mmlu_overall_improvements.append(np.nan)
+                else:
+                    mmlu_overall_improvements.append(np.nan)
+            
+            # Add average MMLU overall improvement as last column
+            mmlu_improvement_avg = np.nanmean(mmlu_overall_improvements) if mmlu_overall_improvements and not all(pd.isna(mmlu_overall_improvements)) else np.nan
+            mmlu_improvement_row = np.array(mmlu_overall_improvements + [mmlu_improvement_avg]).reshape(1, -1)
+            
+            # Calculate simple average for each checkpoint from individual tasks
+            col_averages = np.nanmean(matrix_with_avg, axis=0, keepdims=True)
+            
+            # Add both rows: MMLU Official improvement first, then Simple Average
+            matrix_with_both_avg_rows = np.concatenate([mmlu_improvement_row, col_averages, matrix_with_avg], axis=0)
+            
+            # Create heatmap with diverging colormap (red=worse, white=no change, green=better)
+            im = plt.imshow(matrix_with_both_avg_rows, cmap='RdYlGn', aspect='auto', interpolation='nearest', 
+                           vmin=-50, vmax=50)
+            
+            # Set up the plot
+            plt.title(f'MMLU Improvement vs Baseline - Checkpoints Sorted by Official Score (Worst → Best)\n{run_type.replace("_", " ").title()} Run', 
+                     fontweight='bold', fontsize=16, pad=20)
+            
+            # Y-axis: add both average rows at top, then subjects with baseline and average improvement values
+            clean_subjects = ['MMLU OFFICIAL IMPROVEMENT', 'SIMPLE AVERAGE IMPROVEMENT']
+            for i, subj in enumerate(subjects_list):
+                baseline_val = baseline_averages[subj]
+                avg_improvement = avg_improvements[i, 0]
+                clean_name = subj.replace('_', ' ').title()
+                clean_subjects.append(f'{clean_name} (Base: {baseline_val:.3f}, +{avg_improvement:.1f}%)')
+            
+            plt.yticks(range(len(clean_subjects)), clean_subjects, fontsize=6)
+            plt.ylabel('MMLU Subtasks (Sorted by Improvement)', fontweight='bold', fontsize=14)
+            
+            # X-axis: checkpoints sorted by performance + average column (simple labels only)
+            step_labels = [f'{int(step/1000)}k' for step in steps] + ['AVG']
+            
+            plt.xticks(range(len(step_labels)), step_labels, rotation=45, ha='right', fontsize=6)
+            plt.xlabel('Checkpoints Sorted by MMLU Official Score (Worst → Best) + Average', fontweight='bold', fontsize=14)
+            
+            # Add vertical line to separate average column from training steps
+            ax = plt.gca()
+            line_x = len(steps) - 0.5
+            ax.axvline(x=line_x, color='white', linewidth=3, linestyle='-')
+            ax.axvline(x=line_x, color='black', linewidth=1, linestyle='--')
+            
+            # Add horizontal line to separate average rows from individual subjects
+            line_y = 1.5
+            ax.axhline(y=line_y, color='white', linewidth=3, linestyle='-')
+            ax.axhline(y=line_y, color='black', linewidth=1, linestyle='--')
+            
+            # Add colorbar
+            cbar = plt.colorbar(im, shrink=0.8)
+            cbar.set_label('Improvement over Baseline (%)', fontweight='bold', fontsize=12)
+            
+            # Tight layout
+            plt.tight_layout()
+            
+            # Save with run-specific filename
+            run_save_path = save_path.replace('.png', f'_baseline_relative_performance_sorted_{run_type}.png')
+            
+            try:
+                plt.savefig(run_save_path, dpi=300, bbox_inches='tight', facecolor='white',
+                           edgecolor='none', format='png', transparent=False)
+                print(f"📊 Baseline relative performance sorted heatmap saved to: {run_save_path}")
+                
+                # Also save the improvement data as CSV table
+                csv_save_path = run_save_path.replace('.png', '_data.csv')
+                row_labels = ['MMLU OFFICIAL IMPROVEMENT', 'SIMPLE AVERAGE IMPROVEMENT'] + [f'{subj.replace("_", " ").title()} (Base: {baseline_averages[subj]:.3f}, +{avg_improvements[i,0]:.1f}%)' 
+                                                                                           for i, subj in enumerate(subjects_list)]
+                improvement_df = pd.DataFrame(matrix_with_both_avg_rows, 
+                                            index=row_labels,
+                                            columns=step_labels)
+                improvement_df.to_csv(csv_save_path)
+                print(f"📋 Baseline relative performance sorted data saved to: {csv_save_path}")
+                
+            except Exception as e:
+                print(f"⚠️  Error saving baseline relative performance sorted heatmap: {e}")
                 return None
             finally:
                 plt.close()
@@ -749,6 +1216,16 @@ class EvaluationAnalyzer:
                     baseline_averages[subject] = 0.25  # default random chance
             else:
                 baseline_averages[subject] = 0.25
+        
+        # Also calculate baseline average for MMLU overall score
+        mmlu_overall_patterns = ['mmlu_overall', 'mmlu_flan_n_shot_loglikelihood', 'mmlu_0shot', 'mmlu_5shot']
+        for pattern in mmlu_overall_patterns:
+            if pattern in baseline_results.columns:
+                baseline_mmlu_scores = baseline_results[pattern].dropna()
+                if not baseline_mmlu_scores.empty:
+                    baseline_averages[pattern] = baseline_mmlu_scores.mean()
+                else:
+                    baseline_averages[pattern] = 0.25
         
         # Filter out baseline and unknown results for trained models
         df_trained = df[(df['run_type'] != 'baseline') & (df['run_type'] != 'unknown') & (df['step'] > 0)].copy()
@@ -810,10 +1287,9 @@ class EvaluationAnalyzer:
             if not matrix_data:
                 continue
             
-            # Create the heatmap with optimized size
-            fig_width = min(max(len(steps) * 0.3, 12), 30)  # Limit width
-            fig_height = min(max(len(subjects_list) * 0.3, 15), 25)  # Limit height
-            plt.figure(figsize=(fig_width, fig_height))
+            # Create quadratic heatmap
+            fig_size = min(max(max(len(steps), len(subjects_list)) * 0.4, 20), 30)  # Square format
+            plt.figure(figsize=(fig_size, fig_size))
             
             # Convert to numpy array and add average improvement column
             matrix = np.array(matrix_data)
@@ -822,29 +1298,75 @@ class EvaluationAnalyzer:
             avg_improvements = np.nanmean(matrix, axis=1, keepdims=True)
             matrix_with_avg = np.concatenate([matrix, avg_improvements], axis=1)
             
+            # Get official MMLU overall improvement scores for each step
+            mmlu_overall_improvements = []
+            # Check available MMLU overall columns (try different naming patterns)
+            mmlu_overall_patterns = ['mmlu_overall', 'mmlu_flan_n_shot_loglikelihood', 'mmlu_0shot', 'mmlu_5shot']
+            mmlu_col = None
+            for pattern in mmlu_overall_patterns:
+                if pattern in run_data.columns:
+                    mmlu_col = pattern
+                    break
+            baseline_mmlu_overall = baseline_averages.get(mmlu_col, np.nan) if mmlu_col else np.nan
+            
+            for step in steps:
+                # Find checkpoint data for this step
+                step_data = run_data[run_data['step'] == step]
+                if not step_data.empty and mmlu_col and mmlu_col in step_data.columns:
+                    mmlu_score = step_data[mmlu_col].iloc[0]
+                    if pd.notna(mmlu_score) and pd.notna(baseline_mmlu_overall):
+                        improvement = ((mmlu_score - baseline_mmlu_overall) / baseline_mmlu_overall) * 100
+                        mmlu_overall_improvements.append(improvement)
+                    else:
+                        mmlu_overall_improvements.append(np.nan)
+                else:
+                    mmlu_overall_improvements.append(np.nan)
+            
+            # Add average MMLU overall improvement as last column
+            mmlu_improvement_avg = np.nanmean(mmlu_overall_improvements) if mmlu_overall_improvements and not all(pd.isna(mmlu_overall_improvements)) else np.nan
+            mmlu_improvement_row = np.array(mmlu_overall_improvements + [mmlu_improvement_avg]).reshape(1, -1)
+            
+            # Calculate simple average for each step (column) from individual tasks
+            col_averages = np.nanmean(matrix_with_avg, axis=0, keepdims=True)
+            
+            # Add both rows: MMLU Official improvement first, then Simple Average
+            matrix_with_both_avg_rows = np.concatenate([mmlu_improvement_row, col_averages, matrix_with_avg], axis=0)
+            
             # Create heatmap with diverging colormap (red=worse, white=no change, green=better)
-            im = plt.imshow(matrix_with_avg, cmap='RdYlGn', aspect='auto', interpolation='nearest', 
+            im = plt.imshow(matrix_with_both_avg_rows, cmap='RdYlGn', aspect='auto', interpolation='nearest', 
                            vmin=-50, vmax=50)
             
             # Set up the plot
             plt.title(f'MMLU Subtasks Improvement vs Baseline\n{run_type.replace("_", " ").title()} Run', 
                      fontweight='bold', fontsize=16, pad=20)
             
-            # Y-axis: subjects with baseline and average improvement values
-            clean_subjects = []
+            # Y-axis: add both average rows at top, then subjects with baseline and average improvement values
+            clean_subjects = ['MMLU OFFICIAL IMPROVEMENT', 'SIMPLE AVERAGE IMPROVEMENT']  # Two top row labels
             for i, subj in enumerate(subjects_list):
                 baseline_val = baseline_averages[subj]
                 avg_improvement = avg_improvements[i, 0]
                 clean_name = subj.replace('_', ' ').title()
-                clean_subjects.append(f'{clean_name}\n(Base: {baseline_val:.3f}, +{avg_improvement:.1f}%)')
+                clean_subjects.append(f'{clean_name} (Base: {baseline_val:.3f}, +{avg_improvement:.1f}%)')
             
-            plt.yticks(range(len(subjects_list)), clean_subjects, fontsize=8)
+            plt.yticks(range(len(clean_subjects)), clean_subjects, fontsize=6)
             plt.ylabel('MMLU Subtasks (Baseline + Avg Improvement)', fontweight='bold', fontsize=14)
             
             # X-axis: steps + average improvement column  
             step_labels = [f'{int(step/1000)}k' for step in steps] + ['AVG']
-            plt.xticks(range(len(step_labels)), step_labels, rotation=45, ha='right', fontsize=10)
+            plt.xticks(range(len(step_labels)), step_labels, rotation=45, ha='right', fontsize=8)
             plt.xlabel('Training Steps + Average Improvement %', fontweight='bold', fontsize=14)
+            
+            
+            # Add vertical line to separate average column from training steps
+            ax = plt.gca()
+            line_x = len(steps) - 0.5  # Position between last step and average column
+            ax.axvline(x=line_x, color='white', linewidth=3, linestyle='-')
+            ax.axvline(x=line_x, color='black', linewidth=1, linestyle='--')
+            
+            # Add horizontal line to separate average rows from individual subjects
+            line_y = 1.5  # Position between 2nd average row and first subject
+            ax.axhline(y=line_y, color='white', linewidth=3, linestyle='-')
+            ax.axhline(y=line_y, color='black', linewidth=1, linestyle='--')
             
             # Add colorbar
             cbar = plt.colorbar(im, shrink=0.8)
@@ -858,11 +1380,12 @@ class EvaluationAnalyzer:
                            edgecolor='none', format='png', transparent=False)
                 print(f"📊 Baseline relative heatmap saved to: {run_save_path}")
                 
-                # Also save the improvement data as CSV table
+                # Also save the improvement data as CSV table (with average column and both top rows)
                 csv_save_path = run_save_path.replace('.png', '_data.csv')
-                improvement_df = pd.DataFrame(matrix_with_avg, 
-                                            index=[f'{subj.replace("_", " ").title()} (Base: {baseline_averages[subj]:.3f}, +{avg_improvements[i,0]:.1f}%)' 
-                                                  for i, subj in enumerate(subjects_list)],
+                row_labels = ['MMLU OFFICIAL IMPROVEMENT', 'SIMPLE AVERAGE IMPROVEMENT'] + [f'{subj.replace("_", " ").title()} (Base: {baseline_averages[subj]:.3f}, +{avg_improvements[i,0]:.1f}%)' 
+                                                                                           for i, subj in enumerate(subjects_list)]
+                improvement_df = pd.DataFrame(matrix_with_both_avg_rows, 
+                                            index=row_labels,
                                             columns=[f'{int(step/1000)}k' for step in steps] + ['AVG'])
                 improvement_df.to_csv(csv_save_path)
                 print(f"📋 Baseline relative data saved to: {csv_save_path}")
@@ -990,10 +1513,20 @@ class EvaluationAnalyzer:
         heatmap_path = self.create_subtasks_progression_heatmap(self.results,
                                                               str(output_dir / heatmap_filename) if save_results else heatmap_filename)
         
+        # Generate performance sorted heatmap 
+        performance_sorted_filename = f"{run_name}_performance_sorted.png"
+        performance_sorted_path = self.create_performance_sorted_heatmap(self.results,
+                                                                        str(output_dir / performance_sorted_filename) if save_results else performance_sorted_filename)
+        
         # Generate baseline relative heatmap
         baseline_heatmap_filename = f"{run_name}_baseline_relative.png"
         baseline_heatmap_path = self.create_baseline_relative_heatmap(self.results,
                                                                     str(output_dir / baseline_heatmap_filename) if save_results else baseline_heatmap_filename)
+        
+        # Generate baseline relative performance sorted heatmap
+        baseline_performance_sorted_filename = f"{run_name}_baseline_relative_performance_sorted.png"
+        baseline_performance_sorted_path = self.create_baseline_relative_performance_sorted_heatmap(self.results,
+                                                                                                   str(output_dir / baseline_performance_sorted_filename) if save_results else baseline_performance_sorted_filename)
         
         # Generate summary report
         summary_report = self.generate_summary_report(self.results)
