@@ -1,0 +1,445 @@
+# @package _global_
+
+# Clean Restart Run (Conservative LR 0.0001) - Complete Checkpoint Evaluation
+# All unique checkpoints from Clean Restart Run (Conservative LR 0.0001)
+
+# Weights & Biases configuration
+logger:
+  wandb:
+    project: "eval-mmlu"
+    entity: "nikolas-rauscher-dfki"
+    group: "Clean-Restart-Complete"
+    tags: ["mmlu", "clean_restart", "complete-eval", "all-checkpoints"]
+
+# All unique checkpoints
+models:
+  - name: "clean_restart_step01_30k"
+    path: "clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/steps/step-step=030000.ckpt"
+
+  - name: "clean_restart_step02_35k"
+    path: "clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/steps/step-step=035000.ckpt"
+
+  - name: "clean_restart_step03_40k"
+    path: "clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/steps/step-step=040000.ckpt"
+
+  - name: "clean_restart_step04_45k"
+    path: "clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/steps/step-step=045000.ckpt"
+
+  - name: "clean_restart_step05_50k"
+    path: "clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/steps/step-step=050000.ckpt"
+
+  - name: "clean_restart_best06_52k_ppl1419"
+    path: "clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/best/step-052500-val_ppl-1.419.ckpt"
+
+  - name: "clean_restart_best07_55k_ppl1419"
+    path: "clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/best/step-055000-val_ppl-1.419.ckpt"
+
+  - name: "clean_restart_best08_57k_ppl1418"
+    path: "clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/best/step-057500-val_ppl-1.418.ckpt"
+
+  - name: "clean_restart_best09_60k_ppl1417"
+    path: "clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/best/step-060000-val_ppl-1.417.ckpt"
+
+  - name: "clean_restart_best10_62k_ppl1417"
+    path: "clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/best/step-062500-val_ppl-1.417.ckpt"
+
+  - name: "clean_restart_best11_65k_ppl1416"
+    path: "clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/best/step-065000-val_ppl-1.416.ckpt"
+
+  - name: "clean_restart_best12_67k_ppl1415"
+    path: "clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/best/step-067500-val_ppl-1.415.ckpt"
+
+  - name: "clean_restart_best13_70k_ppl1415"
+    path: "clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/best/step-070000-val_ppl-1.415.ckpt"
+
+  - name: "clean_restart_best14_72k_ppl1414"
+    path: "clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/best/step-072500-val_ppl-1.414.ckpt"
+
+  - name: "clean_restart_best15_75k_ppl1414"
+    path: "clean_restart_logs/train/runs/2025-07-28_15-30-00/checkpoints/best/step-075000-val_ppl-1.414.ckpt"
+
+  - name: "clean_restart_step16_105k"
+    path: "clean_restart_logs/train/runs/2025-07-29_20-56-27/checkpoints/steps/step-step=105000.ckpt"
+
+  - name: "clean_restart_step17_110k"
+    path: "clean_restart_logs/train/runs/2025-07-29_20-56-27/checkpoints/steps/step-step=110000.ckpt"
+
+  - name: "clean_restart_step18_115k"
+    path: "clean_restart_logs/train/runs/2025-07-29_20-56-27/checkpoints/steps/step-step=115000.ckpt"
+
+  - name: "clean_restart_best19_120k_ppl1408"
+    path: "clean_restart_logs/train/runs/2025-07-29_20-56-27/checkpoints/best/step-120000-val_ppl-1.408.ckpt"
+
+  - name: "clean_restart_step20_125k"
+    path: "clean_restart_logs/train/runs/2025-07-29_20-56-27/checkpoints/steps/step-step=125000.ckpt"
+
+  - name: "clean_restart_best21_130k_ppl1408"
+    path: "clean_restart_logs/train/runs/2025-07-29_20-56-27/checkpoints/best/step-130000-val_ppl-1.408.ckpt"
+
+  - name: "clean_restart_best22_132k_ppl1408"
+    path: "clean_restart_logs/train/runs/2025-07-29_20-56-27/checkpoints/best/step-132500-val_ppl-1.408.ckpt"
+
+  - name: "clean_restart_best23_135k_ppl1407"
+    path: "clean_restart_logs/train/runs/2025-07-29_20-56-27/checkpoints/best/step-135000-val_ppl-1.407.ckpt"
+
+  - name: "clean_restart_best24_137k_ppl1408"
+    path: "clean_restart_logs/train/runs/2025-07-29_20-56-27/checkpoints/best/step-137500-val_ppl-1.408.ckpt"
+
+  - name: "clean_restart_best25_140k_ppl1408"
+    path: "clean_restart_logs/train/runs/2025-07-29_20-56-27/checkpoints/best/step-140000-val_ppl-1.408.ckpt"
+
+  - name: "clean_restart_best26_142k_ppl1407"
+    path: "clean_restart_logs/train/runs/2025-07-29_20-56-27/checkpoints/best/step-142500-val_ppl-1.407.ckpt"
+
+  - name: "clean_restart_best27_145k_ppl1407"
+    path: "clean_restart_logs/train/runs/2025-07-29_20-56-27/checkpoints/best/step-145000-val_ppl-1.407.ckpt"
+
+  - name: "clean_restart_best28_147k_ppl1406"
+    path: "clean_restart_logs/train/runs/2025-07-29_20-56-27/checkpoints/best/step-147500-val_ppl-1.406.ckpt"
+
+  - name: "clean_restart_best29_150k_ppl1406"
+    path: "clean_restart_logs/train/runs/2025-07-29_20-56-27/checkpoints/best/step-150000-val_ppl-1.406.ckpt"
+
+  - name: "clean_restart_step30_180k"
+    path: "clean_restart_logs/train/runs/2025-07-30_20-57-08/checkpoints/steps/step-step=180000.ckpt"
+
+  - name: "clean_restart_step31_185k"
+    path: "clean_restart_logs/train/runs/2025-07-30_20-57-08/checkpoints/steps/step-step=185000.ckpt"
+
+  - name: "clean_restart_step32_190k"
+    path: "clean_restart_logs/train/runs/2025-07-30_20-57-08/checkpoints/steps/step-step=190000.ckpt"
+
+  - name: "clean_restart_step33_195k"
+    path: "clean_restart_logs/train/runs/2025-07-30_20-57-08/checkpoints/steps/step-step=195000.ckpt"
+
+  - name: "clean_restart_step34_200k"
+    path: "clean_restart_logs/train/runs/2025-07-30_20-57-08/checkpoints/steps/step-step=200000.ckpt"
+
+  - name: "clean_restart_best35_202k_ppl1404"
+    path: "clean_restart_logs/train/runs/2025-07-30_20-57-08/checkpoints/best/step-202500-val_ppl-1.404.ckpt"
+
+  - name: "clean_restart_best36_205k_ppl1404"
+    path: "clean_restart_logs/train/runs/2025-07-30_20-57-08/checkpoints/best/step-205000-val_ppl-1.404.ckpt"
+
+  - name: "clean_restart_best37_207k_ppl1404"
+    path: "clean_restart_logs/train/runs/2025-07-30_20-57-08/checkpoints/best/step-207500-val_ppl-1.404.ckpt"
+
+  - name: "clean_restart_best38_210k_ppl1404"
+    path: "clean_restart_logs/train/runs/2025-07-30_20-57-08/checkpoints/best/step-210000-val_ppl-1.404.ckpt"
+
+  - name: "clean_restart_best39_212k_ppl1404"
+    path: "clean_restart_logs/train/runs/2025-07-30_20-57-08/checkpoints/best/step-212500-val_ppl-1.404.ckpt"
+
+  - name: "clean_restart_best40_215k_ppl1404"
+    path: "clean_restart_logs/train/runs/2025-07-30_20-57-08/checkpoints/best/step-215000-val_ppl-1.404.ckpt"
+
+  - name: "clean_restart_best41_217k_ppl1403"
+    path: "clean_restart_logs/train/runs/2025-07-30_20-57-08/checkpoints/best/step-217500-val_ppl-1.403.ckpt"
+
+  - name: "clean_restart_best42_220k_ppl1403"
+    path: "clean_restart_logs/train/runs/2025-07-30_20-57-08/checkpoints/best/step-220000-val_ppl-1.403.ckpt"
+
+  - name: "clean_restart_best43_222k_ppl1403"
+    path: "clean_restart_logs/train/runs/2025-07-30_20-57-08/checkpoints/best/step-222500-val_ppl-1.403.ckpt"
+
+  - name: "clean_restart_best44_225k_ppl1403"
+    path: "clean_restart_logs/train/runs/2025-07-30_20-57-08/checkpoints/best/step-225000-val_ppl-1.403.ckpt"
+
+  - name: "clean_restart_step45_255k"
+    path: "clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/steps/step-step=255000.ckpt"
+
+  - name: "clean_restart_step46_260k"
+    path: "clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/steps/step-step=260000.ckpt"
+
+  - name: "clean_restart_best47_262k_ppl1402"
+    path: "clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/best/step-262500-val_ppl-1.402.ckpt"
+
+  - name: "clean_restart_step48_265k"
+    path: "clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/steps/step-step=265000.ckpt"
+
+  - name: "clean_restart_best49_270k_ppl1401"
+    path: "clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/best/step-270000-val_ppl-1.401.ckpt"
+
+  - name: "clean_restart_best50_272k_ppl1402"
+    path: "clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/best/step-272500-val_ppl-1.402.ckpt"
+
+  - name: "clean_restart_step51_275k"
+    path: "clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/steps/step-step=275000.ckpt"
+
+  - name: "clean_restart_step52_280k"
+    path: "clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/steps/step-step=280000.ckpt"
+
+  - name: "clean_restart_best53_282k_ppl1401"
+    path: "clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/best/step-282500-val_ppl-1.401.ckpt"
+
+  - name: "clean_restart_best54_285k_ppl1401"
+    path: "clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/best/step-285000-val_ppl-1.401.ckpt"
+
+  - name: "clean_restart_best55_287k_ppl1401"
+    path: "clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/best/step-287500-val_ppl-1.401.ckpt"
+
+  - name: "clean_restart_step56_290k"
+    path: "clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/steps/step-step=290000.ckpt"
+
+  - name: "clean_restart_best57_292k_ppl1401"
+    path: "clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/best/step-292500-val_ppl-1.401.ckpt"
+
+  - name: "clean_restart_best58_295k_ppl1401"
+    path: "clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/best/step-295000-val_ppl-1.401.ckpt"
+
+  - name: "clean_restart_best59_297k_ppl1401"
+    path: "clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/best/step-297500-val_ppl-1.401.ckpt"
+
+  - name: "clean_restart_best60_300k_ppl14"
+    path: "clean_restart_logs/train/runs/2025-07-31_20-57-26/checkpoints/best/step-300000-val_ppl-1.400.ckpt"
+
+  - name: "clean_restart_step61_340k"
+    path: "clean_restart_logs/train/runs/2025-08-01_22-03-45/checkpoints/steps/step-step=340000.ckpt"
+
+  - name: "clean_restart_best62_345k_ppl139942"
+    path: "clean_restart_logs/train/runs/2025-08-01_22-03-45/checkpoints/best/step-345000-val_ppl-1.39942.ckpt"
+
+  - name: "clean_restart_step63_350k"
+    path: "clean_restart_logs/train/runs/2025-08-01_22-03-45/checkpoints/steps/step-step=350000.ckpt"
+
+  - name: "clean_restart_best64_355k_ppl139951"
+    path: "clean_restart_logs/train/runs/2025-08-01_22-03-45/checkpoints/best/step-355000-val_ppl-1.39951.ckpt"
+
+  - name: "clean_restart_best65_357k_ppl139941"
+    path: "clean_restart_logs/train/runs/2025-08-01_22-03-45/checkpoints/best/step-357500-val_ppl-1.39941.ckpt"
+
+  - name: "clean_restart_best66_360k_ppl139922"
+    path: "clean_restart_logs/train/runs/2025-08-01_22-03-45/checkpoints/best/step-360000-val_ppl-1.39922.ckpt"
+
+  - name: "clean_restart_step67_365k"
+    path: "clean_restart_logs/train/runs/2025-08-01_22-03-45/checkpoints/steps/step-step=365000.ckpt"
+
+  - name: "clean_restart_best68_370k_ppl139925"
+    path: "clean_restart_logs/train/runs/2025-08-01_22-03-45/checkpoints/best/step-370000-val_ppl-1.39925.ckpt"
+
+  - name: "clean_restart_best69_372k_ppl139897"
+    path: "clean_restart_logs/train/runs/2025-08-01_22-03-45/checkpoints/best/step-372500-val_ppl-1.39897.ckpt"
+
+  - name: "clean_restart_best70_375k_ppl139895"
+    path: "clean_restart_logs/train/runs/2025-08-01_22-03-45/checkpoints/best/step-375000-val_ppl-1.39895.ckpt"
+
+  - name: "clean_restart_best71_380k_ppl139895"
+    path: "clean_restart_logs/train/runs/2025-08-01_22-03-45/checkpoints/best/step-380000-val_ppl-1.39895.ckpt"
+
+  - name: "clean_restart_best72_382k_ppl139903"
+    path: "clean_restart_logs/train/runs/2025-08-01_22-03-45/checkpoints/best/step-382500-val_ppl-1.39903.ckpt"
+
+  - name: "clean_restart_best73_385k_ppl139856"
+    path: "clean_restart_logs/train/runs/2025-08-01_22-03-45/checkpoints/best/step-385000-val_ppl-1.39856.ckpt"
+
+  - name: "clean_restart_step74_410k"
+    path: "clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/steps/step-step=410000.ckpt"
+
+  - name: "clean_restart_best75_412k_ppl139815"
+    path: "clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/best/step-412500-val_ppl-1.39815.ckpt"
+
+  - name: "clean_restart_step76_415k"
+    path: "clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/steps/step-step=415000.ckpt"
+
+  - name: "clean_restart_step77_420k"
+    path: "clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/steps/step-step=420000.ckpt"
+
+  - name: "clean_restart_best78_422k_ppl139818"
+    path: "clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/best/step-422500-val_ppl-1.39818.ckpt"
+
+  - name: "clean_restart_best79_425k_ppl139832"
+    path: "clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/best/step-425000-val_ppl-1.39832.ckpt"
+
+  - name: "clean_restart_best80_430k_ppl139799"
+    path: "clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/best/step-430000-val_ppl-1.39799.ckpt"
+
+  - name: "clean_restart_best81_432k_ppl139816"
+    path: "clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/best/step-432500-val_ppl-1.39816.ckpt"
+
+  - name: "clean_restart_step82_435k"
+    path: "clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/steps/step-step=435000.ckpt"
+
+  - name: "clean_restart_best83_440k_ppl139804"
+    path: "clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/best/step-440000-val_ppl-1.39804.ckpt"
+
+  - name: "clean_restart_best84_442k_ppl139801"
+    path: "clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/best/step-442500-val_ppl-1.39801.ckpt"
+
+  - name: "clean_restart_best85_445k_ppl139812"
+    path: "clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/best/step-445000-val_ppl-1.39812.ckpt"
+
+  - name: "clean_restart_best86_447k_ppl139781"
+    path: "clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/best/step-447500-val_ppl-1.39781.ckpt"
+
+  - name: "clean_restart_step87_450k"
+    path: "clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/steps/step-step=450000.ckpt"
+
+  - name: "clean_restart_best88_455k_ppl139776"
+    path: "clean_restart_logs/train/runs/2025-08-03_06-11-22/checkpoints/best/step-455000-val_ppl-1.39776.ckpt"
+
+  - name: "clean_restart_best89_482k_ppl13971"
+    path: "clean_restart_logs/train/runs/2025-08-04_06-12-28/checkpoints/best/step-482500-val_ppl-1.39710.ckpt"
+
+  - name: "clean_restart_step90_485k"
+    path: "clean_restart_logs/train/runs/2025-08-04_06-12-28/checkpoints/steps/step-step=485000.ckpt"
+
+  - name: "clean_restart_step91_490k"
+    path: "clean_restart_logs/train/runs/2025-08-04_06-12-28/checkpoints/steps/step-step=490000.ckpt"
+
+  - name: "clean_restart_best92_492k_ppl139736"
+    path: "clean_restart_logs/train/runs/2025-08-04_06-12-28/checkpoints/best/step-492500-val_ppl-1.39736.ckpt"
+
+  - name: "clean_restart_step93_495k"
+    path: "clean_restart_logs/train/runs/2025-08-04_06-12-28/checkpoints/steps/step-step=495000.ckpt"
+
+  - name: "clean_restart_step94_500k"
+    path: "clean_restart_logs/train/runs/2025-08-04_06-12-28/checkpoints/steps/step-step=500000.ckpt"
+
+  - name: "clean_restart_best95_502k_ppl139733"
+    path: "clean_restart_logs/train/runs/2025-08-04_06-12-28/checkpoints/best/step-502500-val_ppl-1.39733.ckpt"
+
+  - name: "clean_restart_step96_505k"
+    path: "clean_restart_logs/train/runs/2025-08-04_06-12-28/checkpoints/steps/step-step=505000.ckpt"
+
+  - name: "clean_restart_best97_510k_ppl139719"
+    path: "clean_restart_logs/train/runs/2025-08-04_06-12-28/checkpoints/best/step-510000-val_ppl-1.39719.ckpt"
+
+  - name: "clean_restart_best98_512k_ppl139706"
+    path: "clean_restart_logs/train/runs/2025-08-04_06-12-28/checkpoints/best/step-512500-val_ppl-1.39706.ckpt"
+
+  - name: "clean_restart_best99_515k_ppl139689"
+    path: "clean_restart_logs/train/runs/2025-08-04_06-12-28/checkpoints/best/step-515000-val_ppl-1.39689.ckpt"
+
+  - name: "clean_restart_best100_517k_ppl139717"
+    path: "clean_restart_logs/train/runs/2025-08-04_06-12-28/checkpoints/best/step-517500-val_ppl-1.39717.ckpt"
+
+  - name: "clean_restart_step101_520k"
+    path: "clean_restart_logs/train/runs/2025-08-04_06-12-28/checkpoints/steps/step-step=520000.ckpt"
+
+  - name: "clean_restart_best102_525k_ppl139687"
+    path: "clean_restart_logs/train/runs/2025-08-04_06-12-28/checkpoints/best/step-525000-val_ppl-1.39687.ckpt"
+
+  - name: "clean_restart_best103_527k_ppl139672"
+    path: "clean_restart_logs/train/runs/2025-08-04_06-12-28/checkpoints/best/step-527500-val_ppl-1.39672.ckpt"
+
+  - name: "clean_restart_best104_530k_ppl139654"
+    path: "clean_restart_logs/train/runs/2025-08-04_06-12-28/checkpoints/best/step-530000-val_ppl-1.39654.ckpt"
+
+  - name: "clean_restart_best105_545k_ppl139651"
+    path: "clean_restart_logs/train/runs/2025-08-05_18-39-59/checkpoints/best/step-545000-val_ppl-1.39651.ckpt"
+
+  - name: "clean_restart_best106_552k_ppl139632"
+    path: "clean_restart_logs/train/runs/2025-08-05_18-39-59/checkpoints/best/step-552500-val_ppl-1.39632.ckpt"
+
+  - name: "clean_restart_best107_557k_ppl139643"
+    path: "clean_restart_logs/train/runs/2025-08-05_18-39-59/checkpoints/best/step-557500-val_ppl-1.39643.ckpt"
+
+  - name: "clean_restart_step108_560k"
+    path: "clean_restart_logs/train/runs/2025-08-05_18-39-59/checkpoints/steps/step-step=560000.ckpt"
+
+  - name: "clean_restart_step109_565k"
+    path: "clean_restart_logs/train/runs/2025-08-05_18-39-59/checkpoints/steps/step-step=565000.ckpt"
+
+  - name: "clean_restart_best110_567k_ppl139648"
+    path: "clean_restart_logs/train/runs/2025-08-05_18-39-59/checkpoints/best/step-567500-val_ppl-1.39648.ckpt"
+
+  - name: "clean_restart_step111_570k"
+    path: "clean_restart_logs/train/runs/2025-08-05_18-39-59/checkpoints/steps/step-step=570000.ckpt"
+
+  - name: "clean_restart_best112_575k_ppl139623"
+    path: "clean_restart_logs/train/runs/2025-08-05_18-39-59/checkpoints/best/step-575000-val_ppl-1.39623.ckpt"
+
+  - name: "clean_restart_step113_580k"
+    path: "clean_restart_logs/train/runs/2025-08-05_18-39-59/checkpoints/steps/step-step=580000.ckpt"
+
+  - name: "clean_restart_step114_585k"
+    path: "clean_restart_logs/train/runs/2025-08-05_18-39-59/checkpoints/steps/step-step=585000.ckpt"
+
+  - name: "clean_restart_best115_587k_ppl13963"
+    path: "clean_restart_logs/train/runs/2025-08-05_18-39-59/checkpoints/best/step-587500-val_ppl-1.39630.ckpt"
+
+  - name: "clean_restart_best116_590k_ppl139597"
+    path: "clean_restart_logs/train/runs/2025-08-05_18-39-59/checkpoints/best/step-590000-val_ppl-1.39597.ckpt"
+
+  - name: "clean_restart_step117_595k"
+    path: "clean_restart_logs/train/runs/2025-08-05_18-39-59/checkpoints/steps/step-step=595000.ckpt"
+
+  - name: "clean_restart_best118_600k_ppl139621"
+    path: "clean_restart_logs/train/runs/2025-08-05_18-39-59/checkpoints/best/step-600000-val_ppl-1.39621.ckpt"
+
+  - name: "clean_restart_best119_602k_ppl13961"
+    path: "clean_restart_logs/train/runs/2025-08-05_18-39-59/checkpoints/best/step-602500-val_ppl-1.39610.ckpt"
+
+  - name: "clean_restart_best120_605k_ppl139587"
+    path: "clean_restart_logs/train/runs/2025-08-05_18-39-59/checkpoints/best/step-605000-val_ppl-1.39587.ckpt"
+
+  - name: "clean_restart_best121_627k_ppl139572"
+    path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-627500-val_ppl-1.39572.ckpt"
+
+  - name: "clean_restart_step122_630k"
+    path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/steps/step-step=630000.ckpt"
+
+  - name: "clean_restart_best123_632k_ppl139575"
+    path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-632500-val_ppl-1.39575.ckpt"
+
+  - name: "clean_restart_step124_635k"
+    path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/steps/step-step=635000.ckpt"
+
+  - name: "clean_restart_step125_640k"
+    path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/steps/step-step=640000.ckpt"
+
+  - name: "clean_restart_best126_642k_ppl139587"
+    path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-642500-val_ppl-1.39587.ckpt"
+
+  - name: "clean_restart_step127_645k"
+    path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/steps/step-step=645000.ckpt"
+
+  - name: "clean_restart_best128_650k_ppl13956"
+    path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-650000-val_ppl-1.39560.ckpt"
+
+  - name: "clean_restart_best129_652k_ppl139592"
+    path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-652500-val_ppl-1.39592.ckpt"
+
+  - name: "clean_restart_step130_655k"
+    path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/steps/step-step=655000.ckpt"
+
+  - name: "clean_restart_best131_660k_ppl139579"
+    path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-660000-val_ppl-1.39579.ckpt"
+
+  - name: "clean_restart_best132_662k_ppl139559"
+    path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-662500-val_ppl-1.39559.ckpt"
+
+  - name: "clean_restart_best133_665k_ppl139532"
+    path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-665000-val_ppl-1.39532.ckpt"
+
+  - name: "clean_restart_best134_667k_ppl139572"
+    path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-667500-val_ppl-1.39572.ckpt"
+
+  - name: "clean_restart_step135_670k"
+    path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/steps/step-step=670000.ckpt"
+
+  - name: "clean_restart_step136_675k"
+    path: "clean_restart_logs/train/runs/2025-08-07_19-06-24/checkpoints/steps/step-step=675000.ckpt"
+
+  - name: "clean_restart_best137_677k_ppl139574"
+    path: "clean_restart_logs/train/runs/2025-08-07_19-06-24/checkpoints/best/step-677500-val_ppl-1.39574.ckpt"
+
+  # Baseline models for comparison
+  - name: "t5_base_original"
+    path: "t5-base"
+
+# MMLU benchmark - 0-shot only for faster evaluation
+benchmarks:
+  - name: "mmlu"
+    shots: [0]
+
+# Evaluation configuration
+batch_size: auto
+max_length: 512
+temperature: 0.0
+device: "auto"
+seed: 42
+
+# Export results
+export_csv: true
+csv_filename: "clean_restart_complete_eval_results.csv"

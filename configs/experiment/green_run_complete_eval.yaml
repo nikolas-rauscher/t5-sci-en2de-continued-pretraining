@@ -1,0 +1,511 @@
+# @package _global_
+
+# Green Run (Optimized LR 0.001) - Complete Checkpoint Evaluation
+# All unique checkpoints from Green Run (Optimized LR 0.001)
+
+# Weights & Biases configuration
+logger:
+  wandb:
+    project: "eval-mmlu"
+    entity: "nikolas-rauscher-dfki"
+    group: "Green-Run-Complete"
+    tags: ["mmlu", "green_run", "complete-eval", "all-checkpoints"]
+
+# All unique checkpoints
+models:
+  - name: "green_run_step01_25k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-05_21-51-57/checkpoints/steps/step-step=025000.ckpt"
+
+  - name: "green_run_step02_30k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-05_21-51-57/checkpoints/steps/step-step=030000.ckpt"
+
+  - name: "green_run_step03_35k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-05_21-51-57/checkpoints/steps/step-step=035000.ckpt"
+
+  - name: "green_run_step04_40k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-05_21-51-57/checkpoints/steps/step-step=040000.ckpt"
+
+  - name: "green_run_step05_45k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-05_21-51-57/checkpoints/steps/step-step=045000.ckpt"
+
+  - name: "green_run_best06_47k_ppl140368"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-05_21-51-57/checkpoints/best/step-047500-val_ppl-1.40368.ckpt"
+
+  - name: "green_run_best07_50k_ppl140225"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-05_21-51-57/checkpoints/best/step-050000-val_ppl-1.40225.ckpt"
+
+  - name: "green_run_best08_52k_ppl140182"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-05_21-51-57/checkpoints/best/step-052500-val_ppl-1.40182.ckpt"
+
+  - name: "green_run_best09_55k_ppl140039"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-05_21-51-57/checkpoints/best/step-055000-val_ppl-1.40039.ckpt"
+
+  - name: "green_run_best10_57k_ppl139948"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-05_21-51-57/checkpoints/best/step-057500-val_ppl-1.39948.ckpt"
+
+  - name: "green_run_best11_60k_ppl13997"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-05_21-51-57/checkpoints/best/step-060000-val_ppl-1.39970.ckpt"
+
+  - name: "green_run_best12_62k_ppl139783"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-05_21-51-57/checkpoints/best/step-062500-val_ppl-1.39783.ckpt"
+
+  - name: "green_run_best13_65k_ppl139675"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-05_21-51-57/checkpoints/best/step-065000-val_ppl-1.39675.ckpt"
+
+  - name: "green_run_best14_67k_ppl139545"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-05_21-51-57/checkpoints/best/step-067500-val_ppl-1.39545.ckpt"
+
+  - name: "green_run_best15_70k_ppl139545"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-05_21-51-57/checkpoints/best/step-070000-val_ppl-1.39545.ckpt"
+
+  - name: "green_run_step16_90k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-06_21-54-45/checkpoints/steps/step-step=090000.ckpt"
+
+  - name: "green_run_step17_95k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-06_21-54-45/checkpoints/steps/step-step=095000.ckpt"
+
+  - name: "green_run_step18_100k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-06_21-54-45/checkpoints/steps/step-step=100000.ckpt"
+
+  - name: "green_run_step19_105k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-06_21-54-45/checkpoints/steps/step-step=105000.ckpt"
+
+  - name: "green_run_step20_110k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-06_21-54-45/checkpoints/steps/step-step=110000.ckpt"
+
+  - name: "green_run_best21_115k_ppl138704"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-06_21-54-45/checkpoints/best/step-115000-val_ppl-1.38704.ckpt"
+
+  - name: "green_run_best22_117k_ppl138665"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-06_21-54-45/checkpoints/best/step-117500-val_ppl-1.38665.ckpt"
+
+  - name: "green_run_best23_120k_ppl138659"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-06_21-54-45/checkpoints/best/step-120000-val_ppl-1.38659.ckpt"
+
+  - name: "green_run_best24_122k_ppl13869"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-06_21-54-45/checkpoints/best/step-122500-val_ppl-1.38690.ckpt"
+
+  - name: "green_run_best25_125k_ppl138615"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-06_21-54-45/checkpoints/best/step-125000-val_ppl-1.38615.ckpt"
+
+  - name: "green_run_best26_127k_ppl138505"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-06_21-54-45/checkpoints/best/step-127500-val_ppl-1.38505.ckpt"
+
+  - name: "green_run_best27_130k_ppl138486"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-06_21-54-45/checkpoints/best/step-130000-val_ppl-1.38486.ckpt"
+
+  - name: "green_run_best28_132k_ppl138516"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-06_21-54-45/checkpoints/best/step-132500-val_ppl-1.38516.ckpt"
+
+  - name: "green_run_best29_135k_ppl138529"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-06_21-54-45/checkpoints/best/step-135000-val_ppl-1.38529.ckpt"
+
+  - name: "green_run_best30_137k_ppl138471"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-06_21-54-45/checkpoints/best/step-137500-val_ppl-1.38471.ckpt"
+
+  - name: "green_run_step31_160k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-07_21-54-19/checkpoints/steps/step-step=160000.ckpt"
+
+  - name: "green_run_step32_165k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-07_21-54-19/checkpoints/steps/step-step=165000.ckpt"
+
+  - name: "green_run_step33_170k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-07_21-54-19/checkpoints/steps/step-step=170000.ckpt"
+
+  - name: "green_run_step34_175k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-07_21-54-19/checkpoints/steps/step-step=175000.ckpt"
+
+  - name: "green_run_step35_180k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-07_21-54-19/checkpoints/steps/step-step=180000.ckpt"
+
+  - name: "green_run_best36_182k_ppl138236"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-07_21-54-19/checkpoints/best/step-182500-val_ppl-1.38236.ckpt"
+
+  - name: "green_run_step37_185k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-07_21-54-19/checkpoints/steps/step-step=185000.ckpt"
+
+  - name: "green_run_best38_187k_ppl138242"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-07_21-54-19/checkpoints/best/step-187500-val_ppl-1.38242.ckpt"
+
+  - name: "green_run_best39_190k_ppl138152"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-07_21-54-19/checkpoints/best/step-190000-val_ppl-1.38152.ckpt"
+
+  - name: "green_run_best40_192k_ppl138166"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-07_21-54-19/checkpoints/best/step-192500-val_ppl-1.38166.ckpt"
+
+  - name: "green_run_best41_195k_ppl138187"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-07_21-54-19/checkpoints/best/step-195000-val_ppl-1.38187.ckpt"
+
+  - name: "green_run_best42_197k_ppl138135"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-07_21-54-19/checkpoints/best/step-197500-val_ppl-1.38135.ckpt"
+
+  - name: "green_run_best43_200k_ppl138124"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-07_21-54-19/checkpoints/best/step-200000-val_ppl-1.38124.ckpt"
+
+  - name: "green_run_best44_202k_ppl138192"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-07_21-54-19/checkpoints/best/step-202500-val_ppl-1.38192.ckpt"
+
+  - name: "green_run_best45_205k_ppl138136"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-07_21-54-19/checkpoints/best/step-205000-val_ppl-1.38136.ckpt"
+
+  - name: "green_run_best46_207k_ppl138039"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-07_21-54-19/checkpoints/best/step-207500-val_ppl-1.38039.ckpt"
+
+  - name: "green_run_step47_230k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_21-54-58/checkpoints/steps/step-step=230000.ckpt"
+
+  - name: "green_run_best48_235k_ppl137953"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_21-54-58/checkpoints/best/step-235000-val_ppl-1.37953.ckpt"
+
+  - name: "green_run_best49_240k_ppl137959"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_21-54-58/checkpoints/best/step-240000-val_ppl-1.37959.ckpt"
+
+  - name: "green_run_step50_245k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_21-54-58/checkpoints/steps/step-step=245000.ckpt"
+
+  - name: "green_run_best51_247k_ppl13795"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_21-54-58/checkpoints/best/step-247500-val_ppl-1.37950.ckpt"
+
+  - name: "green_run_step52_250k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_21-54-58/checkpoints/steps/step-step=250000.ckpt"
+
+  - name: "green_run_best53_252k_ppl137955"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_21-54-58/checkpoints/best/step-252500-val_ppl-1.37955.ckpt"
+
+  - name: "green_run_step54_255k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_21-54-58/checkpoints/steps/step-step=255000.ckpt"
+
+  - name: "green_run_best55_257k_ppl137968"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_21-54-58/checkpoints/best/step-257500-val_ppl-1.37968.ckpt"
+
+  - name: "green_run_step56_260k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_21-54-58/checkpoints/steps/step-step=260000.ckpt"
+
+  - name: "green_run_best57_262k_ppl137921"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_21-54-58/checkpoints/best/step-262500-val_ppl-1.37921.ckpt"
+
+  - name: "green_run_best58_265k_ppl137947"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_21-54-58/checkpoints/best/step-265000-val_ppl-1.37947.ckpt"
+
+  - name: "green_run_best59_267k_ppl13797"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_21-54-58/checkpoints/best/step-267500-val_ppl-1.37970.ckpt"
+
+  - name: "green_run_best60_270k_ppl137933"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_21-54-58/checkpoints/best/step-270000-val_ppl-1.37933.ckpt"
+
+  - name: "green_run_step61_275k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_21-54-58/checkpoints/steps/step-step=275000.ckpt"
+
+  - name: "green_run_best62_277k_ppl137966"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-08_21-54-58/checkpoints/best/step-277500-val_ppl-1.37966.ckpt"
+
+  - name: "green_run_best63_280k_ppl138043"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-09_22-02-24/checkpoints/best/step-280000-val_ppl-1.38043.ckpt"
+
+  - name: "green_run_best64_282k_ppl13805"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-09_22-02-24/checkpoints/best/step-282500-val_ppl-1.38050.ckpt"
+
+  - name: "green_run_best65_290k_ppl138061"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-09_22-02-24/checkpoints/best/step-290000-val_ppl-1.38061.ckpt"
+
+  - name: "green_run_best66_295k_ppl138056"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-09_22-02-24/checkpoints/best/step-295000-val_ppl-1.38056.ckpt"
+
+  - name: "green_run_step67_320k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-09_22-02-24/checkpoints/steps/step-step=320000.ckpt"
+
+  - name: "green_run_step68_325k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-09_22-02-24/checkpoints/steps/step-step=325000.ckpt"
+
+  - name: "green_run_step69_330k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-09_22-02-24/checkpoints/steps/step-step=330000.ckpt"
+
+  - name: "green_run_step70_335k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-09_22-02-24/checkpoints/steps/step-step=335000.ckpt"
+
+  - name: "green_run_step71_340k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-09_22-02-24/checkpoints/steps/step-step=340000.ckpt"
+
+  - name: "green_run_step72_345k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-09_22-02-24/checkpoints/steps/step-step=345000.ckpt"
+
+  - name: "green_run_best73_350k_ppl13794"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-09_22-02-24/checkpoints/best/step-350000-val_ppl-1.37940.ckpt"
+
+  - name: "green_run_best74_352k_ppl137958"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-09_22-02-24/checkpoints/best/step-352500-val_ppl-1.37958.ckpt"
+
+  - name: "green_run_best75_355k_ppl137947"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-09_22-02-24/checkpoints/best/step-355000-val_ppl-1.37947.ckpt"
+
+  - name: "green_run_best76_357k_ppl137894"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-09_22-02-24/checkpoints/best/step-357500-val_ppl-1.37894.ckpt"
+
+  - name: "green_run_best77_360k_ppl137892"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-09_22-02-24/checkpoints/best/step-360000-val_ppl-1.37892.ckpt"
+
+  - name: "green_run_best78_362k_ppl137874"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-09_22-02-24/checkpoints/best/step-362500-val_ppl-1.37874.ckpt"
+
+  - name: "green_run_step79_365k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-09_22-02-24/checkpoints/steps/step-step=365000.ckpt"
+
+  - name: "green_run_best80_367k_ppl137908"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-10_22-02-58/checkpoints/best/step-367500-val_ppl-1.37908.ckpt"
+
+  - name: "green_run_best81_372k_ppl137962"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-10_22-02-58/checkpoints/best/step-372500-val_ppl-1.37962.ckpt"
+
+  - name: "green_run_best82_377k_ppl137922"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-10_22-02-58/checkpoints/best/step-377500-val_ppl-1.37922.ckpt"
+
+  - name: "green_run_best83_382k_ppl13796"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-10_22-02-58/checkpoints/best/step-382500-val_ppl-1.37960.ckpt"
+
+  - name: "green_run_best84_390k_ppl137953"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-10_22-02-58/checkpoints/best/step-390000-val_ppl-1.37953.ckpt"
+
+  - name: "green_run_step85_395k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-10_22-02-58/checkpoints/steps/step-step=395000.ckpt"
+
+  - name: "green_run_step86_400k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-10_22-02-58/checkpoints/steps/step-step=400000.ckpt"
+
+  - name: "green_run_best87_402k_ppl137955"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-10_22-02-58/checkpoints/best/step-402500-val_ppl-1.37955.ckpt"
+
+  - name: "green_run_step88_405k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-10_22-02-58/checkpoints/steps/step-step=405000.ckpt"
+
+  - name: "green_run_best89_410k_ppl137929"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-10_22-02-58/checkpoints/best/step-410000-val_ppl-1.37929.ckpt"
+
+  - name: "green_run_step90_415k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-10_22-02-58/checkpoints/steps/step-step=415000.ckpt"
+
+  - name: "green_run_step91_420k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-10_22-02-58/checkpoints/steps/step-step=420000.ckpt"
+
+  - name: "green_run_best92_425k_ppl137945"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-10_22-02-58/checkpoints/best/step-425000-val_ppl-1.37945.ckpt"
+
+  - name: "green_run_step93_430k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-10_22-02-58/checkpoints/steps/step-step=430000.ckpt"
+
+  - name: "green_run_best94_432k_ppl137959"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-10_22-02-58/checkpoints/best/step-432500-val_ppl-1.37959.ckpt"
+
+  - name: "green_run_best95_435k_ppl137895"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-10_22-02-58/checkpoints/best/step-435000-val_ppl-1.37895.ckpt"
+
+  - name: "green_run_best96_447k_ppl137933"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_22-15-41/checkpoints/best/step-447500-val_ppl-1.37933.ckpt"
+
+  - name: "green_run_best97_450k_ppl137963"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_22-15-41/checkpoints/best/step-450000-val_ppl-1.37963.ckpt"
+
+  - name: "green_run_best98_455k_ppl137931"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_22-15-41/checkpoints/best/step-455000-val_ppl-1.37931.ckpt"
+
+  - name: "green_run_best99_457k_ppl137968"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_22-15-41/checkpoints/best/step-457500-val_ppl-1.37968.ckpt"
+
+  - name: "green_run_step100_460k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_22-15-41/checkpoints/steps/step-step=460000.ckpt"
+
+  - name: "green_run_best101_462k_ppl137906"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_22-15-41/checkpoints/best/step-462500-val_ppl-1.37906.ckpt"
+
+  - name: "green_run_best102_465k_ppl137931"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_22-15-41/checkpoints/best/step-465000-val_ppl-1.37931.ckpt"
+
+  - name: "green_run_best103_467k_ppl137934"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_22-15-41/checkpoints/best/step-467500-val_ppl-1.37934.ckpt"
+
+  - name: "green_run_step104_470k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_22-15-41/checkpoints/steps/step-step=470000.ckpt"
+
+  - name: "green_run_step105_475k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_22-15-41/checkpoints/steps/step-step=475000.ckpt"
+
+  - name: "green_run_best106_480k_ppl13795"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_22-15-41/checkpoints/best/step-480000-val_ppl-1.37950.ckpt"
+
+  - name: "green_run_step107_485k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_22-15-41/checkpoints/steps/step-step=485000.ckpt"
+
+  - name: "green_run_step108_490k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_22-15-41/checkpoints/steps/step-step=490000.ckpt"
+
+  - name: "green_run_best109_495k_ppl137917"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_22-15-41/checkpoints/best/step-495000-val_ppl-1.37917.ckpt"
+
+  - name: "green_run_best110_497k_ppl137967"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_22-15-41/checkpoints/best/step-497500-val_ppl-1.37967.ckpt"
+
+  - name: "green_run_step111_500k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_22-15-41/checkpoints/steps/step-step=500000.ckpt"
+
+  - name: "green_run_step112_505k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-11_22-15-41/checkpoints/steps/step-step=505000.ckpt"
+
+  - name: "green_run_best113_507k_ppl137962"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/best/step-507500-val_ppl-1.37962.ckpt"
+
+  - name: "green_run_best114_510k_ppl137922"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/best/step-510000-val_ppl-1.37922.ckpt"
+
+  - name: "green_run_best115_512k_ppl137955"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/best/step-512500-val_ppl-1.37955.ckpt"
+
+  - name: "green_run_best116_517k_ppl137927"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/best/step-517500-val_ppl-1.37927.ckpt"
+
+  - name: "green_run_best117_520k_ppl13793"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/best/step-520000-val_ppl-1.37930.ckpt"
+
+  - name: "green_run_step118_530k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/steps/step-step=530000.ckpt"
+
+  - name: "green_run_best119_532k_ppl137935"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/best/step-532500-val_ppl-1.37935.ckpt"
+
+  - name: "green_run_best120_535k_ppl137939"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/best/step-535000-val_ppl-1.37939.ckpt"
+
+  - name: "green_run_step121_540k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/steps/step-step=540000.ckpt"
+
+  - name: "green_run_step122_545k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/steps/step-step=545000.ckpt"
+
+  - name: "green_run_step123_550k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/steps/step-step=550000.ckpt"
+
+  - name: "green_run_best124_552k_ppl137971"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/best/step-552500-val_ppl-1.37971.ckpt"
+
+  - name: "green_run_step125_555k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/steps/step-step=555000.ckpt"
+
+  - name: "green_run_step126_560k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/steps/step-step=560000.ckpt"
+
+  - name: "green_run_best127_565k_ppl137954"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/best/step-565000-val_ppl-1.37954.ckpt"
+
+  - name: "green_run_step128_570k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/steps/step-step=570000.ckpt"
+
+  - name: "green_run_step129_575k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/steps/step-step=575000.ckpt"
+
+  - name: "green_run_best130_577k_ppl137768"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-12_23-20-31/checkpoints/best/step-577500-val_ppl-1.37768.ckpt"
+
+  - name: "green_run_best131_580k_ppl137924"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/best/step-580000-val_ppl-1.37924.ckpt"
+
+  - name: "green_run_best132_582k_ppl137996"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/best/step-582500-val_ppl-1.37996.ckpt"
+
+  - name: "green_run_best133_585k_ppl137987"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/best/step-585000-val_ppl-1.37987.ckpt"
+
+  - name: "green_run_best134_587k_ppl137996"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/best/step-587500-val_ppl-1.37996.ckpt"
+
+  - name: "green_run_best135_590k_ppl137944"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/best/step-590000-val_ppl-1.37944.ckpt"
+
+  - name: "green_run_best136_592k_ppl137922"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/best/step-592500-val_ppl-1.37922.ckpt"
+
+  - name: "green_run_best137_595k_ppl137941"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/best/step-595000-val_ppl-1.37941.ckpt"
+
+  - name: "green_run_best138_600k_ppl137965"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/best/step-600000-val_ppl-1.37965.ckpt"
+
+  - name: "green_run_step139_605k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/steps/step-step=605000.ckpt"
+
+  - name: "green_run_best140_610k_ppl137992"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/best/step-610000-val_ppl-1.37992.ckpt"
+
+  - name: "green_run_step141_615k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/steps/step-step=615000.ckpt"
+
+  - name: "green_run_step142_620k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/steps/step-step=620000.ckpt"
+
+  - name: "green_run_step143_625k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/steps/step-step=625000.ckpt"
+
+  - name: "green_run_step144_630k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/steps/step-step=630000.ckpt"
+
+  - name: "green_run_best145_632k_ppl137983"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/best/step-632500-val_ppl-1.37983.ckpt"
+
+  - name: "green_run_step146_635k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/steps/step-step=635000.ckpt"
+
+  - name: "green_run_step147_640k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/steps/step-step=640000.ckpt"
+
+  - name: "green_run_step148_645k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/steps/step-step=645000.ckpt"
+
+  - name: "green_run_step149_650k"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/steps/step-step=650000.ckpt"
+
+  - name: "green_run_best150_655k_ppl1385"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-14_23-21-47/checkpoints/best/step-655000-val_ppl-1.38500.ckpt"
+
+  - name: "green_run_best151_657k_ppl138724"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-14_23-21-47/checkpoints/best/step-657500-val_ppl-1.38724.ckpt"
+
+  - name: "green_run_best152_660k_ppl138748"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-14_23-21-47/checkpoints/best/step-660000-val_ppl-1.38748.ckpt"
+
+  - name: "green_run_best153_662k_ppl138834"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-14_23-21-47/checkpoints/best/step-662500-val_ppl-1.38834.ckpt"
+
+  - name: "green_run_best154_665k_ppl138857"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-14_23-21-47/checkpoints/best/step-665000-val_ppl-1.38857.ckpt"
+
+  - name: "green_run_best155_667k_ppl138955"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-14_23-21-47/checkpoints/best/step-667500-val_ppl-1.38955.ckpt"
+
+  - name: "green_run_best156_670k_ppl138946"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-14_23-21-47/checkpoints/best/step-670000-val_ppl-1.38946.ckpt"
+
+  - name: "green_run_best157_672k_ppl139114"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-14_23-21-47/checkpoints/best/step-672500-val_ppl-1.39114.ckpt"
+
+  - name: "green_run_best158_675k_ppl139044"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-14_23-21-47/checkpoints/best/step-675000-val_ppl-1.39044.ckpt"
+
+  - name: "green_run_best159_677k_ppl139091"
+    path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-14_23-21-47/checkpoints/best/step-677500-val_ppl-1.39091.ckpt"
+
+  # Baseline models for comparison
+  - name: "t5_base_original"
+    path: "t5-base"
+
+# MMLU benchmark - 0-shot only for faster evaluation
+benchmarks:
+  - name: "mmlu"
+    shots: [0]
+
+# Evaluation configuration
+batch_size: auto
+max_length: 512
+temperature: 0.0
+device: "auto"
+seed: 42
+
+# Export results
+export_csv: true
+csv_filename: "green_run_complete_eval_results.csv"
