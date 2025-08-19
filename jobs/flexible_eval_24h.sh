@@ -1,33 +1,35 @@
 #!/bin/bash
-#SBATCH --job-name=flexible_eval_h100
-#SBATCH --partition=A100-40GB
+#SBATCH --job-name=flexible_eval_24h
+#SBATCH --partition=A100-80GB,V100-32GB,A100-40GB,H100,RTXA6000
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=75G
 #SBATCH --time=24:00:00
-#SBATCH --output=/netscratch/nrauscher/projects/BA-hydra/evaluation/logs/flexible_eval_%j.out
-#SBATCH --error=/netscratch/nrauscher/projects/BA-hydra/evaluation/logs/flexible_eval_%j.err
+#SBATCH --output=/netscratch/nrauscher/projects/BA-hydra/evaluation/logs/flexible_eval_24h_%j.out
+#SBATCH --error=/netscratch/nrauscher/projects/BA-hydra/evaluation/logs/flexible_eval_24h_%j.err
 
-# Flexible Evaluation Pipeline Job
-# Usage: sbatch jobs/flexible_eval.sh [experiment_name]
+# Flexible Evaluation Pipeline Job - 24 Hour Version
+# For long-running tasks like summarization with multiple checkpoints
+# Usage: sbatch jobs/flexible_eval_24h.sh [experiment_name]
 # Examples:
-#   sbatch jobs/flexible_eval.sh quick_test
-#   sbatch jobs/flexible_eval.sh three_models
-#   sbatch jobs/flexible_eval.sh checkpoint_progression
+#   sbatch jobs/flexible_eval_24h.sh run1_eval_summarization
+#   sbatch jobs/flexible_eval_24h.sh run1_eval_qasper  
+#   sbatch jobs/flexible_eval_24h.sh checkpoint_progression
 
 # Get experiment name from command line argument or default
 EXPERIMENT=${1:-"quick_test"}
 
 echo "=========================================="
-echo "SLURM Job: Flexible Evaluation Pipeline"
+echo "SLURM Job: Flexible Evaluation Pipeline (24h)"
 echo "=========================================="
 echo "Job ID: $SLURM_JOB_ID"
 echo "Node: $SLURMD_NODENAME"
 echo "GPU: $CUDA_VISIBLE_DEVICES"
 echo "Start time: $(date)"
 echo "Experiment: $EXPERIMENT"
+echo "Time limit: 24 hours"
 echo "=========================================="
 
 # Project paths
