@@ -1,0 +1,69 @@
+# @package _global_
+
+# German continued pretraining experiment configuration
+# Combines Wechsel-transferred model with German scientific data
+
+defaults:
+  - override /data: german_pretraining
+  - override /model: german_t5
+  - override /trainer: german_pretraining
+  - override /logger: wandb
+  - _self_
+
+# Experiment metadata
+tags: 
+  - "cross-lingual-transfer"
+  - "wechsel" 
+  - "german-continued-pretraining"
+  - "15k-steps"
+  - "H100-4GPU"
+  - "scientific-text"
+
+experiment_name: "german_cross_lingual_transfer"
+seed: 42
+
+# Logger configuration (W&B tracking)
+logger:
+  wandb:
+    project: "cross-lingual-transfer"
+    group: "H100-4GPU"
+    name: "german-15k-wechsel-transfer-scientific"
+    tags: ${tags}
+    log_model: false  # Don't upload large model files
+
+# Paths configuration
+paths:
+  root_dir: ${oc.env:PROJECT_ROOT,/netscratch/nrauscher/projects/BA-hydra}
+  data_dir: ${paths.root_dir}/cross_lingual_transfer/data
+  log_dir: ${paths.root_dir}/cross_lingual_transfer/logs
+  output_dir: ${paths.root_dir}/cross_lingual_transfer/outputs
+
+# Training configuration
+trainer:
+  max_steps: 15000
+  default_root_dir: ${paths.log_dir}
+  
+# Data configuration  
+data:
+  data_dir: ${paths.data_dir}/german
+  batch_size: 32
+  
+# Model configuration
+model:
+  model_name_or_path: ${paths.root_dir}/cross_lingual_transfer/models/german_transferred/model
+  tokenizer_name_or_path: ${paths.root_dir}/cross_lingual_transfer/models/german_transferred/tokenizer
+
+# Optimizer settings (proven from English experiments)
+model:
+  optimizer:
+    lr: 0.001
+    weight_decay: 0.01
+  scheduler:
+    num_warmup_steps: 1000
+
+# Task-specific settings
+task_name: "german_continued_pretraining"
+compile: false  # Disable compilation for stability
+
+# Resume training capability
+ckpt_path: null  # Set to checkpoint path for resuming

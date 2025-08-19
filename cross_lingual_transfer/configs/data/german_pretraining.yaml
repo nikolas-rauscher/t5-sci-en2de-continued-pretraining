@@ -1,0 +1,26 @@
+# German continued pretraining data configuration
+_target_: cross_lingual_transfer.data.german_datamodule.GermanT5DataModule
+
+# German dataset path (prepared by german_data_preparation.py)
+data_dir: cross_lingual_transfer/data/german
+
+# German tokenizer (mt5-base for German support)
+tokenizer_name_or_path: google/mt5-base
+
+# Training parameters optimized for German continued pretraining
+batch_size: 32  # Adjust based on GPU memory
+num_workers: 4  # Increased for efficient data loading
+pin_memory: true
+
+# T5 preprocessing parameters
+max_length: 512
+corruption_rate: 0.15  # Standard T5 span corruption
+mean_span_length: 3
+
+# Small validation split for fast monitoring
+train_val_split: [0.99, 0.01]  # 1% validation for efficiency
+
+# German-specific settings
+language: "de"
+dataset_name: "scilons/texts_pq_3"
+dataset_split: "deu_Latn"

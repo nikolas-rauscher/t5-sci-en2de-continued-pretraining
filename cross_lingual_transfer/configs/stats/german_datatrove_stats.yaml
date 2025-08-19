@@ -1,0 +1,105 @@
+# German Dataset Statistics with DataTrove Pipeline
+# Adapted from main stats pipeline for German scientific texts
+
+# Wandb Logging
+logger:
+  project: "Cross-Lingual-Transfer"
+  group: "german-data-analysis"
+  tags: ["datatrove", "german", "statistics", "cross-lingual"]
+  job_type: "german-data-preparation"
+  save_code: false
+  notes: "German scientific text analysis for cross-lingual transfer"
+
+# Pfade für deutschen Datensatz
+paths:
+  # Input: Downloaded German dataset (will be created by HuggingFace datasets)
+  input_folder: cross_lingual_transfer/data/german/raw_parquet
+  src_pattern: "*.parquet"
+  # Output: DataTrove stats results
+  output_folder: cross_lingual_transfer/data/german/datatrove_stats
+  # logging_dir: Wird dynamisch generiert
+
+# Reader Konfiguration für deutschen Datensatz
+reader:
+  text_key: "text"
+  id_key: "id"
+  default_metadata: {}
+
+# Pipeline Ausführungseinstellungen (angepasst für deutsche Daten)
+tasks: 32        # Moderate Parallelisierung für 594k Dokumente
+workers: 32      # Entspricht verfügbaren CPUs
+limit_documents: -1  # Alle deutschen Dokumente verarbeiten
+
+# Optional: Speichere enriched documents mit deutschen Stats
+save_enriched_docs: true  # Für spätere Analyse und Training
+
+# Deutsche Pipeline Module Konfiguration
+pipeline:
+  stats_modules:
+    # Basis-Dokumentstatistiken
+    doc_stats:
+      _target_: datatrove.pipeline.stats.DocStats
+      output_folder: "doc_stats"
+      groups_to_compute: ["summary", "histogram"]
+      histogram_round_digits: 3
+
+    line_stats:
+      _target_: datatrove.pipeline.stats.LineStats
+      output_folder: "line_stats" 
+      groups_to_compute: ["summary", "histogram"]
+      histogram_round_digits: 3
+      max_k_chars_per_line_tresholds: [10, 30]
+      min_k_chars_per_line_thresholds: [2000, 10000]
+      ignore_empty_lines: false
+
+    paragraph_stats:
+      _target_: datatrove.pipeline.stats.ParagraphStats
+      output_folder: "paragraph_stats"
+      groups_to_compute: ["summary", "histogram"]
+      histogram_round_digits: 3
+      short_paragraph_max_chars_threshold: [100]
+      long_paragraph_max_chars_threshold: [1000]
+      ignore_empty_paragraphs: false
+
+    # Deutsche Sprachanalyse
+    sentence_stats:
+      _target_: datatrove.pipeline.stats.SentenceStats
+      output_folder: "sentence_stats"
+      groups_to_compute: ["summary", "histogram"]
+      histogram_round_digits: 3
+      short_sentence_max_chars_threshold: [20]
+      long_sentence_max_chars_threshold: [75]
+      language: "de"  # Deutsch für Sentence-Analyse
+
+    # Token-Statistiken mit deutschem Tokenizer
+    token_stats:
+      _target_: datatrove.pipeline.stats.TokenStats
+      output_folder: "token_stats"
+      groups_to_compute: ["summary", "histogram"]
+      histogram_rounding: 3
+      tokenizer_name_or_path: "google/mt5-base"  # Deutscher/Multilingualer Tokenizer
+
+    word_stats:
+      _target_: datatrove.pipeline.stats.WordStats
+      output_folder: "word_stats"
+      groups_to_compute: ["summary", "histogram"]
+      histogram_round_digits: 3
+      short_word_max_chars_threshold: [3]
+      long_word_max_chars_threshold: [7]
+      language: "de"  # Deutsch für Word-Analyse
+
+    lang_stats:
+      _target_: datatrove.pipeline.stats.LangStats
+      output_folder: "lang_stats"
+      groups_to_compute: ["summary", "histogram"]
+      histogram_round_digits: 3
+      language: "de"  # Erwartet deutschen Text
+
+    # Deutsche Wikipedia als Qualitäts-Baseline
+    perplexity_stats_german_wikipedia:
+      _target_: datatrove.pipeline.stats.CCNetPerplexityStats
+      output_folder: "perplexity_stats_german_wikipedia"
+      groups_to_compute: ["summary", "histogram"]
+      histogram_round_digits: 3
+      model_dataset: "wikipedia"  # Wikipedia-Qualitätsbewertung
+      language: "de"  # Deutsche Wikipedia als Referenz

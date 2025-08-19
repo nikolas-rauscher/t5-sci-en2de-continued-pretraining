@@ -1,0 +1,33 @@
+# German T5 model configuration (after Wechsel transfer)
+_target_: cross_lingual_transfer.models.german_t5_model.GermanT5Model
+
+# Base model architecture (MT5-base with transferred embeddings)
+model_name_or_path: cross_lingual_transfer/models/german_transferred/model
+tokenizer_name_or_path: cross_lingual_transfer/models/german_transferred/tokenizer
+
+# Optimizer configuration (proven hyperparameters from English training)
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: 0.001  # Optimal learning rate from English experiments
+  weight_decay: 0.01
+  betas: [0.9, 0.999]
+
+# Learning rate scheduler (inverse sqrt - proven effective)
+scheduler:
+  _target_: transformers.get_inverse_sqrt_schedule
+  num_warmup_steps: 1000  # Shorter warmup for continued pretraining
+  
+# Loss configuration
+loss_fn:
+  _target_: torch.nn.CrossEntropyLoss
+  ignore_index: -100
+
+# Model-specific parameters
+tie_word_embeddings: true
+gradient_checkpointing: true  # Memory optimization
+compile: false  # Disable torch.compile for compatibility
+
+# German-specific settings
+language: "de"
+transfer_method: "wechsel"
+source_checkpoint: "step-640000.ckpt"

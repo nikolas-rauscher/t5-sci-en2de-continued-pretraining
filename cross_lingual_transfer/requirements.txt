@@ -1,0 +1,44 @@
+# Cross-Lingual Transfer Requirements
+# Core dependencies for Wechsel-based cross-lingual transfer
+
+# Main cross-lingual transfer library
+wechsel
+
+# HuggingFace ecosystem
+transformers>=4.20.0
+datasets>=2.0.0
+tokenizers>=0.13.0
+huggingface_hub>=0.16.0
+accelerate>=0.20.0
+
+# PyTorch and training
+torch>=1.12.0
+lightning>=2.0.0
+torchmetrics>=0.11.0
+
+# Data handling
+pandas>=1.5.0
+numpy>=1.21.0
+tqdm>=4.64.0
+
+# Configuration and utilities
+hydra-core>=1.3.0
+omegaconf>=2.3.0
+rootutils
+
+# Logging
+wandb
+
+# Scientific computing
+scipy>=1.9.0
+scikit-learn>=1.1.0
+
+# Text processing
+sentencepiece>=0.1.99
+nltk>=3.8.0
+
+# Evaluation
+evaluate>=0.4.0
+
+# Utilities
+einops>=0.6.0

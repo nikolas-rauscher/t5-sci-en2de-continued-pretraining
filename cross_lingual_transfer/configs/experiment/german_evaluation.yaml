@@ -1,0 +1,78 @@
+# @package _global_
+
+# German cross-lingual transfer evaluation configuration
+# Evaluates German-adapted model on German benchmarks
+
+defaults:
+  - base_config
+  - _self_
+
+# Experiment metadata
+tags:
+  - "cross-lingual-evaluation"
+  - "german-mmlu"
+  - "wechsel-transfer"
+
+experiment_name: "german_cross_lingual_evaluation"
+seed: 42
+
+# Evaluation configuration
+eval:
+  # Model paths (after German continued pretraining)
+  model_paths:
+    - path: cross_lingual_transfer/logs/german_continued_pretraining/checkpoints/step-5000.ckpt
+      name: "german_5k_steps"
+    - path: cross_lingual_transfer/logs/german_continued_pretraining/checkpoints/step-10000.ckpt  
+      name: "german_10k_steps"
+    - path: cross_lingual_transfer/logs/german_continued_pretraining/checkpoints/step-15000.ckpt
+      name: "german_15k_steps"
+    - path: cross_lingual_transfer/models/german_transferred/model
+      name: "german_transferred_only"  # No continued pretraining
+      
+  # German evaluation tasks
+  tasks:
+    - task_name: "german_mmlu"
+      shots: [0, 5]  # 0-shot and 5-shot evaluation
+      metrics: ["accuracy", "exact_match"]
+      
+    - task_name: "german_hellaswag"
+      shots: [0]
+      metrics: ["accuracy"] 
+      
+    - task_name: "german_arc"
+      shots: [0, 5]
+      metrics: ["accuracy"]
+
+  # Evaluation parameters
+  batch_size: 8  # Conservative for evaluation
+  max_seq_length: 512
+  num_workers: 4
+  
+  # Output settings
+  output_dir: cross_lingual_transfer/evaluation/results
+  save_predictions: true
+  save_metrics: true
+
+# Comparison baselines
+baselines:
+  - name: "english_original"
+    path: pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/steps/step-step=640000.ckpt
+    description: "Original English model (no transfer)"
+    
+  - name: "mt5_base" 
+    path: google/mt5-base
+    description: "Multilingual T5 baseline"
+
+# Hardware configuration
+trainer:
+  accelerator: gpu
+  devices: 1  # Single GPU for evaluation
+  precision: "bf16-mixed"
+
+# Logging
+logger:
+  wandb:
+    project: "cross-lingual-transfer"
+    group: "evaluation"
+    name: "german-cross-lingual-eval"
+    tags: ${tags}
