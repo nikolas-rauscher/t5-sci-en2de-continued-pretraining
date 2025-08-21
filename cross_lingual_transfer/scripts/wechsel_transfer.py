@@ -3,10 +3,18 @@ Cross-lingual transfer using Wechsel library
 Transfer English T5 model to German by replacing embeddings
 """
 
+import sys
+import os
+# Add project root to path to resolve src imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
+# Set cache directory for Wechsel to project directory
+os.environ['WECHSEL_CACHE_DIR'] = '/netscratch/nrauscher/projects/BA-hydra/cross_lingual_transfer/cache/wechsel'
+
 import torch
 import logging
 from pathlib import Path
-from transformers import T5ForConditionalGeneration, T5Tokenizer
+from transformers import T5ForConditionalGeneration, T5Tokenizer, AutoTokenizer
 from wechsel import WECHSEL, load_embeddings
 
 logging.basicConfig(level=logging.INFO)
@@ -44,8 +52,8 @@ class CrossLingualTransfer:
         # Load model architecture
         self.english_model = T5ForConditionalGeneration.from_pretrained('t5-base')
         
-        # Load checkpoint state dict
-        checkpoint = torch.load(self.english_checkpoint_path, map_location='cpu')
+        # Load checkpoint state dict (PyTorch 2.6+ requires weights_only=False for custom classes)
+        checkpoint = torch.load(self.english_checkpoint_path, map_location='cpu', weights_only=False)
         
         # Extract model state dict from Lightning checkpoint
         if 'state_dict' in checkpoint:
@@ -63,36 +71,65 @@ class CrossLingualTransfer:
         logger.info("English model loaded successfully")
     
     def setup_german_tokenizer(self):
-        """Setup German tokenizer - using multilingual T5 for German support"""
-        logger.info("Setting up German tokenizer")
-        # Use multilingual T5 which includes German tokens
-        self.german_tokenizer = T5Tokenizer.from_pretrained('google/mt5-base')
-        logger.info("German tokenizer loaded")
+        """Setup German tokenizer - using German T5 model"""
+        logger.info("Setting up German tokenizer from GermanT5/t5-efficient-gc4-german-base-nl36")
+        # Use the German T5 tokenizer
+        self.german_tokenizer = AutoTokenizer.from_pretrained('GermanT5/t5-efficient-gc4-german-base-nl36')
+        logger.info(f"German tokenizer loaded with vocab size: {len(self.german_tokenizer)}")
     
     def apply_wechsel_transfer(self):
         """Apply Wechsel embedding transfer from English to German"""
         logger.info("Starting Wechsel embedding transfer...")
         
         # Initialize Wechsel with English and German embeddings
+        logger.info("Loading English and German static embeddings...")
         wechsel = WECHSEL(
             load_embeddings("en"),  # English static embeddings
             load_embeddings("de"),  # German static embeddings  
             bilingual_dictionary="german"  # Use German bilingual dictionary
         )
+        logger.info("Wechsel initialized successfully")
         
         # Get current English embeddings
+        logger.info("Extracting English model embeddings...")
         english_embeddings = self.english_model.get_input_embeddings().weight.detach().numpy()
+        logger.info(f"English embeddings shape: {english_embeddings.shape}")
         
         # Apply Wechsel transformation
         logger.info("Applying Wechsel transformation...")
+        
+        # T5 tokenizers don't have .vocab attribute, so we need to create it
+        if not hasattr(self.english_tokenizer, 'vocab'):
+            # Create vocab mapping for T5 tokenizer
+            self.english_tokenizer.vocab = {token: i for i, token in enumerate(self.english_tokenizer.get_vocab().keys())}
+        
+        if not hasattr(self.german_tokenizer, 'vocab'):
+            # Create vocab mapping for German T5 tokenizer  
+            self.german_tokenizer.vocab = {token: i for i, token in enumerate(self.german_tokenizer.get_vocab().keys())}
+        
         german_embeddings, transfer_info = wechsel.apply(
             self.english_tokenizer,
             self.german_tokenizer, 
             english_embeddings
         )
+        logger.info(f"German embeddings shape: {german_embeddings.shape}")
+        logger.info(f"Transfer info: {transfer_info}")
         
         # Create new model with German tokenizer architecture
-        self.german_model = T5ForConditionalGeneration.from_pretrained('google/mt5-base')
+        logger.info("Creating German T5 model with transferred embeddings...")
+        self.german_model = T5ForConditionalGeneration.from_pretrained('GermanT5/t5-efficient-gc4-german-base-nl36')
+        
+        # Update model embeddings with transferred German embeddings
+        logger.info("Updating model with transferred German embeddings...")
+        self.german_model.get_input_embeddings().weight.data = torch.from_numpy(german_embeddings)
+        self.german_model.get_output_embeddings().weight.data = torch.from_numpy(german_embeddings)
+        
+        # Update config vocab size to match German tokenizer
+        self.german_model.config.vocab_size = len(self.german_tokenizer)
+        
+        logger.info(f"German model created with vocab size: {self.german_model.config.vocab_size}")
+        
+        return german_embeddings, transfer_info
         
         # Copy English model parameters to German model (except embeddings)
         english_state = self.english_model.state_dict()
