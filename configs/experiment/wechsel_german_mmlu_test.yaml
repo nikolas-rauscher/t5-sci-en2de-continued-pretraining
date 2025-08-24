@@ -1,0 +1,55 @@
+# @package _global_
+
+experiment_name: "wechsel_german_mmlu_test"
+description: "Test Wechsel transferred German model on German MMLU with optimized loglikelihood method"
+
+models:
+  # Baseline comparison
+  - source_path: "t5-base"
+    name: "t5-base-baseline"
+
+  # Green Run English model for comparison
+  - source_path: "evaluation/models/temp/green-run-en-640k"
+    name: "green-run-en-640k"
+
+  # Wechsel transferred German model
+  - source_path: "cross_lingual_transfer/models/german_transferred"
+    name: "wechsel-german-transferred"
+
+  # German T5 baseline (if available)
+  - source_path: "GermanT5/t5-efficient-gc4-german-base-nl36"
+    name: "german-t5-base-nl36"
+
+benchmarks:
+  # German MMLU (4 main categories)
+  - name: "global_mmlu_german"
+    tasks: ["global_mmlu_de"]
+    shots: [0]  # 0-shot optimal based on our findings
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+  # German MMLU Full (all subtasks)
+  - name: "global_mmlu_german_full"
+    tasks: ["global_mmlu_full_de"]
+    shots: [0]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+  # English MMLU for comparison
+  - name: "global_mmlu_english"
+    tasks: ["global_mmlu_en"]
+    shots: [0]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+# W&B logging configuration
+logger:
+  wandb:
+    project: "BA-T5-CrossLingual-Test"
+    entity: "nikolas-rauscher-dfki"
+    group: "Wechsel-German-MMLU-Test"
+    name: "wechsel-vs-baselines-german-mmlu"
+    tags: ["wechsel", "german", "mmlu", "cross-lingual", "0-shot", "loglikelihood"]

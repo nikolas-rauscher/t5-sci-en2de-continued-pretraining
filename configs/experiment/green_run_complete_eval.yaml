@@ -8,8 +8,8 @@ logger:
   wandb:
     project: "eval-mmlu"
     entity: "nikolas-rauscher-dfki"
-    group: "Green-Run-Complete"
-    tags: ["mmlu", "green_run", "complete-eval", "all-checkpoints"]
+    group: "Green-Run-Complete-Global-MMLU"
+    tags: ["global-mmlu", "green_run", "complete-eval", "all-checkpoints"]
 
 # All unique checkpoints
 models:
@@ -494,9 +494,10 @@ models:
   - name: "t5_base_original"
     path: "t5-base"
 
-# MMLU benchmark - 0-shot only for faster evaluation
+# Global MMLU EN benchmark - 0-shot only for faster evaluation
 benchmarks:
-  - name: "mmlu"
+  - name: "global_mmlu_en"
+    tasks: ["global_mmlu_full_en"]
     shots: [0]
 
 # Evaluation configuration

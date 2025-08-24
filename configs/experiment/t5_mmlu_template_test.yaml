@@ -1,0 +1,48 @@
+benchmarks:
+- batch_size: auto
+  device: cuda
+  name: mmlu_t5_optimized
+  seed: 42
+  shots:
+  - 0
+  - 3
+  tasks:
+  - mmlu_t5_optimized
+- batch_size: auto
+  device: cuda
+  name: mmlu_global_style
+  seed: 42
+  shots:
+  - 0
+  - 3
+  tasks:
+  - mmlu_global_mmlu_style
+- batch_size: auto
+  device: cuda
+  name: mmlu_short_prompt
+  seed: 42
+  shots:
+  - 0
+  - 3
+  tasks:
+  - mmlu_short_prompt
+description: Compare different T5-optimized MMLU templates
+experiment_name: t5_mmlu_template_comparison
+logger:
+  wandb:
+    entity: nikolas-rauscher-dfki
+    group: T5-MMLU-Template-Comparison
+    name: t5-template-comparison
+    project: BA-T5-Template-Testing
+    tags:
+    - mmlu
+    - template-testing
+    - t5-optimized
+    - loglikelihood
+models:
+- name: t5-base-original
+  source_path: t5-base
+- name: green-run-640k
+  source_path: evaluation/models/temp/green-run-en-640k
+- name: clean-restart-605k
+  source_path: evaluation/models/temp/clean-restart-step02-605k

@@ -1,0 +1,31 @@
+# @package _global_
+
+experiment_name: "green_run_mmlu_eval"
+description: "Evaluate Green Run (640k steps) fine-tuned on ARC-Easy vs baseline to measure transfer learning from continued pretraining"
+
+models:
+  # Green Run baseline (640k continued pretraining, no task fine-tuning)
+  - source_path: "task_finetuning/models/green_run_640k_base"
+    name: "green-run-640k-baseline"
+
+  # Green Run + ARC-Easy fine-tuning (to be added after training)
+  # - source_path: "task_finetuning/models/green_run_finetuned_best"
+  #   name: "green-run-640k-arc-finetuned"
+
+benchmarks:
+  # Standard MMLU evaluation
+  - name: "mmlu"
+    tasks: ["mmlu"]
+    shots: [0]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+# W&B logging configuration
+logger:
+  wandb:
+    project: "BA-T5-Task-Finetuning-GreenRun-Evaluation"
+    entity: "nikolas-rauscher-dfki"
+    group: "Green-Run-Transfer-Learning"
+    name: "Green-Run-640k-ARC-to-MMLU-Transfer"
+    tags: ["green-run", "640k-steps", "arc-easy", "mmlu", "transfer-learning", "continued-pretraining"]

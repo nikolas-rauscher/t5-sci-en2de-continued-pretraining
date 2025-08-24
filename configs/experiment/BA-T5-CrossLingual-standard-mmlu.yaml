@@ -1,0 +1,61 @@
+# @package _global_
+
+experiment_name: "BA-T5-CrossLingual-standard-mmlu"
+description: "Cross-lingual transfer evaluation using STANDARD MMLU format (matching 2025-08-17 evaluation)"
+
+models:
+  # Baseline T5-Base (original)
+  - source_path: "t5-base"
+    name: "t5-base-original"
+
+  # English pretrained model (640k steps - Same as old evaluation)
+  - source_path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/steps/step-step=640000.ckpt"
+    name: "green-run-640k-english-source"
+
+  # German T5-Base baseline
+  - source_path: "GermanT5/t5-efficient-gc4-german-base-nl36"
+    name: "german-t5-base-nl36"
+
+  # Wechsel transferred German model
+  - source_path: "cross_lingual_transfer/models/german_transferred_robust"
+    name: "wechsel-robust-german-from-640k-en"
+
+benchmarks:
+  # STANDARD MMLU format (NOT FLAN!) - matching old evaluation
+  - name: "mmlu"
+    shots: [0]
+
+# Evaluation settings - EXACT match with old config
+eval:
+  cleanup_temp_models: true
+
+# Device and batch settings - matching old evaluation
+device: "auto"  # NOT cuda - use auto like old evaluation
+batch_size: "auto"
+seed: 42
+
+# Additional settings from old config (EXACT match)
+diagnostics:
+  write_out: false
+
+paths:
+  root_dir: "${oc.env:PROJECT_ROOT}"
+  data_dir: "${paths.root_dir}/data/"
+  log_dir: "${paths.root_dir}/logs/"
+  output_dir: "${hydra:runtime.output_dir}"
+  work_dir: "${hydra:runtime.cwd}"
+
+# EXACT match with old evaluation settings
+max_length: 512
+temperature: 0.0
+export_csv: true
+csv_filename: "BA_T5_CrossLingual_standard_mmlu_results.csv"
+
+# W&B logging configuration
+logger:
+  wandb:
+    project: "BA-T5-CrossLingual-standard-mmlu"
+    entity: "nikolas-rauscher-dfki"
+    group: "Cross-Lingual-Standard-MMLU"
+    name: "BA-T5-CrossLingual-standard-mmlu-comparison"
+    tags: ["cross-lingual", "standard-mmlu", "wechsel", "transfer", "comparison", "0-shot", "exact-replication"]

@@ -1,40 +1,38 @@
 #!/bin/bash
-#SBATCH --job-name=flexible_eval_24h
-#SBATCH --partition=A100-80GB,V100-32GB,A100-40GB,H100
+#SBATCH --job-name=flexible_eval_h100
+#SBATCH --partition=H100
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=75G
 #SBATCH --time=24:00:00
-#SBATCH --output=/netscratch/nrauscher/projects/BA-hydra/evaluation/logs/flexible_eval_24h_%j.out
-#SBATCH --error=/netscratch/nrauscher/projects/BA-hydra/evaluation/logs/flexible_eval_24h_%j.err
+#SBATCH --output=/netscratch/nrauscher/projects/BA-hydra/evaluation/logs/flexible_eval_h100_%j.out
+#SBATCH --error=/netscratch/nrauscher/projects/BA-hydra/evaluation/logs/flexible_eval_h100_%j.err
 
-# Flexible Evaluation Pipeline Job - 24 Hour Version
-# For long-running tasks like summarization with multiple checkpoints
-# Usage: sbatch jobs/flexible_eval_24h.sh [experiment_name]
+# Flexible Evaluation Pipeline Job for H100 GPU
+# Usage: sbatch jobs/flexible_eval_h100.sh [experiment_name]
 # Examples:
-#   sbatch jobs/flexible_eval_24h.sh run1_eval_summarization
-#   sbatch jobs/flexible_eval_24h.sh run1_eval_qasper  
-#   sbatch jobs/flexible_eval_24h.sh checkpoint_progression
+#   sbatch jobs/flexible_eval_h100.sh global_mmlu_german
+#   sbatch jobs/flexible_eval_h100.sh quick_test
+#   sbatch jobs/flexible_eval_h100.sh checkpoint_progression
 
 # Get experiment name from command line argument or default
 EXPERIMENT=${1:-"quick_test"}
 
 echo "=========================================="
-echo "SLURM Job: Flexible Evaluation Pipeline (24h)"
+echo "SLURM Job: Flexible Evaluation Pipeline"
 echo "=========================================="
 echo "Job ID: $SLURM_JOB_ID"
 echo "Node: $SLURMD_NODENAME"
 echo "GPU: $CUDA_VISIBLE_DEVICES"
+echo "Partition: H100"
 echo "Start time: $(date)"
 echo "Experiment: $EXPERIMENT"
-echo "Time limit: 24 hours"
 echo "=========================================="
 
 # Project paths
 PROJECT_ROOT="/netscratch/nrauscher/projects/BA-hydra"
-export PROJECT_ROOT
 cd "$PROJECT_ROOT"
 
 # Create log directories

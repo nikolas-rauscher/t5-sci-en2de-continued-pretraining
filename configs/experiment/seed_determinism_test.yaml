@@ -1,0 +1,46 @@
+# @package _global_
+
+experiment_name: "seed-determinism-test"
+description: "Test if MMLU evaluation is deterministic with same seed - multiple runs of same model"
+
+models:
+  # Use simple T5-base for quick testing
+  - source_path: "t5-base"
+    name: "t5-base-test"
+
+benchmarks:
+  # Test nur 1 kleinen MMLU task für sehr schnelle CPU-Ergebnisse
+  - name: "mmlu"
+    shots: [0]
+    tasks: ["mmlu_flan_n_shot_loglikelihood_formal_logic"]
+    device: "cpu"
+    batch_size: 1
+
+# Evaluation settings - EXACT seed control
+eval:
+  cleanup_temp_models: true
+
+# FIXED seed for determinism - CPU TEST
+device: "cpu"
+batch_size: 1  # Small batch for CPU
+seed: 42
+
+# Additional settings
+diagnostics:
+  write_out: false
+
+paths:
+  root_dir: "${oc.env:PROJECT_ROOT}"
+  data_dir: "${paths.root_dir}/data/"
+  log_dir: "${paths.root_dir}/logs/"
+  output_dir: "${hydra:runtime.output_dir}"
+  work_dir: "${hydra:runtime.cwd}"
+
+# W&B logging 
+logger:
+  wandb:
+    project: "seed-determinism-test"
+    entity: "nikolas-rauscher-dfki"
+    group: "Determinism-Testing"
+    name: "seed-test-run"
+    tags: ["determinism", "seed-test", "mmlu", "reproducibility"]

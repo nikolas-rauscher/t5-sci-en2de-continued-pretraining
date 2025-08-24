@@ -1,0 +1,49 @@
+# @package _global_
+
+experiment_name: "optimal_mmlu_evaluation"
+description: "Optimal MMLU evaluation setup: Green Run 640k with 0-shot loglikelihood method"
+
+models:
+  # Baseline comparison
+  - source_path: "t5-base"
+    name: "t5-base-baseline"
+
+  # Our optimal model
+  - source_path: "evaluation/models/temp/green-run-en-640k"
+    name: "green-run-en-640k-optimal"
+
+  # Other checkpoints for comparison
+  - source_path: "evaluation/models/temp/green-run-en-430k"
+    name: "green-run-en-430k"
+
+  - source_path: "evaluation/models/temp/clean-restart-step01-515k"
+    name: "clean-restart-en-515k"
+
+  - source_path: "evaluation/models/temp/clean-restart-step02-605k"
+    name: "clean-restart-en-605k"
+
+benchmarks:
+  # Optimal setup: 0-shot FLAN loglikelihood
+  - name: "mmlu_optimal"
+    tasks: ["mmlu_flan_n_shot_loglikelihood"]
+    shots: [0]  # 0-shot is most efficient
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+  # Compare with Global MMLU (single tokens)
+  - name: "global_mmlu_comparison"
+    tasks: ["global_mmlu_full_en"]
+    shots: [0]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+# W&B logging configuration
+logger:
+  wandb:
+    project: "BA-T5-Optimal-MMLU"
+    entity: "nikolas-rauscher-dfki"
+    group: "Optimal-MMLU-Evaluation"
+    name: "green-run-640k-vs-baselines-0shot"
+    tags: ["optimal", "0-shot", "loglikelihood", "green-run", "640k", "mmlu"]

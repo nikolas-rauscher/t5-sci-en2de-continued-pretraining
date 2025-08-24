@@ -1,0 +1,39 @@
+# @package _global_
+
+experiment_name: "all_checkpoints_global_mmlu"
+description: "Re-evaluate all best English checkpoints with Global MMLU EN format (same as cross-lingual evaluation) for consistent comparison"
+
+models:
+  # Baselines
+  - source_path: "t5-base"
+    name: "t5-base-baseline"
+
+  # Run 1 - Conservative (completed)
+  - source_path: "clean_restart_logs/train/runs/2025-08-01_20-57-52/checkpoints/best/step-665000-val_ppl-1.39532.ckpt"
+    name: "run1-conservative-665k"
+
+  # Run 4 - Optimized T5-Base (your current best)
+  - source_path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/steps/step-step=640000.ckpt"
+    name: "run4-optimized-640k"
+
+  # Run 5 - FLAN-T5 (if you want to include it)
+  - source_path: "flan_t5_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-14_00-09-39/checkpoints/best/step-237500-val_ppl-1.36184.ckpt" 
+    name: "run5-flan-t5-237k"
+
+benchmarks:
+  # Global MMLU English (same format as cross-lingual evaluation)
+  - name: "global_mmlu_en"
+    tasks: ["global_mmlu_full_en"]
+    shots: [0, 5]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+# W&B logging configuration
+logger:
+  wandb:
+    project: "BA-T5-Evaluation"
+    entity: "nikolas-rauscher-dfki"
+    group: "Global-MMLU-English-Checkpoints"
+    name: "all_checkpoints_global_mmlu"
+    tags: ["global-mmlu", "english", "checkpoints", "comparison", "standard-format"]

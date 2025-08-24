@@ -1,0 +1,73 @@
+# @package _global_
+
+experiment_name: "comprehensive_crosslingual_global_mmlu"
+description: "Comprehensive cross-lingual evaluation: Global MMLU German and English for all models (EN baselines, DE baseline, transferred model) to compare EN→DE transfer performance"
+
+models:
+  # English baselines
+  - source_path: "t5-base"
+    name: "t5-base-original"
+
+  # Clean Run (Conservative English model) - multiple checkpoints
+  - source_path: "clean_restart_logs/train/runs/2025-08-12_14-12-10/checkpoints/steps/step-step=515000.ckpt"
+    name: "clean-run-en-515k"
+
+  - source_path: "clean_restart_logs/train/runs/2025-08-12_14-12-10/checkpoints/steps/step-step=605000.ckpt"
+    name: "clean-run-en-605k"
+
+  # Green Run (Best English model) - multiple checkpoints
+  - source_path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/steps/step-step=430000.ckpt"
+    name: "green-run-en-430k"
+
+  - source_path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/steps/step-step=640000.ckpt"
+    name: "green-run-en-640k"
+
+  # German baseline
+  - source_path: "GermanT5/t5-efficient-gc4-german-base-nl36"
+    name: "german-t5-base-nl36"
+
+  # Wechsel-transferred German model (from best English checkpoint)
+  - source_path: "cross_lingual_transfer/models/german_transferred"
+    name: "wechsel-german-from-640k-en"
+
+benchmarks:
+  # German Global MMLU (4 main categories)
+  - name: "global_mmlu_german"
+    tasks: ["global_mmlu_de"]
+    shots: [0]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+  # English Global MMLU (4 main categories)
+  - name: "global_mmlu_english"
+    tasks: ["global_mmlu_en"]
+    shots: [0] 
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+  # German Global MMLU Full (all subtasks)
+  - name: "global_mmlu_german_full"
+    tasks: ["global_mmlu_full_de"]
+    shots: [0]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+  # English Global MMLU Full (all subtasks)
+  - name: "global_mmlu_english_full"
+    tasks: ["global_mmlu_full_en"]
+    shots: [0] 
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+# W&B logging configuration
+logger:
+  wandb:
+    project: "BA-T5-CrossLingual"
+    entity: "nikolas-rauscher-dfki"
+    group: "Comprehensive-CrossLingual-Global-MMLU-Full"
+    name: "comprehensive-crosslingual-global-mmlu-full"
+    tags: ["global-mmlu", "global-mmlu-full", "crosslingual", "wechsel", "transfer", "comprehensive", "en-de", "0-shot"]

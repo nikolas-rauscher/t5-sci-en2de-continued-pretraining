@@ -1,0 +1,27 @@
+# @package _global_
+
+experiment_name: "task_finetuning_mmlu_eval"
+description: "Evaluate ARC-Easy fine-tuned T5 model on MMLU to measure transfer learning effectiveness"
+
+models:
+  # Fine-tuned T5 model (ARC-Easy training, Step 314)
+  - source_path: "task_finetuning/evaluation/models/best_finetuned_t5_step314"
+    name: "t5-finetuned-arc-easy-step314"
+
+benchmarks:
+  # Standard MMLU evaluation (same format as baseline evaluations)
+  - name: "mmlu"
+    tasks: ["mmlu"]
+    shots: [0]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+# W&B logging configuration
+logger:
+  wandb:
+    project: "BA-T5-Task-Finetuning-Evaluation"
+    entity: "nikolas-rauscher-dfki"
+    group: "Task-Finetuning-Transfer-Learning"
+    name: "ARC-Easy-to-MMLU-Transfer-Evaluation"
+    tags: ["task-finetuning", "arc-easy", "mmlu", "transfer-learning", "t5"]

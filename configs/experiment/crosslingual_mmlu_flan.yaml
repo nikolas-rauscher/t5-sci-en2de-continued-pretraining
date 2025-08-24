@@ -1,0 +1,38 @@
+# @package _global_
+
+experiment_name: "crosslingual_mmlu_flan"
+description: "Evaluate cross-lingual models on standard MMLU FLAN format for direct comparison with previous English evaluations"
+
+models:
+  # Baseline T5-Base (original)
+  - source_path: "t5-base"
+    name: "t5-base-original"
+
+  # English pretrained model (640k steps)
+  - source_path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/steps/step-step=640000.ckpt"
+    name: "run4-t5-optimized-640k-english-source"
+
+  # German T5-Base baseline
+  - source_path: "GermanT5/t5-efficient-gc4-german-base-nl36"
+    name: "german-t5-base-nl36"
+
+  # Wechsel transferred German model
+  - source_path: "cross_lingual_transfer/models/german_transferred"
+    name: "wechsel-german-from-640k-en"
+
+benchmarks:
+  # Standard MMLU FLAN format (same as previous English evaluations)
+  - name: "mmlu"
+    shots: [0]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+# W&B logging configuration
+logger:
+  wandb:
+    project: "BA-T5-CrossLingual-test-mit-mmlu-flan"
+    entity: "nikolas-rauscher-dfki"
+    group: "Cross-Lingual-MMLU-FLAN"
+    name: "BA-T5-CrossLingual-test-mit-mmlu-flan"
+    tags: ["cross-lingual", "mmlu-flan", "wechsel", "transfer", "comparison"]

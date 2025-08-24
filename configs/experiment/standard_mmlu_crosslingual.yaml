@@ -1,0 +1,39 @@
+# @package _global_
+
+experiment_name: "standard_mmlu_crosslingual"
+description: "Cross-lingual evaluation using standard MMLU (same as checkpoint evaluations): English baseline, German baseline, and Wechsel-transferred models (0/5-shot)"
+
+models:
+  # English baselines  
+  - source_path: "t5-base"
+    name: "t5-base-original"
+
+  # Our best English continued pretraining checkpoint (source for Wechsel transfer)
+  - source_path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/steps/step-step=640000.ckpt"
+    name: "run4-t5-optimized-640k-english-source"
+
+  # German baseline
+  - source_path: "GermanT5/t5-efficient-gc4-german-base-nl36"
+    name: "german-t5-base-nl36"
+
+  # Our Wechsel-transferred German model (from best English checkpoint)
+  - source_path: "cross_lingual_transfer/models/german_transferred"
+    name: "wechsel-german-from-640k-en"
+
+benchmarks:
+  # Standard MMLU with all 57 subtasks (same as checkpoint evaluations)
+  - name: "mmlu"
+    tasks: ["mmlu"]
+    shots: [0, 5]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+# W&B logging configuration
+logger:
+  wandb:
+    project: "BA-T5-CrossLingual"
+    entity: "nikolas-rauscher-dfki"
+    group: "Standard-MMLU-Crosslingual"
+    name: "standard_mmlu_crosslingual"
+    tags: ["mmlu", "standard", "crosslingual", "wechsel", "transfer", "flan-loglikelihood"]

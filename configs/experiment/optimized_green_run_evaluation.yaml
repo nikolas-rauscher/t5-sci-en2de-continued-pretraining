@@ -1,0 +1,47 @@
+# @package _global_
+
+experiment_name: "optimized_green_run_evaluation"
+description: "Optimized evaluation of Green Run 640k model using best loglikelihood method with improved templates"
+
+models:
+  # Baseline for comparison
+  - source_path: "t5-base"
+    name: "t5-base-original"
+
+  # Our best performing model
+  - source_path: "evaluation/models/temp/green-run-en-640k"
+    name: "green-run-en-640k-optimized"
+
+benchmarks:
+  # Original FLAN template (current best)
+  - name: "mmlu_flan_current"
+    tasks: ["mmlu_flan_n_shot_loglikelihood"]
+    shots: [0, 3, 5]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+  # Our T5-optimized template
+  - name: "mmlu_t5_optimized"
+    tasks: ["mmlu_t5_optimized"]
+    shots: [0, 3, 5]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+  # Global MMLU style (single tokens)
+  - name: "mmlu_global_style"
+    tasks: ["mmlu_global_mmlu_style"]
+    shots: [0, 3, 5]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+# W&B logging configuration
+logger:
+  wandb:
+    project: "BA-T5-Optimized-Evaluation"
+    entity: "nikolas-rauscher-dfki"
+    group: "Green-Run-640k-Optimized"
+    name: "green-run-640k-template-comparison"
+    tags: ["green-run", "640k", "optimized", "loglikelihood", "template-comparison"]

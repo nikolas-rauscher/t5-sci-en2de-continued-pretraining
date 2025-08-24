@@ -1,7 +1,7 @@
 # @package _global_
 
-experiment_name: "okapi_crosslingual_matrix"
-description: "Cross-lingual OKAPI MMLU (EN/DE) evaluation: English and German models on both languages (0/5-shot)"
+experiment_name: "okapi_crosslingual_with_wechsel"
+description: "Cross-lingual OKAPI MMLU (EN/DE) evaluation: English, German baseline, and Wechsel-transferred models (0/5-shot)"
 
 models:
   # English baselines
@@ -11,13 +11,17 @@ models:
   - source_path: "google/flan-t5-base"
     name: "flan-t5-base-original"
 
-  # Our English continued pretraining (best checkpoint)
-  - source_path: "clean_restart_logs/train/runs/2025-08-06_18-44-33/checkpoints/best/step-665000-val_ppl-1.39532.ckpt"
-    name: "run1-t5-conservative-665k-lr0001"
+  # Our English continued pretraining (best checkpoint - used for Wechsel transfer)
+  - source_path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/steps/step-step=640000.ckpt"
+    name: "run4-t5-optimized-640k-lr001-source"
 
   # German baseline
   - source_path: "GermanT5/t5-efficient-gc4-german-base-nl36"
     name: "t5-efficient-german-base-nl36"
+
+  # Our Wechsel-transferred German model (from best English checkpoint)
+  - source_path: "cross_lingual_transfer/models/german_transferred"
+    name: "wechsel-german-from-640k-en"
 
 benchmarks:
   # OKAPI MMLU English
@@ -38,7 +42,7 @@ logger:
     project: "BA-T5-Evaluation"
     entity: "nikolas-rauscher-dfki"
     group: "OKAPI-MMLU-Crosslingual"
-    name: "okapi_crosslingual_matrix"
-    tags: ["okapi", "mmlu", "crosslingual", "en", "de"]
+    name: "okapi_crosslingual_with_wechsel"
+    tags: ["okapi", "mmlu", "crosslingual", "en", "de", "wechsel", "transfer"]
 
 
