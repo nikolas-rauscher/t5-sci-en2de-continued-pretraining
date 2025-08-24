@@ -1,0 +1,27 @@
+# @package _global_
+
+experiment_name: "BA-T5-CrossLingual-test-mit-mmlu-flan"
+description: "Test the robust Wechsel-transferred German model on MMLU FLAN format - comparing English source vs German transfer performance"
+
+models:
+
+  # NEW: Robust Wechsel transferred German model
+  - source_path: "cross_lingual_transfer/models/german_transferred_robust"
+    name: "AA_wechsel-robust-german-from-640k-en"
+
+benchmarks:
+  # Standard MMLU FLAN format (same as previous English evaluations)
+  - name: "mmlu"
+    shots: [0]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+# W&B logging configuration
+logger:
+  wandb:
+    project: "BA-T5-CrossLingual-test-mit-mmlu-flan"
+    entity: "nikolas-rauscher-dfki"
+    group: "Cross-Lingual-MMLU-FLAN-Robust"
+    name: "BA-T5-CrossLingual-test-mit-mmlu-flan-robust"
+    tags: ["cross-lingual", "mmlu-flan", "wechsel-robust", "transfer", "comparison", "0-shot"]
