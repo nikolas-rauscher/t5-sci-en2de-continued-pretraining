@@ -336,22 +336,122 @@ class ModelManager:
         # Extract model state dict
         state_dict = checkpoint['state_dict']
         
-        # Remove 'model.' prefix from keys (Lightning adds this)
+        # Remove nested Lightning prefixes ('model.model.' first, then fallback to 'model.')
         clean_state_dict = {}
+        stripped_model_model = 0
+        stripped_model = 0
         for key, value in state_dict.items():
-            if key.startswith('model.'):
-                clean_key = key[6:]  # Remove 'model.' prefix
+            if key.startswith('model.model.'):
+                clean_key = key[len('model.model.'):]
                 clean_state_dict[clean_key] = value
+                stripped_model_model += 1
+            elif key.startswith('model.'):
+                clean_key = key[len('model.'):]
+                clean_state_dict[clean_key] = value
+                stripped_model += 1
             else:
                 clean_state_dict[key] = value
+        if stripped_model_model or stripped_model:
+            log.info(
+                f"Stripped prefixes from state_dict -> model.model.: {stripped_model_model}, model.: {stripped_model}"
+            )
+
+        # Infer vocab size from weights if available
+        ckpt_vocab_size = None
+        try:
+            # Standard HF key for shared embeddings
+            if 'shared.weight' in clean_state_dict:
+                ckpt_vocab_size = clean_state_dict['shared.weight'].shape[0]
+            else:
+                # Fallback: search any key ending with 'shared.weight'
+                for k, v in clean_state_dict.items():
+                    if k.endswith('shared.weight') and hasattr(v, 'shape') and len(v.shape) == 2:
+                        ckpt_vocab_size = v.shape[0]
+                        break
+        except Exception:
+            pass
+
+        # Decide base model id (FLAN vs vanilla T5) based on path hints
+        def _infer_base_model_id(p: Path) -> str:
+            pl = str(p).lower()
+            if 'flan' in pl:
+                return 'google/flan-t5-base'
+            return 't5-base'
+
+        base_model_id = _infer_base_model_id(ckpt_path)
+        log.info(f"Base model assumption for config/tokenizer: {base_model_id}")
+
+        # Try to locate a tokenizer near the checkpoint path (parent dirs), else fallback to base model
+        def _resolve_tokenizer_source(p: Path, fallback: str) -> Union[str, Path]:
+            candidates = []
+            # Check the run directory and a few parents for tokenizer files
+            for cand in [p.parent, p.parent.parent if p.parent.parent else None, p.parent.parent.parent if p.parent.parent and p.parent.parent.parent else None]:
+                if cand:
+                    candidates.append(cand)
+                    # also common subdir names
+                    for sub in ['tokenizer', 'spm', 'sentencepiece', 'hf_tokenizer']:
+                        candidates.append(cand / sub)
+            token_files = {'tokenizer.json', 'spiece.model', 'sentencepiece.bpe.model', 'tokenizer_config.json', 'special_tokens_map.json', 'vocab.json'}
+            for c in candidates:
+                try:
+                    if c and c.exists() and c.is_dir():
+                        files = {x.name for x in c.iterdir() if x.is_file()}
+                        if files & token_files:
+                            return c
+                except Exception:
+                    continue
+            return fallback
+
+        tokenizer_src = _resolve_tokenizer_source(ckpt_path, base_model_id)
+        try:
+            if isinstance(tokenizer_src, Path):
+                tokenizer = T5Tokenizer.from_pretrained(tokenizer_src, local_files_only=True)
+                log.info(f"Tokenizer loaded from local path: {tokenizer_src}")
+            else:
+                tokenizer = T5Tokenizer.from_pretrained(tokenizer_src)
+                log.info(f"Tokenizer loaded from HF hub: {tokenizer_src}")
+        except Exception as e:
+            log.warning(f"Falling back to t5-base tokenizer due to error loading {tokenizer_src}: {e}")
+            tokenizer = T5Tokenizer.from_pretrained('t5-base')
                 
-        # Load base T5 config and tokenizer
-        config = T5Config.from_pretrained('t5-base')
-        tokenizer = T5Tokenizer.from_pretrained('t5-base')
+        # Load base T5 config
+        config = T5Config.from_pretrained(base_model_id)
+        # Align config vocab size with checkpoint weights if known
+        if ckpt_vocab_size is not None and getattr(config, 'vocab_size', None) != ckpt_vocab_size:
+            log.info(f"Adjusting config.vocab_size from {config.vocab_size} -> {ckpt_vocab_size} (from weights)")
+            config.vocab_size = ckpt_vocab_size
+        # Ensure special token ids are set from tokenizer
+        try:
+            if getattr(config, 'eos_token_id', None) is None and tokenizer.eos_token_id is not None:
+                config.eos_token_id = tokenizer.eos_token_id
+            if getattr(config, 'pad_token_id', None) is None and tokenizer.pad_token_id is not None:
+                config.pad_token_id = tokenizer.pad_token_id
+            if getattr(config, 'decoder_start_token_id', None) is None and tokenizer.pad_token_id is not None:
+                # T5 commonly uses pad_token_id as decoder_start_token_id
+                config.decoder_start_token_id = tokenizer.pad_token_id
+        except Exception:
+            pass
         
         # Create model and load state dict
         model = T5ForConditionalGeneration(config)
-        model.load_state_dict(clean_state_dict, strict=False)
+        load_res = model.load_state_dict(clean_state_dict, strict=False)
+        # Log potential mapping issues to surface bad conversions early
+        missing_cnt = len(getattr(load_res, 'missing_keys', []) or [])
+        unexpected_cnt = len(getattr(load_res, 'unexpected_keys', []) or [])
+        if missing_cnt or unexpected_cnt:
+            log.warning(
+                f"While loading checkpoint into HF model: missing_keys={missing_cnt}, unexpected_keys={unexpected_cnt}"
+            )
+        # Optional: warn if tokenizer vocab doesn't match weights
+        try:
+            emb_shape = tuple(model.get_input_embeddings().weight.shape)
+            if tokenizer.vocab_size is not None and emb_shape[0] != tokenizer.vocab_size:
+                log.warning(
+                    f"Tokenizer vocab_size ({tokenizer.vocab_size}) != model embeddings ({emb_shape[0]})."
+                    " Ensure you use the original training tokenizer to avoid generation issues."
+                )
+        except Exception:
+            pass
         
         # Save in HuggingFace format
         output_path.mkdir(parents=True, exist_ok=True)
