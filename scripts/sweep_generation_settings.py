@@ -2,7 +2,6 @@
 """
 Sweep Generation Settings für T5/FLAN-Checkpoints
 
-
 Beschreibung
 - Führt GPU-beschleunigte Text-Generierung mit mehreren Decoding-Settings aus.
 - Unterstützt HF-Baseline (t5-base) und Lightning-Checkpoints (.ckpt).
