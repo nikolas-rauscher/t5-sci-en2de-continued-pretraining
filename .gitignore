@@ -181,3 +181,26 @@ scifive_style_v2_logs/*
 
 evaluation/models/temp/*
 .yoyo/
+cross_lingual_transfer/data/german/raw_parquet/*
+
+.venv_crosslingual_transfer/*
+
+
+task_finetuning/configs/test_training.yaml
+.hf_cache/*
+evaluation/models/*
+task_finetuning/task_finetuning_env/*
+cross_lingual_transfer/models/*
+task_finetuning/outputs/*
+task_finetuning/task_finetuning/logs/*
+task_finetuning/lightning_logs/*
+task_finetuning/evaluation/models/best_finetuned_t5_step314/config.json
+task_finetuning_env/*
+task_finetuning/evaluation/results/*
+task_finetuning/logs/*
+task_finetuning/evaluation/models/*
+task_finetuning/models/*
+
+
+cross_lingual_transfer/cache/*
+cross_lingual_transfer/data/*
