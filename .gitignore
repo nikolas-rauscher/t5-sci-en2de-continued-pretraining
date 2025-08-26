@@ -200,6 +200,8 @@ task_finetuning/evaluation/results/*
 task_finetuning/logs/*
 task_finetuning/evaluation/models/*
 task_finetuning/models/*
+!task_finetuning/models/*.py
+!task_finetuning/models/**/*.py
 
 
 cross_lingual_transfer/cache/*
