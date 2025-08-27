@@ -10,6 +10,9 @@ __pycache__/
 data/mmlu_datasets/
 data/huggingface_cache/
 
+CLAUDE.md
+.claude/*
+
 # Distribution / packaging
 .Python
 build/
@@ -207,3 +210,4 @@ task_finetuning/models/*
 cross_lingual_transfer/cache/*
 cross_lingual_transfer/data/*
 */.DS_Store
+converted_models/*
