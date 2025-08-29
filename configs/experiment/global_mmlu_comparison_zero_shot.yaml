@@ -1,0 +1,51 @@
+# @package _global_
+
+experiment_name: "global_mmlu_comparison_zero_shot"
+description: "Zero-shot comparison of all models on Global MMLU English and German: baselines, English-trained, German-trained, and both Wechsel transfer variants"
+
+models:
+  # Robust Wechsel transfer from English to German
+  - source_path: "cross_lingual_transfer/models/german_transferred_robust"
+    name: "wechsel-german-from-640k-en-robust"
+
+  # English baseline
+  - source_path: "t5-base"
+    name: "t5-base-original"
+
+  # Our best English continued pretraining model
+  - source_path: "pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/steps/step-step=640000.ckpt"
+    name: "run4-t5-optimized-640k-english-source"
+
+  # German baseline model
+  - source_path: "GermanT5/t5-efficient-gc4-german-base-nl36"
+    name: "german-t5-base-nl36"
+
+  # Standard Wechsel transfer from English to German
+  - source_path: "cross_lingual_transfer/models/german_transferred"
+    name: "wechsel-de-zu-en-from-efficient-gc4-nl36"
+
+benchmarks:
+  # Global MMLU English (57 subtasks with category breakdown) - Zero shot only
+  - name: "global_mmlu_en"
+    tasks: ["global_mmlu_full_en"]
+    shots: [0]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+  # Global MMLU German (61 subtasks with category breakdown) - Zero shot only
+  - name: "global_mmlu_de"
+    tasks: ["global_mmlu_full_de"]
+    shots: [0]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+# W&B logging configuration
+logger:
+  wandb:
+    project: "BA-T5-CrossLingual"
+    entity: "nikolas-rauscher-dfki"
+    group: "Global-MMLU-Zero-Shot-Comparison"
+    name: "global_mmlu_comparison_zero_shot"
+    tags: ["global-mmlu", "german", "english", "crosslingual", "wechsel", "transfer", "zero-shot", "comparison", "robust"]
