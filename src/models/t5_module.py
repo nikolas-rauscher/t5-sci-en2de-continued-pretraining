@@ -103,7 +103,8 @@ class T5LitModule(LightningModule):
         self.log("train/perplexity", train_perplexity, on_step=True, on_epoch=True, prog_bar=True)
         
         current_lr = self.optimizers().param_groups[0]['lr']
-        self.log("train/learning_rate", current_lr, on_step=True, prog_bar=True)
+        if current_lr is not None:
+            self.log("train/learning_rate", current_lr, on_step=True, prog_bar=True)
         
         batch_size = batch["input_ids"].size(0)
         attention_mask = batch["attention_mask"]
