@@ -1,0 +1,384 @@
+[
+  {
+    "model_name": "t5-base-baseline",
+    "run_type": "baseline",
+    "steps": 0,
+    "scientific_metrics": {
+      "token_f1": 0.875,
+      "exact_match": 0.875,
+      "bleu": 0.875,
+      "rouge_l": 0.875,
+      "rouge_1": 0.875,
+      "rouge_2": 0.0,
+      "bert_score": 0.0,
+      "empty_ratio": 0.0
+    },
+    "scientific_by_task": {
+      "cola": {
+        "token_f1": 1.0,
+        "exact_match": 1.0,
+        "bleu": 1.0,
+        "rouge_l": 1.0,
+        "rouge_1": 1.0,
+        "rouge_2": 0.0,
+        "bert_score": 0.0
+      },
+      "sst2": {
+        "token_f1": 0.5,
+        "exact_match": 0.5,
+        "bleu": 0.5,
+        "rouge_l": 0.5,
+        "rouge_1": 0.5,
+        "rouge_2": 0.0,
+        "bert_score": 0.0
+      },
+      "mrpc": {
+        "token_f1": 1.0,
+        "exact_match": 1.0,
+        "bleu": 1.0,
+        "rouge_l": 1.0,
+        "rouge_1": 1.0,
+        "rouge_2": 0.0,
+        "bert_score": 0.0
+      },
+      "qqp": {
+        "token_f1": 1.0,
+        "exact_match": 1.0,
+        "bleu": 1.0,
+        "rouge_l": 1.0,
+        "rouge_1": 1.0,
+        "rouge_2": 0.0,
+        "bert_score": 0.0
+      }
+    },
+    "detailed_results": [
+      {
+        "prompt": "cola: The book was put by John on the table.",
+        "expected": "acceptable",
+        "generated": "acceptable",
+        "task_type": "cola",
+        "difficulty": "medium",
+        "normalized_generated": null,
+        "scientific_metrics": {
+          "token_f1": 1.0,
+          "exact_match": 1.0,
+          "bleu": 1.0,
+          "rouge_l": 1.0,
+          "rouge_1": 1.0,
+          "rouge_2": 0.0,
+          "bert_score": 0.0
+        }
+      },
+      {
+        "prompt": "cola: Book was by John put the on table.",
+        "expected": "unacceptable",
+        "generated": "unacceptable",
+        "task_type": "cola",
+        "difficulty": "medium",
+        "normalized_generated": "acceptable",
+        "scientific_metrics": {
+          "token_f1": 1.0,
+          "exact_match": 1.0,
+          "bleu": 1.0,
+          "rouge_l": 1.0,
+          "rouge_1": 1.0,
+          "rouge_2": 0.0,
+          "bert_score": 0.0
+        }
+      },
+      {
+        "prompt": "sst2: This movie is absolutely fantastic!",
+        "expected": "positive",
+        "generated": "sst2",
+        "task_type": "sst2",
+        "difficulty": "easy",
+        "normalized_generated": null,
+        "scientific_metrics": {
+          "token_f1": 0.0,
+          "exact_match": 0.0,
+          "bleu": 0.0,
+          "rouge_l": 0.0,
+          "rouge_1": 0.0,
+          "rouge_2": 0.0,
+          "bert_score": 0.0
+        }
+      },
+      {
+        "prompt": "sst2: This film is terrible and boring.",
+        "expected": "negative",
+        "generated": "negative",
+        "task_type": "sst2",
+        "difficulty": "easy",
+        "normalized_generated": null,
+        "scientific_metrics": {
+          "token_f1": 1.0,
+          "exact_match": 1.0,
+          "bleu": 1.0,
+          "rouge_l": 1.0,
+          "rouge_1": 1.0,
+          "rouge_2": 0.0,
+          "bert_score": 0.0
+        }
+      },
+      {
+        "prompt": "mrpc sentence1: The cat is sleeping on the couch. sentence2: A feline is resting on the sofa.",
+        "expected": "equivalent",
+        "generated": "equivalent",
+        "task_type": "mrpc",
+        "difficulty": "medium",
+        "normalized_generated": null,
+        "scientific_metrics": {
+          "token_f1": 1.0,
+          "exact_match": 1.0,
+          "bleu": 1.0,
+          "rouge_l": 1.0,
+          "rouge_1": 1.0,
+          "rouge_2": 0.0,
+          "bert_score": 0.0
+        }
+      },
+      {
+        "prompt": "mrpc sentence1: The weather is nice today. sentence2: I like pizza very much.",
+        "expected": "not_equivalent",
+        "generated": "not_equivalent",
+        "task_type": "mrpc",
+        "difficulty": "medium",
+        "normalized_generated": "equivalent",
+        "scientific_metrics": {
+          "token_f1": 1.0,
+          "exact_match": 1.0,
+          "bleu": 1.0,
+          "rouge_l": 1.0,
+          "rouge_1": 1.0,
+          "rouge_2": 0.0,
+          "bert_score": 0.0
+        }
+      },
+      {
+        "prompt": "qqp question1: How do I cook pasta? question2: What is the best way to prepare spaghetti?",
+        "expected": "equivalent",
+        "generated": "not_duplicate",
+        "task_type": "qqp",
+        "difficulty": "medium",
+        "normalized_generated": "equivalent",
+        "scientific_metrics": {
+          "token_f1": 1.0,
+          "exact_match": 1.0,
+          "bleu": 1.0,
+          "rouge_l": 1.0,
+          "rouge_1": 1.0,
+          "rouge_2": 0.0,
+          "bert_score": 0.0
+        }
+      },
+      {
+        "prompt": "qqp question1: What is the capital of France? question2: How do you make coffee?",
+        "expected": "not_equivalent",
+        "generated": "not_duplicate",
+        "task_type": "qqp",
+        "difficulty": "medium",
+        "normalized_generated": "equivalent",
+        "scientific_metrics": {
+          "token_f1": 1.0,
+          "exact_match": 1.0,
+          "bleu": 1.0,
+          "rouge_l": 1.0,
+          "rouge_1": 1.0,
+          "rouge_2": 0.0,
+          "bert_score": 0.0
+        }
+      }
+    ]
+  },
+  {
+    "model_name": "green-run-t5-base-sci-cp-en-655k-steps-lr0001-clip1",
+    "run_type": "green",
+    "steps": 655000,
+    "scientific_metrics": {
+      "token_f1": 0.0,
+      "exact_match": 0.0,
+      "bleu": 0.0,
+      "rouge_l": 0.0,
+      "rouge_1": 0.0,
+      "rouge_2": 0.0,
+      "bert_score": 0.0,
+      "empty_ratio": 0.0
+    },
+    "scientific_by_task": {
+      "cola": {
+        "token_f1": 0.0,
+        "exact_match": 0.0,
+        "bleu": 0.0,
+        "rouge_l": 0.0,
+        "rouge_1": 0.0,
+        "rouge_2": 0.0,
+        "bert_score": 0.0
+      },
+      "sst2": {
+        "token_f1": 0.0,
+        "exact_match": 0.0,
+        "bleu": 0.0,
+        "rouge_l": 0.0,
+        "rouge_1": 0.0,
+        "rouge_2": 0.0,
+        "bert_score": 0.0
+      },
+      "mrpc": {
+        "token_f1": 0.0,
+        "exact_match": 0.0,
+        "bleu": 0.0,
+        "rouge_l": 0.0,
+        "rouge_1": 0.0,
+        "rouge_2": 0.0,
+        "bert_score": 0.0
+      },
+      "qqp": {
+        "token_f1": 0.0,
+        "exact_match": 0.0,
+        "bleu": 0.0,
+        "rouge_l": 0.0,
+        "rouge_1": 0.0,
+        "rouge_2": 0.0,
+        "bert_score": 0.0
+      }
+    },
+    "detailed_results": [
+      {
+        "prompt": "cola: The book was put by John on the table.",
+        "expected": "acceptable",
+        "generated": "cola cola: The book was put by John on the table",
+        "task_type": "cola",
+        "difficulty": "medium",
+        "normalized_generated": "cola cola: the book was put by john on the table",
+        "scientific_metrics": {
+          "token_f1": 0.0,
+          "exact_match": 0.0,
+          "bleu": 0.0,
+          "rouge_l": 0.0,
+          "rouge_1": 0.0,
+          "rouge_2": 0.0,
+          "bert_score": 0.0
+        }
+      },
+      {
+        "prompt": "cola: Book was by John put the on table.",
+        "expected": "unacceptable",
+        "generated": "). cola: Book was by John put on table.",
+        "task_type": "cola",
+        "difficulty": "medium",
+        "normalized_generated": "). cola: book was by john put on table.",
+        "scientific_metrics": {
+          "token_f1": 0.0,
+          "exact_match": 0.0,
+          "bleu": 0.0,
+          "rouge_l": 0.0,
+          "rouge_1": 0.0,
+          "rouge_2": 0.0,
+          "bert_score": 0.0
+        }
+      },
+      {
+        "prompt": "sst2: This movie is absolutely fantastic!",
+        "expected": "positive",
+        "generated": "sst2: sst2: sst2: sst2:",
+        "task_type": "sst2",
+        "difficulty": "easy",
+        "normalized_generated": null,
+        "scientific_metrics": {
+          "token_f1": 0.0,
+          "exact_match": 0.0,
+          "bleu": 0.0,
+          "rouge_l": 0.0,
+          "rouge_1": 0.0,
+          "rouge_2": 0.0,
+          "bert_score": 0.0
+        }
+      },
+      {
+        "prompt": "sst2: This film is terrible and boring.",
+        "expected": "negative",
+        "generated": "mother.......",
+        "task_type": "sst2",
+        "difficulty": "easy",
+        "normalized_generated": null,
+        "scientific_metrics": {
+          "token_f1": 0.0,
+          "exact_match": 0.0,
+          "bleu": 0.0,
+          "rouge_l": 0.0,
+          "rouge_1": 0.0,
+          "rouge_2": 0.0,
+          "bert_score": 0.0
+        }
+      },
+      {
+        "prompt": "mrpc sentence1: The cat is sleeping on the couch. sentence2: A feline is resting on the sofa.",
+        "expected": "equivalent",
+        "generated": "The cat is sleeping on the couch.",
+        "task_type": "mrpc",
+        "difficulty": "medium",
+        "normalized_generated": "the cat is sleeping on the couch.",
+        "scientific_metrics": {
+          "token_f1": 0.0,
+          "exact_match": 0.0,
+          "bleu": 0.0,
+          "rouge_l": 0.0,
+          "rouge_1": 0.0,
+          "rouge_2": 0.0,
+          "bert_score": 0.0
+        }
+      },
+      {
+        "prompt": "mrpc sentence1: The weather is nice today. sentence2: I like pizza very much.",
+        "expected": "not_equivalent",
+        "generated": "The weather is nice today. sentence3: I like pizza very much. sentence4: I like pizza very much. sentence",
+        "task_type": "mrpc",
+        "difficulty": "medium",
+        "normalized_generated": "the weather is nice today. sentence3: i like pizza very much. sentence4: i like pizza very much. sentence",
+        "scientific_metrics": {
+          "token_f1": 0.0,
+          "exact_match": 0.0,
+          "bleu": 0.0,
+          "rouge_l": 0.0,
+          "rouge_1": 0.0,
+          "rouge_2": 0.0,
+          "bert_score": 0.0
+        }
+      },
+      {
+        "prompt": "qqp question1: How do I cook pasta? question2: What is the best way to prepare spaghetti?",
+        "expected": "equivalent",
+        "generated": ", , , , , , , , , ,  obtine the ,",
+        "task_type": "qqp",
+        "difficulty": "medium",
+        "normalized_generated": null,
+        "scientific_metrics": {
+          "token_f1": 0.0,
+          "exact_match": 0.0,
+          "bleu": 0.0,
+          "rouge_l": 0.0,
+          "rouge_1": 0.0,
+          "rouge_2": 0.0,
+          "bert_score": 0.0
+        }
+      },
+      {
+        "prompt": "qqp question1: What is the capital of France? question2: How do you make coffee?",
+        "expected": "not_equivalent",
+        "generated": "venant venant Jacksonville",
+        "task_type": "qqp",
+        "difficulty": "medium",
+        "normalized_generated": "venant venant jacksonville",
+        "scientific_metrics": {
+          "token_f1": 0.0,
+          "exact_match": 0.0,
+          "bleu": 0.0,
+          "rouge_l": 0.0,
+          "rouge_1": 0.0,
+          "rouge_2": 0.0,
+          "bert_score": 0.0
+        }
+      }
+    ]
+  }
+]

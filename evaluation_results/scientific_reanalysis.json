@@ -1,0 +1,3089 @@
+[
+  {
+    "model_name": "red-run-t5-base-sci-cp-en-50k-steps-lr00001-clip0_5",
+    "run_type": "red",
+    "steps": 50000,
+    "overall_metrics": {
+      "token_f1": 0.3150044347703583,
+      "exact_match": 0.15217391304347827,
+      "bleu": 0.0,
+      "rouge_l": 0.45506583318125843,
+      "empty_ratio": 0.021739130434782608,
+      "total_tasks": 46
+    },
+    "task_metrics": {
+      "cola": {
+        "f1": 0.5,
+        "em": 0.5,
+        "bleu": 0.0,
+        "rouge": 0.5
+      },
+      "sst2": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mrpc": {
+        "f1": 1.0,
+        "em": 1.0,
+        "bleu": 0.0,
+        "rouge": 1.0
+      },
+      "qqp": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.25
+      },
+      "stsb": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.5
+      },
+      "mnli": {
+        "f1": 0.5,
+        "em": 0.5,
+        "bleu": 0.0,
+        "rouge": 0.5
+      },
+      "qnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.6666666666666666
+      },
+      "rte": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.6666666666666666
+      },
+      "wnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.6666666666666666
+      },
+      "summarization": {
+        "f1": 0.2738800471559092,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.2807399750351069
+      },
+      "translation": {
+        "f1": 0.5039886039886041,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.6777777777777777
+      },
+      "squad": {
+        "f1": 1.0,
+        "em": 1.0,
+        "bleu": 0.0,
+        "rouge": 1.0
+      },
+      "classification": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "linguistic_acceptability": {
+        "f1": 0.5,
+        "em": 0.5,
+        "bleu": 0.0,
+        "rouge": 0.5
+      },
+      "paraphrasing": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "completion": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "grammar_correction": {
+        "f1": 0.30769230769230765,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.39999999999999997
+      },
+      "question_generation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "similarity": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.5
+      },
+      "entailment": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.6666666666666666
+      },
+      "scientific_summarization": {
+        "f1": 0.5161290322580645,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.5161290322580645
+      },
+      "scientific_translation": {
+        "f1": 0.7272727272727272,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.7272727272727272
+      }
+    }
+  },
+  {
+    "model_name": "red-run-t5-base-sci-cp-en-105k-steps-lr00001-clip0_5",
+    "run_type": "red",
+    "steps": 105000,
+    "overall_metrics": {
+      "token_f1": 0.30806274556996444,
+      "exact_match": 0.10869565217391304,
+      "bleu": 0.0,
+      "rouge_l": 0.4356220373815274,
+      "empty_ratio": 0.021739130434782608,
+      "total_tasks": 46
+    },
+    "task_metrics": {
+      "cola": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "sst2": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mrpc": {
+        "f1": 0.5,
+        "em": 0.5,
+        "bleu": 0.0,
+        "rouge": 0.8333333333333333
+      },
+      "qqp": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.25
+      },
+      "stsb": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.5
+      },
+      "mnli": {
+        "f1": 0.5,
+        "em": 0.5,
+        "bleu": 0.0,
+        "rouge": 0.5
+      },
+      "qnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.6666666666666666
+      },
+      "rte": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.6666666666666666
+      },
+      "wnli": {
+        "f1": 1.0,
+        "em": 1.0,
+        "bleu": 0.0,
+        "rouge": 1.0
+      },
+      "summarization": {
+        "f1": 0.2873677248677249,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.22623562632600208
+      },
+      "translation": {
+        "f1": 0.5225071225071225,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.6870370370370371
+      },
+      "squad": {
+        "f1": 1.0,
+        "em": 1.0,
+        "bleu": 0.0,
+        "rouge": 1.0
+      },
+      "classification": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "linguistic_acceptability": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "paraphrasing": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "completion": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "grammar_correction": {
+        "f1": 0.76890756302521,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.5770750988142292
+      },
+      "question_generation": {
+        "f1": 0.5151515151515151,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.6893939393939394
+      },
+      "similarity": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.5
+      },
+      "entailment": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.6666666666666666
+      },
+      "scientific_summarization": {
+        "f1": 0.3870967741935483,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.3870967741935483
+      },
+      "scientific_translation": {
+        "f1": 0.3636363636363636,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.3636363636363636
+      }
+    }
+  },
+  {
+    "model_name": "red-run-t5-base-sci-cp-en-200k-steps-lr00001-clip0_5",
+    "run_type": "red",
+    "steps": 200000,
+    "overall_metrics": {
+      "token_f1": 0.22074782101956014,
+      "exact_match": 0.043478260869565216,
+      "bleu": 0.0,
+      "rouge_l": 0.28189562729772283,
+      "empty_ratio": 0.10869565217391304,
+      "total_tasks": 46
+    },
+    "task_metrics": {
+      "cola": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "sst2": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mrpc": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qqp": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.25
+      },
+      "stsb": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mnli": {
+        "f1": 1.0,
+        "em": 1.0,
+        "bleu": 0.0,
+        "rouge": 1.0
+      },
+      "qnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.6666666666666666
+      },
+      "rte": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "wnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "summarization": {
+        "f1": 0.20579836829836828,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.15576402974983097
+      },
+      "translation": {
+        "f1": 0.5225071225071225,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.6870370370370371
+      },
+      "squad": {
+        "f1": 0.09090909090909091,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.07692307692307693
+      },
+      "classification": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "linguistic_acceptability": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "paraphrasing": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "completion": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "grammar_correction": {
+        "f1": 0.30769230769230765,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.39999999999999997
+      },
+      "question_generation": {
+        "f1": 0.5151515151515151,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.6893939393939394
+      },
+      "similarity": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "entailment": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_summarization": {
+        "f1": 0.43750000000000006,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.2978723404255319
+      },
+      "scientific_translation": {
+        "f1": 0.3636363636363636,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.3636363636363636
+      }
+    }
+  },
+  {
+    "model_name": "red-run-t5-base-sci-cp-en-300k-steps-lr00001-clip0_5",
+    "run_type": "red",
+    "steps": 300000,
+    "overall_metrics": {
+      "token_f1": 0.2066102180232615,
+      "exact_match": 0.043478260869565216,
+      "bleu": 0.0,
+      "rouge_l": 0.24794221466341929,
+      "empty_ratio": 0.2826086956521739,
+      "total_tasks": 46
+    },
+    "task_metrics": {
+      "cola": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "sst2": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mrpc": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qqp": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.25
+      },
+      "stsb": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mnli": {
+        "f1": 0.5,
+        "em": 0.5,
+        "bleu": 0.0,
+        "rouge": 0.5
+      },
+      "qnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.6666666666666666
+      },
+      "rte": {
+        "f1": 1.0,
+        "em": 1.0,
+        "bleu": 0.0,
+        "rouge": 1.0
+      },
+      "wnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "summarization": {
+        "f1": 0.05405405405405406,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.05172413793103448
+      },
+      "translation": {
+        "f1": 0.44843304843304854,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.5666666666666667
+      },
+      "squad": {
+        "f1": 0.5089285714285714,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.3733333333333333
+      },
+      "classification": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "linguistic_acceptability": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "paraphrasing": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "completion": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "grammar_correction": {
+        "f1": 0.35714285714285715,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.27272727272727276
+      },
+      "question_generation": {
+        "f1": 0.48717948717948717,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.5471014492753623
+      },
+      "similarity": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "entailment": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_translation": {
+        "f1": 0.5454545454545454,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.5454545454545454
+      }
+    }
+  },
+  {
+    "model_name": "green-run-t5-base-sci-cp-en-200k-steps-lr0001-clip1",
+    "run_type": "green",
+    "steps": 200000,
+    "overall_metrics": {
+      "token_f1": 0.05386047953183502,
+      "exact_match": 0.0,
+      "bleu": 0.0,
+      "rouge_l": 0.042198067632850236,
+      "empty_ratio": 0.17391304347826086,
+      "total_tasks": 46
+    },
+    "task_metrics": {
+      "cola": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "sst2": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mrpc": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qqp": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "stsb": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "rte": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "wnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "summarization": {
+        "f1": 0.08333333333333334,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.08333333333333334
+      },
+      "translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "squad": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "classification": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "linguistic_acceptability": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "paraphrasing": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "completion": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "grammar_correction": {
+        "f1": 0.43697478991596633,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.37333333333333324
+      },
+      "question_generation": {
+        "f1": 0.4615384615384615,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.2916666666666667
+      },
+      "similarity": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "entailment": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_summarization": {
+        "f1": 0.2222222222222222,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.2222222222222222
+      },
+      "scientific_translation": {
+        "f1": 0.12500000000000003,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.05555555555555555
+      }
+    }
+  },
+  {
+    "model_name": "yellow-run-flan-t5-base-sci-cp-en-90k-steps-lr0001-clip1",
+    "run_type": "yellow",
+    "steps": 90000,
+    "overall_metrics": {
+      "token_f1": 0.046563943303073736,
+      "exact_match": 0.0,
+      "bleu": 0.0,
+      "rouge_l": 0.03751440375481296,
+      "empty_ratio": 0.2391304347826087,
+      "total_tasks": 46
+    },
+    "task_metrics": {
+      "cola": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "sst2": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mrpc": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qqp": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "stsb": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "rte": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "wnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "translation": {
+        "f1": 0.07407407407407407,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0784313725490196
+      },
+      "squad": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "classification": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "linguistic_acceptability": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "paraphrasing": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "completion": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "grammar_correction": {
+        "f1": 0.25,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.2380952380952381
+      },
+      "question_generation": {
+        "f1": 0.41071428571428575,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.23333333333333334
+      },
+      "similarity": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "entailment": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_translation": {
+        "f1": 0.15384615384615385,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.07692307692307693
+      }
+    }
+  },
+  {
+    "model_name": "yellow-run-flan-t5-base-sci-cp-en-50k-steps-lr0001-clip1",
+    "run_type": "yellow",
+    "steps": 50000,
+    "overall_metrics": {
+      "token_f1": 0.044340735645083465,
+      "exact_match": 0.0,
+      "bleu": 0.0,
+      "rouge_l": 0.04378248375812094,
+      "empty_ratio": 0.45652173913043476,
+      "total_tasks": 46
+    },
+    "task_metrics": {
+      "cola": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "sst2": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mrpc": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qqp": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "stsb": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "rte": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "wnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.05555555555555555
+      },
+      "squad": {
+        "f1": 0.4783783783783784,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.43333333333333335
+      },
+      "classification": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "linguistic_acceptability": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "paraphrasing": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "completion": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "grammar_correction": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "question_generation": {
+        "f1": 0.4505494505494505,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.2924137931034483
+      },
+      "similarity": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "entailment": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_translation": {
+        "f1": 0.1818181818181818,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0625
+      }
+    }
+  },
+  {
+    "model_name": "green-run-t5-base-sci-cp-en-655k-steps-lr0001-clip1",
+    "run_type": "green",
+    "steps": 655000,
+    "overall_metrics": {
+      "token_f1": 0.0427536231884058,
+      "exact_match": 0.0,
+      "bleu": 0.0,
+      "rouge_l": 0.028699780544510355,
+      "empty_ratio": 0.15217391304347827,
+      "total_tasks": 46
+    },
+    "task_metrics": {
+      "cola": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "sst2": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mrpc": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qqp": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "stsb": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "rte": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "wnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "squad": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "classification": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "linguistic_acceptability": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "paraphrasing": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "completion": {
+        "f1": 0.16666666666666669,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.06666666666666667
+      },
+      "grammar_correction": {
+        "f1": 0.39999999999999997,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.38768115942028986
+      },
+      "question_generation": {
+        "f1": 0.33333333333333337,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.1724137931034483
+      },
+      "similarity": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "entailment": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_translation": {
+        "f1": 0.16666666666666666,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.06666666666666667
+      }
+    }
+  },
+  {
+    "model_name": "yellow-run-flan-t5-base-sci-cp-en-200k-steps-lr0001-clip1",
+    "run_type": "yellow",
+    "steps": 200000,
+    "overall_metrics": {
+      "token_f1": 0.042369043999478787,
+      "exact_match": 0.0,
+      "bleu": 0.0,
+      "rouge_l": 0.02811078360537976,
+      "empty_ratio": 0.2391304347826087,
+      "total_tasks": 46
+    },
+    "task_metrics": {
+      "cola": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "sst2": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mrpc": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qqp": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "stsb": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "rte": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "wnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "translation": {
+        "f1": 0.07575757575757576,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.02716049382716049
+      },
+      "squad": {
+        "f1": 0.07142857142857144,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.030303030303030304
+      },
+      "classification": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "linguistic_acceptability": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "paraphrasing": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "completion": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "grammar_correction": {
+        "f1": 0.3352272727272727,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.3529411764705882
+      },
+      "question_generation": {
+        "f1": 0.16025641025641024,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.10882352941176471
+      },
+      "similarity": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "entailment": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_translation": {
+        "f1": 0.13333333333333333,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.06451612903225806
+      }
+    }
+  },
+  {
+    "model_name": "red-run-t5-base-sci-cp-en-600k-steps-lr00001-clip0_5",
+    "run_type": "red",
+    "steps": 600000,
+    "overall_metrics": {
+      "token_f1": 0.02898550724637681,
+      "exact_match": 0.0,
+      "bleu": 0.0,
+      "rouge_l": 0.019279399889498068,
+      "empty_ratio": 0.5652173913043478,
+      "total_tasks": 46
+    },
+    "task_metrics": {
+      "cola": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "sst2": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mrpc": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qqp": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "stsb": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "rte": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "wnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "squad": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "classification": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "linguistic_acceptability": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "paraphrasing": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "completion": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "grammar_correction": {
+        "f1": 0.3333333333333333,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.27272727272727276
+      },
+      "question_generation": {
+        "f1": 0.3333333333333333,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.17069892473118278
+      },
+      "similarity": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "entailment": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      }
+    }
+  },
+  {
+    "model_name": "yellow-run-flan-t5-base-sci-cp-en-500k-steps-lr0001-clip1",
+    "run_type": "yellow",
+    "steps": 500000,
+    "overall_metrics": {
+      "token_f1": 0.026509239552717813,
+      "exact_match": 0.0,
+      "bleu": 0.0,
+      "rouge_l": 0.015972255529708945,
+      "empty_ratio": 0.13043478260869565,
+      "total_tasks": 46
+    },
+    "task_metrics": {
+      "cola": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "sst2": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mrpc": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qqp": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "stsb": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "rte": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "wnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "summarization": {
+        "f1": 0.04545454545454545,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.030612244897959186
+      },
+      "translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.012012012012012012
+      },
+      "squad": {
+        "f1": 0.1111111111111111,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.03333333333333333
+      },
+      "classification": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "linguistic_acceptability": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "paraphrasing": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "completion": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "grammar_correction": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "question_generation": {
+        "f1": 0.4076923076923077,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.21875
+      },
+      "similarity": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "entailment": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      }
+    }
+  },
+  {
+    "model_name": "red-run-t5-base-sci-cp-en-500k-steps-lr00001-clip0_5",
+    "run_type": "red",
+    "steps": 500000,
+    "overall_metrics": {
+      "token_f1": 0.024989020641194556,
+      "exact_match": 0.0,
+      "bleu": 0.0,
+      "rouge_l": 0.011756274416120965,
+      "empty_ratio": 0.6086956521739131,
+      "total_tasks": 46
+    },
+    "task_metrics": {
+      "cola": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "sst2": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mrpc": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qqp": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "stsb": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "rte": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "wnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "squad": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "classification": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "linguistic_acceptability": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "paraphrasing": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "completion": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "grammar_correction": {
+        "f1": 0.1,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.11764705882352941
+      },
+      "question_generation": {
+        "f1": 0.4747474747474747,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.15274725274725276
+      },
+      "similarity": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "entailment": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      }
+    }
+  },
+  {
+    "model_name": "yellow-run-flan-t5-base-sci-cp-en-295k-steps-lr0001-clip1",
+    "run_type": "yellow",
+    "steps": 295000,
+    "overall_metrics": {
+      "token_f1": 0.02411742846525455,
+      "exact_match": 0.0,
+      "bleu": 0.0,
+      "rouge_l": 0.014390886761153241,
+      "empty_ratio": 0.1956521739130435,
+      "total_tasks": 46
+    },
+    "task_metrics": {
+      "cola": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "sst2": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mrpc": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qqp": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "stsb": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "rte": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "wnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "translation": {
+        "f1": 0.037037037037037035,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.014336917562724014
+      },
+      "squad": {
+        "f1": 0.1111111111111111,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.037037037037037035
+      },
+      "classification": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "linguistic_acceptability": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "paraphrasing": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "completion": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "grammar_correction": {
+        "f1": 0.2,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.18181818181818182
+      },
+      "question_generation": {
+        "f1": 0.07692307692307691,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.04761904761904761
+      },
+      "similarity": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "entailment": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      }
+    }
+  },
+  {
+    "model_name": "yellow-run-flan-t5-base-sci-cp-en-600k-steps-lr0001-clip1",
+    "run_type": "yellow",
+    "steps": 600000,
+    "overall_metrics": {
+      "token_f1": 0.022312938553347757,
+      "exact_match": 0.0,
+      "bleu": 0.0,
+      "rouge_l": 0.014159568461141076,
+      "empty_ratio": 0.13043478260869565,
+      "total_tasks": 46
+    },
+    "task_metrics": {
+      "cola": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "sst2": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mrpc": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qqp": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "stsb": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "rte": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "wnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "summarization": {
+        "f1": 0.058823529411764705,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.02127659574468085
+      },
+      "translation": {
+        "f1": 0.026143790849673203,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0202020202020202
+      },
+      "squad": {
+        "f1": 0.08333333333333334,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.030303030303030304
+      },
+      "classification": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "linguistic_acceptability": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "paraphrasing": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "completion": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "grammar_correction": {
+        "f1": 0.11764705882352941,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.09523809523809523
+      },
+      "question_generation": {
+        "f1": 0.07692307692307691,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.06666666666666667
+      },
+      "similarity": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "entailment": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      }
+    }
+  },
+  {
+    "model_name": "green-run-t5-base-sci-cp-en-500k-steps-lr0001-clip1",
+    "run_type": "green",
+    "steps": 500000,
+    "overall_metrics": {
+      "token_f1": 0.02054865424430642,
+      "exact_match": 0.0,
+      "bleu": 0.0,
+      "rouge_l": 0.022786505906710507,
+      "empty_ratio": 0.45652173913043476,
+      "total_tasks": 46
+    },
+    "task_metrics": {
+      "cola": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "sst2": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mrpc": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qqp": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "stsb": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "rte": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "wnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "summarization": {
+        "f1": 0.2363095238095238,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.2620448179271708
+      },
+      "translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "squad": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "classification": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "linguistic_acceptability": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "paraphrasing": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "completion": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "grammar_correction": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "question_generation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "similarity": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "entailment": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      }
+    }
+  },
+  {
+    "model_name": "green-run-t5-base-sci-cp-en-50k-steps-lr0001-clip1",
+    "run_type": "green",
+    "steps": 50000,
+    "overall_metrics": {
+      "token_f1": 0.014492753623188404,
+      "exact_match": 0.0,
+      "bleu": 0.0,
+      "rouge_l": 0.019021739130434784,
+      "empty_ratio": 0.6086956521739131,
+      "total_tasks": 46
+    },
+    "task_metrics": {
+      "cola": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "sst2": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mrpc": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qqp": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "stsb": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "rte": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "wnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.00462962962962963
+      },
+      "squad": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "classification": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "linguistic_acceptability": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "paraphrasing": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "completion": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "grammar_correction": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "question_generation": {
+        "f1": 0.3333333333333333,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.4166666666666667
+      },
+      "similarity": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "entailment": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      }
+    }
+  },
+  {
+    "model_name": "green-run-t5-base-sci-cp-en-400k-steps-lr0001-clip1",
+    "run_type": "green",
+    "steps": 400000,
+    "overall_metrics": {
+      "token_f1": 0.014290215140876767,
+      "exact_match": 0.0,
+      "bleu": 0.0,
+      "rouge_l": 0.01173222912353347,
+      "empty_ratio": 0.3695652173913043,
+      "total_tasks": 46
+    },
+    "task_metrics": {
+      "cola": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "sst2": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mrpc": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qqp": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "stsb": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "rte": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "wnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "summarization": {
+        "f1": 0.12267080745341614,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.10714285714285714
+      },
+      "translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "squad": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "classification": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "linguistic_acceptability": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "paraphrasing": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "completion": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "grammar_correction": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "question_generation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "similarity": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "entailment": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_summarization": {
+        "f1": 0.16666666666666666,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.11111111111111112
+      },
+      "scientific_translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      }
+    }
+  },
+  {
+    "model_name": "green-run-t5-base-sci-cp-en-250k-steps-lr0001-clip1",
+    "run_type": "green",
+    "steps": 250000,
+    "overall_metrics": {
+      "token_f1": 0.013285024154589374,
+      "exact_match": 0.0,
+      "bleu": 0.0,
+      "rouge_l": 0.010331917609800408,
+      "empty_ratio": 0.08695652173913043,
+      "total_tasks": 46
+    },
+    "task_metrics": {
+      "cola": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "sst2": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mrpc": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qqp": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "stsb": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "rte": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "wnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "summarization": {
+        "f1": 0.027777777777777776,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.021739130434782608
+      },
+      "translation": {
+        "f1": 0.012345679012345678,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.00505050505050505
+      },
+      "squad": {
+        "f1": 0.08333333333333334,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.07142857142857144
+      },
+      "classification": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "linguistic_acceptability": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "paraphrasing": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "completion": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "grammar_correction": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "question_generation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "similarity": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "entailment": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_summarization": {
+        "f1": 0.2222222222222222,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.2
+      },
+      "scientific_translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      }
+    }
+  },
+  {
+    "model_name": "green-run-t5-base-sci-cp-en-295k-steps-lr0001-clip1",
+    "run_type": "green",
+    "steps": 295000,
+    "overall_metrics": {
+      "token_f1": 0.011645962732919258,
+      "exact_match": 0.0,
+      "bleu": 0.0,
+      "rouge_l": 0.013457556935817806,
+      "empty_ratio": 0.5217391304347826,
+      "total_tasks": 46
+    },
+    "task_metrics": {
+      "cola": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "sst2": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mrpc": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qqp": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "stsb": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "rte": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "wnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "summarization": {
+        "f1": 0.07142857142857142,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.07142857142857142
+      },
+      "translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "squad": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "classification": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "linguistic_acceptability": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "paraphrasing": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "completion": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "grammar_correction": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "question_generation": {
+        "f1": 0.12500000000000003,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.16666666666666669
+      },
+      "similarity": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "entailment": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      }
+    }
+  },
+  {
+    "model_name": "yellow-run-flan-t5-base-sci-cp-en-400k-steps-lr0001-clip1",
+    "run_type": "yellow",
+    "steps": 400000,
+    "overall_metrics": {
+      "token_f1": 0.010869565217391304,
+      "exact_match": 0.0,
+      "bleu": 0.0,
+      "rouge_l": 0.01143992883123318,
+      "empty_ratio": 0.13043478260869565,
+      "total_tasks": 46
+    },
+    "task_metrics": {
+      "cola": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "sst2": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mrpc": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qqp": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "stsb": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "rte": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "wnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.016460905349794237
+      },
+      "squad": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.04545454545454545
+      },
+      "classification": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "linguistic_acceptability": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "paraphrasing": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "completion": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "grammar_correction": {
+        "f1": 0.25,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.14358974358974358
+      },
+      "question_generation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "similarity": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "entailment": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      }
+    }
+  },
+  {
+    "model_name": "green-run-t5-base-sci-cp-en-100k-steps-lr0001-clip1",
+    "run_type": "green",
+    "steps": 100000,
+    "overall_metrics": {
+      "token_f1": 0.0,
+      "exact_match": 0.0,
+      "bleu": 0.0,
+      "rouge_l": 0.002990455991516437,
+      "empty_ratio": 0.717391304347826,
+      "total_tasks": 46
+    },
+    "task_metrics": {
+      "cola": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "sst2": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mrpc": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qqp": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "stsb": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "mnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "qnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "rte": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "wnli": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.015284552845528456
+      },
+      "squad": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "classification": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "linguistic_acceptability": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "paraphrasing": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "completion": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "grammar_correction": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "question_generation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "similarity": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "entailment": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_summarization": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      },
+      "scientific_translation": {
+        "f1": 0.0,
+        "em": 0.0,
+        "bleu": 0.0,
+        "rouge": 0.0
+      }
+    }
+  }
+]
