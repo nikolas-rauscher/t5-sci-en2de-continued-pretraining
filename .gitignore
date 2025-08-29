@@ -215,3 +215,6 @@ converted_models/*
 
 pretraining_logs_lr_00005_gradient_clip_1_with_inverse_sqrt_schedule/*
 
+pretraining_logs_lr_001_bugfixed_clean_restart/*
+pretraining_logs_lr_0001_bugfixed_clean_restart/*
+pretraining_logs_adafactor_relative_step_clip1/*
