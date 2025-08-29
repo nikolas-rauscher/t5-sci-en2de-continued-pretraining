@@ -163,8 +163,13 @@ class DataCollatorForT5MLM:
             batch["labels"] = batch["labels"][:, :self.target_length]
         elif labels_length < self.target_length:
             pad_width = self.target_length - labels_length
-            batch["labels"] = np.pad(batch["labels"], ((0, 0), (0, pad_width)), 
-                                   constant_values=self.pad_token_id)
+            batch["labels"] = np.pad(
+                batch["labels"], ((0, 0), (0, pad_width)), constant_values=self.pad_token_id
+            )
+
+        # IMPORTANT: Mask label padding positions so loss ignores them
+        # HuggingFace seq2seq loss uses ignore_index = -100
+        batch["labels"] = np.where(batch["labels"] == self.pad_token_id, -100, batch["labels"])
 
         # to check that tokens are correctly preprocessed, one can run `self.tokenizer.batch_decode(input_ids)` and `self.tokenizer.batch_decode(labels)` here...
         batch["decoder_input_ids"] = shift_tokens_right(
