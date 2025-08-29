@@ -211,3 +211,7 @@ cross_lingual_transfer/cache/*
 cross_lingual_transfer/data/*
 */.DS_Store
 converted_models/*
+
+
+pretraining_logs_lr_00005_gradient_clip_1_with_inverse_sqrt_schedule/*
+
