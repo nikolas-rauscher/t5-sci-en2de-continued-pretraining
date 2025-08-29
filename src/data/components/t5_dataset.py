@@ -16,11 +16,11 @@ log = RankedLogger(__name__, rank_zero_only=True)
 class _ParquetTextFile:
     """Random access to parquet file with efficient row-wise access and LRU cache."""
 
-    def __init__(self, path: Path, max_cached_rowgroups: int = 2):
+    def __init__(self, path: Path, max_cached_rowgroups: int = 200):
         # memory_map enables OS-level lazy loading
         self.file = pq.ParquetFile(path, memory_map=True)
         self.num_rows = self.file.metadata.num_rows
-        # Always use small cache - safe for multiprocessing with limited size
+        # Large cache for better performance - we have 600GB RAM available
         self._cache = OrderedDict()  # LRU cache for row groups
         self._max_cache_size = max_cached_rowgroups
 
