@@ -93,37 +93,41 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         if ckpt_path:
             import torch
             log.info(f"Resuming from checkpoint: {ckpt_path}")
-            
+
             # Load checkpoint to get step count
             checkpoint = torch.load(ckpt_path, map_location="cpu")
-            completed_steps = checkpoint.get("global_step", 0)
-            
-            
-            # CRITICAL: Create train_dataloader to initialize sampler
-            train_loader = datamodule.train_dataloader()
-            
-            # Set sampler position for exact resume (NEW: sampler-based approach)
-            if hasattr(datamodule, 'train_sampler'):
-                samples_per_step = cfg.data.batch_size * cfg.trainer.devices * cfg.trainer.accumulate_grad_batches
-                total_samples_processed = completed_steps * samples_per_step
-                
-                # Set global start position in sampler
-                datamodule.train_sampler.set_global_start(total_samples_processed)
-                
-                # Calculate coverage for logging
-                if hasattr(datamodule, 'full_dataset'):
-                    total_length = datamodule.full_dataset.total_dataset_length
-                else:
-                    total_length = len(datamodule.train_dataset.dataset) if hasattr(datamodule.train_dataset, 'dataset') else len(datamodule.train_dataset)
-                
-                coverage_pct = (total_samples_processed / total_length) * 100
-                
-                log.info(f"Resume calculation: completed_steps={completed_steps}, "
-                        f"samples_per_step={samples_per_step}, total_samples_processed={total_samples_processed}")
-                log.info(f"Dataset coverage: {coverage_pct:.3f}% ({total_samples_processed}/{total_length})")
-                log.info(f"Sampler global start position: {total_samples_processed % total_length}")
+            completed_steps = int(checkpoint.get("global_step", 0))
+
+            # Use actual trainer settings for world size and accumulation
+            num_nodes = getattr(trainer, "num_nodes", 1)
+            num_devices = getattr(trainer, "num_devices", 1)
+            world_size = max(1, int(num_nodes) * int(num_devices))
+            accumulate = max(1, int(getattr(trainer, "accumulate_grad_batches", 1)))
+            samples_per_step = int(cfg.data.batch_size) * world_size * accumulate
+            total_samples_processed = completed_steps * samples_per_step
+
+            # Hand off to datamodule; the sampler will consume this in train_dataloader()
+            if hasattr(datamodule, "set_resume_global_start"):
+                datamodule.set_resume_global_start(total_samples_processed)
             else:
-                log.warning("No train_sampler found - resume may not be exact")
+                setattr(datamodule, "resume_global_start", total_samples_processed)
+
+            # Coverage logging for operator visibility
+            if hasattr(datamodule, 'full_dataset'):
+                total_length = datamodule.full_dataset.total_dataset_length
+            else:
+                total_length = len(datamodule.train_dataset.dataset) if hasattr(datamodule.train_dataset, 'dataset') else len(datamodule.train_dataset)
+
+            coverage_pct = (total_samples_processed / total_length) * 100 if total_length else 0.0
+            log.info(
+                f"Resume calculation: completed_steps={completed_steps}, "
+                f"samples_per_step={samples_per_step}, total_samples_processed={total_samples_processed}"
+            )
+            log.info(f"Dataset coverage: {coverage_pct:.3f}% ({total_samples_processed}/{total_length})")
+            log.info(
+                "Will apply resume_global_start to sampler in train_dataloader() "
+                f"(start_mod_dataset={total_samples_processed % max(1,total_length)})"
+            )
         
         # DEBUG: Check validation interval at runtime
         log.info(f"DEBUG: trainer.val_check_interval = {trainer.val_check_interval}")

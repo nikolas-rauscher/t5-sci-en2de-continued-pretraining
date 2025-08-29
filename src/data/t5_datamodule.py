@@ -64,6 +64,10 @@ class T5DataModule(LightningDataModule):
         self.train_dataset = None
         self.val_dataset = None
 
+        # Resume controls
+        self.resume_global_start = None  # manual resume fallback (from global_step)
+        self._pending_sampler_state = None  # sampler state loaded before sampler exists
+
 
     # Tokenizer utilities old 
     def prepare_data(self): 
@@ -124,6 +128,13 @@ class T5DataModule(LightningDataModule):
             decoder_start_token_id=self.tokenizer.pad_token_id,  # T5 uses pad_token_id for decoder start
         )
 
+    def set_resume_global_start(self, pos: int):
+        """Set the global start position for exact resume (applied in train_dataloader)."""
+        try:
+            self.resume_global_start = int(pos)
+        except Exception:
+            self.resume_global_start = pos
+
 
     # Dataloaders
     def train_dataloader(self): 
@@ -147,12 +158,27 @@ class T5DataModule(LightningDataModule):
             rank=rank,
             seed=self.hparams.seed,
             drop_last=True
-        )        # Store sampler reference for resume support
+        )
+        # Store sampler reference for resume support
         self.train_sampler = sampler
-        
-        # DEBUG: Log dataset lengths for epoch calculation verification
+
+        # Apply any checkpoint-loaded sampler state (preferred), else manual resume offset
         from src.utils.pylogger import RankedLogger
         log = RankedLogger(__name__, rank_zero_only=True)
+        if getattr(self, "_pending_sampler_state", None) is not None:
+            try:
+                sampler.set_state(self._pending_sampler_state)
+                log.info("Applied sampler state from checkpoint into fresh sampler")
+            except Exception:
+                # Fallback to manual resume if state incompatible
+                if self.resume_global_start is not None:
+                    sampler.set_global_start(self.resume_global_start)
+                    log.info(f"Applying resume_global_start={self.resume_global_start}")
+        elif self.resume_global_start is not None:
+            sampler.set_global_start(self.resume_global_start)
+            log.info(f"Applying resume_global_start={self.resume_global_start}")
+        
+        # DEBUG: Log dataset lengths for epoch calculation verification
         log.info(f"Dataset length verification:")
         log.info(f"  - Full dataset length: {len(self.full_dataset):,}")
         log.info(f"  - Train split length: {len(self.train_dataset):,}")
@@ -171,6 +197,7 @@ class T5DataModule(LightningDataModule):
             prefetch_factor=self.hparams.prefetch_factor,
             sampler=sampler,
             collate_fn=self.collator,
+            drop_last=True,
         )
 
     def val_dataloader(self): 
@@ -194,6 +221,11 @@ class T5DataModule(LightningDataModule):
         return state
     
     def load_state_dict(self, state_dict: dict) -> None:
-        """Load datamodule state for Lightning resumability."""
-        if 'sampler_state' in state_dict and hasattr(self, 'train_sampler'):
-            self.train_sampler.set_state(state_dict['sampler_state']) 
+        """Load datamodule state for Lightning resumability.
+        If sampler isn't constructed yet, stash state and apply in train_dataloader().
+        """
+        if 'sampler_state' in state_dict:
+            if hasattr(self, 'train_sampler') and self.train_sampler is not None:
+                self.train_sampler.set_state(state_dict['sampler_state'])
+            else:
+                self._pending_sampler_state = state_dict['sampler_state']
