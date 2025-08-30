@@ -165,18 +165,16 @@ class T5DataModule(LightningDataModule):
         # Apply any checkpoint-loaded sampler state (preferred), else manual resume offset
         from src.utils.pylogger import RankedLogger
         log = RankedLogger(__name__, rank_zero_only=True)
-        if getattr(self, "_pending_sampler_state", None) is not None:
+        # Prefer precise resume from global_step calculation when available.
+        if self.resume_global_start is not None:
+            sampler.set_global_start(self.resume_global_start)
+            log.info(f"Applying resume_global_start={self.resume_global_start} (preferred over sampler_state)")
+        elif getattr(self, "_pending_sampler_state", None) is not None:
             try:
                 sampler.set_state(self._pending_sampler_state)
-                log.info("Applied sampler state from checkpoint into fresh sampler")
+                log.info("Applied sampler state from checkpoint into fresh sampler (no global_step fallback available)")
             except Exception:
-                # Fallback to manual resume if state incompatible
-                if self.resume_global_start is not None:
-                    sampler.set_global_start(self.resume_global_start)
-                    log.info(f"Applying resume_global_start={self.resume_global_start}")
-        elif self.resume_global_start is not None:
-            sampler.set_global_start(self.resume_global_start)
-            log.info(f"Applying resume_global_start={self.resume_global_start}")
+                log.warning("Failed to apply sampler_state; starting from position 0")
         
         # DEBUG: Log dataset lengths for epoch calculation verification
         log.info(f"Dataset length verification:")

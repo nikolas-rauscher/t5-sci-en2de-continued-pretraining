@@ -1,29 +1,33 @@
 #!/bin/bash
-# Smart resume script for LR=0.00005 inverse-sqrt schedule
-# Mirrors jobs/smart_resume_t5_continued_pretraining_lr_001_gradient_clip_1.sh
+# Smart resume script for Adafactor relative_step, gradient clip 1.0
 
-#SBATCH --job-name=smart_resume_lr00005_clip1
-#SBATCH --partition=H100-PCI,H100-SLT,H200
+#SBATCH --job-name=smart_resume_relstep_clip1
+#SBATCH --partition=H100,H100-PCI,H100-SLT,H200
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=4
 #SBATCH --gres=gpu:4
-#SBATCH --cpus-per-task=6
+#SBATCH --cpus-per-task=4
 #SBATCH --mem=600G
 #SBATCH --time=24:00:00
 
-#SBATCH --output=/netscratch/nrauscher/projects/BA-hydra/logs/slurm_%j_smart_resume_lr00005_clip1.out
-#SBATCH --error=/netscratch/nrauscher/projects/BA-hydra/logs/slurm_%j_smart_resume_lr00005_clip1.err
+# Logs
+# Example:
+#  /netscratch/nrauscher/projects/BA-hydra/logs/slurm_<JOBID>_smart_resume_relstep_clip1.out
+#  /netscratch/nrauscher/projects/BA-hydra/logs/slurm_<JOBID>_smart_resume_relstep_clip1.err
+#
+#SBATCH --output=/netscratch/nrauscher/projects/BA-hydra/logs/slurm_%j_smart_resume_relstep_clip1.out
+#SBATCH --error=/netscratch/nrauscher/projects/BA-hydra/logs/slurm_%j_smart_resume_relstep_clip1.err
 
 echo "=============================================="
-echo "Smart Resume T5 Continued Pretraining - LR 0.00005, Clip 1.0"
+echo "Smart Resume T5 Continued Pretraining - Adafactor relative_step, Clip 1.0"
 echo "Job ID: $SLURM_JOB_ID"
-echo "Node: $SLURM_NODELIST"  
+echo "Node: $SLURM_NODELIST"
 echo "Start time: $(date)"
 echo "=============================================="
 
 # Function to find latest checkpoint under the experiment's Hydra run dir
 find_latest_checkpoint() {
-    ROOT_DIR="pretraining_logs_lr_00005_gradient_clip_1_with_inverse_sqrt_schedule/train/runs"
+    ROOT_DIR="pretraining_logs_adafactor_relative_step_clip1/train/runs"
 
     # Find all pretraining run directories for this experiment
     RUN_DIRS=$(find "$ROOT_DIR" -name "20*" -type d 2>/dev/null | sort -r)
@@ -60,8 +64,9 @@ else
 fi
 
 # Check data access
-if [ ! -d "/fscratch/nrauscher/projects/BA-hydra/data/validated_sliding_windows/validated/" ]; then
-    echo "ERROR: Training data not found"
+DATA_DIR="/fscratch/nrauscher/projects/BA-hydra/data/validated_sliding_windows/validated/"
+if [ ! -d "$DATA_DIR" ]; then
+    echo "ERROR: Training data not found at $DATA_DIR"
     exit 1
 fi
 
@@ -76,9 +81,7 @@ export PYTHONFAULTHANDLER=1
 cd /netscratch/nrauscher/projects/BA-hydra
 
 echo "Starting T5 training with smart resume..."
-echo "Configuration: configs/experiment/t5_continued_pretraining_lr_00005_gradient_clip_1_with_inverse_sqrt_schedule.yaml"
-echo "Learning Rate: 0.00005 with 60k warmup"
-echo "Gradient Clip: 1.0"
+echo "Configuration: configs/experiment/t5_continued_pretraining_adafactor_relative_step_clip_1.yaml"
 echo "Effective batch size: 384 (48*4*2)"
 
 srun -K \
@@ -87,11 +90,12 @@ srun -K \
     --container-workdir=/netscratch/nrauscher/projects/BA-hydra \
     /bin/bash -c "
         source .venv_pretraining/bin/activate && \
-        python src/train.py experiment=t5_continued_pretraining_lr_00005_gradient_clip_1_with_inverse_sqrt_schedule trainer.log_every_n_steps=1 $RESUME_CMD
+        python src/train.py experiment=t5_continued_pretraining_adafactor_relative_step_clip_1 trainer.log_every_n_steps=1 $RESUME_CMD
     "
 
+EXIT_CODE=$?
 echo "=============================================="
 echo "Smart resume completed at: $(date)"
-echo "Exit code: $?"
+echo "Exit code: $EXIT_CODE"
 echo "=============================================="
 
