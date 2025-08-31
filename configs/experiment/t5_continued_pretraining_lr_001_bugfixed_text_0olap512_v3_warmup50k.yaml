@@ -1,0 +1,111 @@
+# @package _global_
+
+# T5 Continued Pretraining - Bug Fix on new 0% overlap windows (512 tokens, v3)
+# LR 0.001, Gradient Clip 1.0, Inverse Sqrt Schedule, 50k warmup steps
+
+defaults:
+  - override /data: t5_pretraining_text_windows
+  - override /model: t5_base
+  - override /trainer: gpu
+  - override /logger: wandb
+  - override /callbacks: default
+
+experiment_name: t5_continued_pretraining_lr_001_bugfixed_text_0olap512_v3_warmup50k
+
+tags: [
+  "t5-base", "4gpu", "text-windows", "h100",
+  "lr-001", "clip-1.0", "inverse-sqrt", "bugfixed",
+  "0-overlap", "512", "v3", "windows-text-0olap512-v3"
+]
+
+seed: 42
+
+# Distinct root dir for this dataset/run (lr=0.001)
+hydra:
+  run:
+    dir: pretraining_logs_text_0olap512_v3_lr_001_bugfixed/train/runs/${now:%Y-%m-%d_%H-%M-%S}
+
+test: false
+train: true
+
+data:
+  # Point to the newly created 0% overlap dataset
+  data_dir: /fscratch/nrauscher/projects/BA-hydra/data/windows_text_0olap_512_v3/enriched_windows
+  batch_size: 48
+  limit_files: -1
+  limit_documents: -1
+  train_val_split: [0.999226, 0.000774]  # ~100k validation windows on 129.2M
+  num_workers: 4
+  prefetch_factor: 2
+  persistent_workers: true
+  seed: 42
+
+trainer:
+  max_epochs: 1
+  max_steps: -1
+  precision: bf16-mixed
+  accumulate_grad_batches: 2  # Effective batch = 48 * 4 * 2 = 384
+  devices: 4
+  accelerator: gpu
+  strategy: ddp
+  gradient_clip_val: 1.0
+  check_val_every_n_epoch: null
+  limit_val_batches: null
+  val_check_interval: 5000
+  log_every_n_steps: 1
+  use_distributed_sampler: false
+
+model:
+  t5_model:
+    enable_gradient_checkpointing: true
+
+  optimizer:
+    _target_: transformers.optimization.Adafactor
+    lr: 1e-3
+    relative_step: false
+    warmup_init: false
+    scale_parameter: false
+    _partial_: true
+    betas: null
+    weight_decay: null
+
+  scheduler:
+    _target_: transformers.optimization.get_inverse_sqrt_schedule
+    num_warmup_steps: 50000
+    _partial_: true
+
+callbacks:
+  model_checkpoint:
+    dirpath: "${hydra:runtime.output_dir}/checkpoints/best/"
+    filename: "step-{step:06d}-val_ppl-{val/perplexity:.5f}"
+    save_top_k: 10
+    monitor: "val/perplexity"
+    mode: "min"
+    save_last: true
+    save_on_train_epoch_end: false
+    save_weights_only: false
+  step_checkpoint:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: "${hydra:runtime.output_dir}/checkpoints/steps/"
+    filename: "step-{step:06d}"
+    every_n_train_steps: 5000
+    save_last: true
+    save_top_k: 10
+    monitor: "step"
+    mode: "max"
+    save_weights_only: false
+  early_stopping:
+    monitor: "val/loss"
+    mode: "min"
+    patience: 90
+    min_delta: 0.01
+    check_finite: false
+    verbose: true
+  rich_progress_bar: null
+
+logger:
+  wandb:
+    group: "H100-4GPU-continued-pretraining-text-0olap512-v3"
+    name: "lr-001-bugfixed-text-0olap512-v3-warmup50k"
+    tags: ["lr-001", "clip-1.0", "inverse-sqrt", "warmup-50k", "bugfixed", "0-overlap", "512", "v3"]
+
