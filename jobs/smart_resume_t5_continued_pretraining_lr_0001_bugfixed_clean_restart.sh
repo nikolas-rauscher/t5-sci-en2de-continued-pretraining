@@ -2,11 +2,11 @@
 # Smart resume script for LR=0.0001 bugfixed clean-restart (inverse-sqrt)
 
 #SBATCH --job-name=smart_resume_lr0001_bugfix
-#SBATCH --partition=H100-PCI,H100-SLT,H200
+#SBATCH --partition=H100-PCI,H100-SLT,H200,H100
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=4
 #SBATCH --gres=gpu:4
-#SBATCH --cpus-per-task=6
+#SBATCH --cpus-per-task=5
 #SBATCH --mem=600G
 #SBATCH --time=24:00:00
 

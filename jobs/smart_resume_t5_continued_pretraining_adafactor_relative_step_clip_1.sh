@@ -2,7 +2,7 @@
 # Smart resume script for Adafactor relative_step, gradient clip 1.0
 
 #SBATCH --job-name=smart_resume_relstep_clip1
-#SBATCH --partition=H100,H100-PCI,H100-SLT,H200
+#SBATCH --partition=H100,H100-PCI,H100-SLT,H200,H100
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=4
 #SBATCH --gres=gpu:4
