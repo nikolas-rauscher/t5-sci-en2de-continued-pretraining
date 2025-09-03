@@ -45,6 +45,7 @@ class T5LitModule(LightningModule):
         scheduler: Dict[str, Any] | None = None,
         tokenizer=None,  # Add tokenizer for span corruption logging
         ignore_index: int = -100,  # Configurable ignore index for perplexity
+        label_smoothing: float = 0.0,  # Optional label smoothing for stability
     ) -> None:  # noqa: D401
         super().__init__()
         self.save_hyperparameters(logger=False)
@@ -79,6 +80,35 @@ class T5LitModule(LightningModule):
     def forward(self, **batch):  # type: ignore[override]
         return self.model(**batch)
 
+    def _compute_smoothed_loss(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+        """Compute CrossEntropy with optional label smoothing and ignore_index."""
+        ignore_index = getattr(self.hparams, "ignore_index", -100)
+        ls = float(getattr(self.hparams, "label_smoothing", 0.0) or 0.0)
+        vocab_size = logits.size(-1)
+        logits = logits.view(-1, vocab_size)
+        labels = labels.view(-1)
+
+        if ls <= 0.0:
+            import torch.nn.functional as F
+            return F.cross_entropy(logits, labels, ignore_index=ignore_index)
+
+        try:
+            loss_fct = torch.nn.CrossEntropyLoss(ignore_index=ignore_index, label_smoothing=ls)
+            return loss_fct(logits, labels)
+        except TypeError:
+            # Fallback for older torch without label_smoothing in CrossEntropyLoss
+            import torch.nn.functional as F
+            log_probs = F.log_softmax(logits, dim=-1)
+            # Mask out ignore indices
+            active = labels != ignore_index
+            if active.sum() == 0:
+                return torch.zeros((), device=logits.device, dtype=logits.dtype)
+            labels_active = labels[active]
+            log_probs_active = log_probs[active]
+            nll_loss = F.nll_loss(log_probs_active, labels_active, reduction='mean')
+            smooth_loss = -log_probs_active.mean(dim=-1).mean()
+            return (1.0 - ls) * nll_loss + ls * smooth_loss
+
     def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int):  # type: ignore[override]
         # DDP Debug: Log unique doc_ids per rank (only first few steps)  
         if self.global_step < 5 and batch_idx == 0:
@@ -87,7 +117,11 @@ class T5LitModule(LightningModule):
             logger.info(f"[RANK {self.global_rank}] Step {self.global_step} sample_tokens: {sample_tokens}")
         
         outputs = self.forward(**batch)
-        loss = outputs.loss
+        # Use manual loss with label smoothing when configured
+        if getattr(self.hparams, "label_smoothing", 0.0) and "labels" in batch:
+            loss = self._compute_smoothed_loss(outputs.logits, batch["labels"])
+        else:
+            loss = outputs.loss
 
         self.train_loss(loss)
         
@@ -135,7 +169,10 @@ class T5LitModule(LightningModule):
 
     def validation_step(self, batch: Dict[str, torch.Tensor], batch_idx: int):  # type: ignore[override]
         outputs = self.forward(**batch)
-        loss = outputs.loss
+        if getattr(self.hparams, "label_smoothing", 0.0) and "labels" in batch:
+            loss = self._compute_smoothed_loss(outputs.logits, batch["labels"])
+        else:
+            loss = outputs.loss
 
         self.val_loss(loss)
         

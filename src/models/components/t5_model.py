@@ -16,6 +16,7 @@ class T5Model(nn.Module):
         pretrained_model_name_or_path: str | None = "t5-base",
         config_kwargs: Optional[Dict[str, Any]] = None,
         enable_gradient_checkpointing: bool = True,
+        dropout_rate: float | None = None,
     ) -> None:
         """Create a :class:`T5Model`.
 
@@ -37,11 +38,26 @@ class T5Model(nn.Module):
         if pretrained_model_name_or_path is None:
             if config_kwargs is None:
                 config_kwargs = {}
+            # Allow overriding dropout via config when training from scratch
+            if dropout_rate is not None:
+                config_kwargs = {**config_kwargs, "dropout_rate": dropout_rate}
             config = T5Config(**config_kwargs)
             self.model = T5ForConditionalGeneration(config)
         else:
+            # Load base config and optionally override selected fields (e.g., dropout)
+            try:
+                base_cfg = T5Config.from_pretrained(pretrained_model_name_or_path)
+            except Exception:
+                base_cfg = T5Config()
+            if config_kwargs:
+                for k, v in config_kwargs.items():
+                    setattr(base_cfg, k, v)
+            if dropout_rate is not None:
+                base_cfg.dropout_rate = dropout_rate
+
             self.model = T5ForConditionalGeneration.from_pretrained(
-                pretrained_model_name_or_path
+                pretrained_model_name_or_path,
+                config=base_cfg,
             )
 
         if enable_gradient_checkpointing:
