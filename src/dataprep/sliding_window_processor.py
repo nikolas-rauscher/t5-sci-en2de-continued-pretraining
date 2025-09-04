@@ -26,7 +26,14 @@ class TextOnlySlidingWindowProcessor(PipelineStep):
         output_format: str = "text",  # "text" or "tokens"
         log_to_wandb: bool = False,
         wandb_project: str = "BA-DataTrove",
-        wandb_group: str = "sliding-windows"
+        wandb_group: str = "sliding-windows",
+        # Normalization options
+        normalize_whitespace: bool = True,
+        # Optional per-window filters (threshold-based); pass None/empty to disable
+        filters: dict | None = None,
+        # Optional: dynamically adjust stride so the last window is not too short
+        balance_last_window: bool = False,
+        min_last_tokens: int = 384,
     ):
         super().__init__()
         
@@ -40,6 +47,23 @@ class TextOnlySlidingWindowProcessor(PipelineStep):
         self.output_format = output_format
         
         self.log_to_wandb = log_to_wandb and WANDB_AVAILABLE
+        
+        # Normalization
+        self.normalize_whitespace = normalize_whitespace
+        
+        # Filters
+        self.filters_cfg = filters or {}
+        self.filters_enabled = bool(self.filters_cfg.get("enable", False))
+        # Default thresholds (can be overridden via cfg)
+        self.f_min_actual_tokens = self.filters_cfg.get("min_actual_tokens", None)
+        self.f_min_char_length = self.filters_cfg.get("min_char_length", None)
+        self.f_max_punct_ratio = self.filters_cfg.get("max_punctuation_ratio", None)
+        self.f_max_non_alpha_digit_ratio = self.filters_cfg.get("max_non_alpha_digit_ratio", None)
+        self.f_max_uppercase_ratio = self.filters_cfg.get("max_uppercase_ratio", None)
+
+        # Dynamic last-window balancing
+        self.balance_last_window = bool(balance_last_window)
+        self.min_last_tokens = int(min_last_tokens)
         
         # Load tokenizer for precise window boundaries
         try:
@@ -66,11 +90,18 @@ class TextOnlySlidingWindowProcessor(PipelineStep):
             logger.info("w&b will be initialized per worker rank")
     
     def _compute_window_count(self, token_count: int) -> int:
-        """compute number of windows based on token count"""
+        """Compute number of windows based on token count.
+
+        Uses the standard formula: 1 + ceil((N - L) / S) for N > L, where
+        N is the document token count, L is the target window length and
+        S is the stride. This avoids creating a spurious empty window when
+        N is an exact multiple of L.
+        """
         if token_count <= self.target_tokens:
             return 1
-        else:
-            return max(1, (token_count - self.overlap_tokens) // self.stride_tokens + 1)
+        # 1 + ceil((N - L) / S) implemented with integer arithmetic
+        remaining = token_count - self.target_tokens
+        return 1 + (remaining + self.stride_tokens - 1) // self.stride_tokens
     
     def _create_sliding_windows(self, doc: Document) -> List[Document]:
         """
@@ -88,20 +119,58 @@ class TextOnlySlidingWindowProcessor(PipelineStep):
         # create sliding windows based on token positions
         window_count = self._compute_window_count(token_count)
         windows = []
-        
-        for window_idx in range(window_count):
+
+        # Pre-compute start positions; optionally rebalance to avoid very short last window
+        if token_count <= self.target_tokens:
+            start_positions = [0]
+        else:
+            # default fixed-stride starts
+            start_positions = [i * self.stride_tokens for i in range(window_count)]
+            # Determine last window length with default starts
+            last_start = start_positions[-1]
+            last_len = min(self.target_tokens, max(token_count - last_start, 0))
+            # Rebalance only if enabled and last is too short
+            if self.balance_last_window and window_count > 1 and last_len < self.min_last_tokens:
+                # Distribute starts evenly from 0 to (token_count - target)
+                max_start = max(token_count - self.target_tokens, 0)
+                if max_start == 0:
+                    start_positions = [0]
+                else:
+                    # Evenly space starts; ensures last_start == max_start
+                    start_positions = [
+                        int(round(i * (max_start / (window_count - 1)))) for i in range(window_count)
+                    ]
+
+        for window_idx, start_pos in enumerate(start_positions):
             if token_count <= self.target_tokens:
                 # Short document: single window
                 start_pos = 0
                 end_pos = token_count
                 window_tokens = full_tokens
             else:
-                # Long document: extract window with sliding overlap
-                start_pos = window_idx * self.stride_tokens
+                # Extract window from computed start
+                if start_pos >= token_count:
+                    # Safety guard; shouldn't happen with correct starts
+                    break
                 end_pos = min(start_pos + self.target_tokens, token_count)
                 window_tokens = full_tokens[start_pos:end_pos]
             
             # Create window document based on output format
+            # Decode text for normalization/quality metrics and filtering (used for both formats)
+            decoded_text = self.tokenizer.decode(window_tokens, skip_special_tokens=True)
+            if self.normalize_whitespace:
+                decoded_text = self._normalize_text(decoded_text)
+
+            # Compute metrics for filtering
+            # IMPORTANT: Count tokens on the normalized, stored text so
+            # metadata.actual_tokens matches the saved `text` exactly.
+            actual_tokens = len(self.tokenizer.encode(decoded_text, add_special_tokens=False))
+            quality = self._compute_quality_metrics(decoded_text)
+
+            # Apply filters, if enabled
+            if self._should_filter_out(decoded_text, actual_tokens, quality):
+                continue
+
             if self.output_format == "tokens":
                 # pad to target_tokens for consistent length
                 if len(window_tokens) < self.target_tokens:
@@ -112,17 +181,68 @@ class TextOnlySlidingWindowProcessor(PipelineStep):
                 window_doc = self._create_token_window_document(
                     doc, window_idx, window_tokens, start_pos, end_pos, token_count
                 )
+                # attach quality metrics
+                if isinstance(window_doc.metadata, dict):
+                    window_doc.metadata["quality_metrics"] = quality
             else:  # output_format == "text"
-                # Convert token positions back to text
-                window_text = self.tokenizer.decode(window_tokens, skip_special_tokens=True)
-                
                 window_doc = self._create_text_window_document(
-                    doc, window_idx, window_text, start_pos, end_pos, token_count, len(window_tokens)
+                    doc, window_idx, decoded_text, start_pos, end_pos, token_count, actual_tokens
                 )
-            
+                if isinstance(window_doc.metadata, dict):
+                    window_doc.metadata["quality_metrics"] = quality
+
             windows.append(window_doc)
         
         return windows
+
+    def _normalize_text(self, text: str) -> str:
+        # Basic whitespace normalization suitable for T5
+        if not text:
+            return text
+        # Replace non-breaking spaces
+        text = text.replace("\u00A0", " ")
+        # Normalize newlines to spaces
+        text = text.replace("\r", "\n").replace("\n", " ")
+        # Collapse repeated whitespace
+        import re
+        text = re.sub(r"\s+", " ", text)
+        # Trim
+        return text.strip()
+
+    def _compute_quality_metrics(self, text: str) -> dict:
+        import string
+        total = max(len(text), 1)
+        whites = sum(ch.isspace() for ch in text)
+        digits = sum(ch.isdigit() for ch in text)
+        letters = sum(ch.isalpha() for ch in text)
+        uppers = sum(ch.isupper() for ch in text)
+        punct = sum(ch in string.punctuation for ch in text)
+        non_alpha_digit = sum((not ch.isalnum()) for ch in text)
+        return {
+            "length": total,
+            "white_space_ratio": whites / total,
+            "digit_ratio": digits / total,
+            "uppercase_ratio": (uppers / letters) if letters > 0 else 0.0,
+            "punctuation_ratio": punct / total,
+            "non_alpha_digit_ratio": non_alpha_digit / total,
+        }
+
+    def _should_filter_out(self, text: str, actual_tokens: int, quality: dict) -> bool:
+        if not self.filters_enabled:
+            return False
+        # Token/length gates
+        if self.f_min_actual_tokens is not None and actual_tokens < int(self.f_min_actual_tokens):
+            return True
+        if self.f_min_char_length is not None and quality.get("length", 0) < int(self.f_min_char_length):
+            return True
+        # Ratio thresholds
+        if self.f_max_punct_ratio is not None and quality.get("punctuation_ratio", 0) > float(self.f_max_punct_ratio):
+            return True
+        if self.f_max_non_alpha_digit_ratio is not None and quality.get("non_alpha_digit_ratio", 0) > float(self.f_max_non_alpha_digit_ratio):
+            return True
+        if self.f_max_uppercase_ratio is not None and quality.get("uppercase_ratio", 0) > float(self.f_max_uppercase_ratio):
+            return True
+        return False
     
     def _create_text_window_document(
         self, 
@@ -154,6 +274,8 @@ class TextOnlySlidingWindowProcessor(PipelineStep):
                 "target_tokens": self.target_tokens,
                 "overlap_ratio": self.overlap_ratio,
                 "stride_tokens": self.stride_tokens,
+                "dynamic_last_window": self.balance_last_window,
+                "min_last_tokens": self.min_last_tokens,
                 "tokenizer": str(self.tokenizer.name_or_path),
                 "mode": "text_precise"
             },
@@ -212,6 +334,8 @@ class TextOnlySlidingWindowProcessor(PipelineStep):
                 "target_tokens": self.target_tokens,
                 "overlap_ratio": self.overlap_ratio,
                 "stride_tokens": self.stride_tokens,
+                "dynamic_last_window": self.balance_last_window,
+                "min_last_tokens": self.min_last_tokens,
                 "tokenizer": str(self.tokenizer.name_or_path),
                 "mode": "token_based"
             },

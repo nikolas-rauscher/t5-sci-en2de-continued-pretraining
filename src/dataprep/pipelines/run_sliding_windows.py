@@ -63,7 +63,11 @@ def main(cfg: DictConfig) -> None:
             log.warning(f"Failed to initialize W&B session: {e}")
             wandb_session = None
 
-    pipeline = [
+    # Build pipeline dynamically: reader -> windows -> optional stats -> writer
+    pipeline = []
+
+    # Reader
+    pipeline.append(
         ParquetReader(
             data_folder=cfg.sliding_windows.paths.input_folder,
             glob_pattern=cfg.sliding_windows.paths.input_pattern,
@@ -71,20 +75,64 @@ def main(cfg: DictConfig) -> None:
             text_key=cfg.sliding_windows.reader.text_key,
             id_key=cfg.sliding_windows.reader.id_key,
             default_metadata=OmegaConf.to_container(cfg.sliding_windows.reader.default_metadata, resolve=True)
-        ),
-        
+        )
+    )
+
+    # Normalization + filters configuration
+    normalization_cfg = cfg.sliding_windows.get("normalization", {}) if hasattr(cfg.sliding_windows, "normalization") else {}
+    normalize_whitespace = bool(normalization_cfg.get("enable", True))
+    filters_cfg = cfg.sliding_windows.get("filters", {}) if hasattr(cfg.sliding_windows, "filters") else {}
+
+    # Window processor
+    pipeline.append(
         TextOnlySlidingWindowProcessor(
             tokenizer_name_or_path=cfg.sliding_windows.tokenizer.name_or_path,
             target_tokens=cfg.sliding_windows.window_config.target_tokens,
             overlap_ratio=cfg.sliding_windows.window_config.overlap_ratio,
             output_format=cfg.sliding_windows.window_config.get("output_format", "text"),
+            balance_last_window=cfg.sliding_windows.window_config.get("dynamic_last_window", {}).get("enable", False),
+            min_last_tokens=cfg.sliding_windows.window_config.get("dynamic_last_window", {}).get("min_last_tokens", 384),
             log_to_wandb=cfg.sliding_windows.get("log_to_wandb", False) and bool(wandb_session),
             wandb_project=cfg.sliding_windows.wandb.project,
-            wandb_group=cfg.sliding_windows.wandb.group
-        ),
-        
-        ParquetWriter(cfg.sliding_windows.paths.output_folder)
-    ]
+            wandb_group=cfg.sliding_windows.wandb.group,
+            normalize_whitespace=normalize_whitespace,
+            filters=filters_cfg,
+        )
+    )
+
+    # Optional: ONLY DocStats on windows (no other stats)
+    stats_cfg = cfg.sliding_windows.get("stats", {}) if hasattr(cfg.sliding_windows, "stats") else {}
+    stats_enabled = bool(stats_cfg.get("enable", False))
+    if stats_enabled:
+        stats_output_folder = stats_cfg.get("output_folder", os.path.join(cfg.sliding_windows.paths.output_folder, "stats"))
+        os.makedirs(stats_output_folder, exist_ok=True)
+
+        modules = stats_cfg.get("modules", {})
+        # Support both dict access and attribute access
+        has_doc_stats = hasattr(modules, 'doc_stats') or (isinstance(modules, dict) and 'doc_stats' in modules)
+        if has_doc_stats:
+            from hydra.utils import instantiate
+            doc_stats_cfg = getattr(modules, 'doc_stats') if hasattr(modules, 'doc_stats') else modules['doc_stats']
+            out_dir = os.path.join(stats_output_folder, getattr(doc_stats_cfg, 'output_folder', 'doc_stats') if hasattr(doc_stats_cfg, 'output_folder') else doc_stats_cfg.get('output_folder', 'doc_stats'))
+            os.makedirs(out_dir, exist_ok=True)
+            pipeline.append(instantiate(doc_stats_cfg, output_folder=out_dir))
+            log.info("Attached stats module: DocStats")
+        else:
+            log.info("Stats enabled but no doc_stats module configured; skipping stats")
+
+        # Writer for enriched windows (or raw if disabled)
+        if bool(stats_cfg.get("save_enriched_docs", True)):
+            enriched_dir = os.path.join(cfg.sliding_windows.paths.output_folder, "enriched_windows")
+            os.makedirs(enriched_dir, exist_ok=True)
+            pipeline.append(ParquetWriter(enriched_dir))
+            log.info(f"Enriched windows will be saved to: {enriched_dir}")
+        else:
+            pipeline.append(ParquetWriter(cfg.sliding_windows.paths.output_folder))
+            log.info(f"Raw windows will be saved to: {cfg.sliding_windows.paths.output_folder}")
+    else:
+        # No stats: write raw windows directly
+        pipeline.append(ParquetWriter(cfg.sliding_windows.paths.output_folder))
+        log.info(f"Raw windows will be saved to: {cfg.sliding_windows.paths.output_folder}")
 
     log.info(f"Pipeline: {len(pipeline)} steps")
     log.info(f"Tasks: {cfg.sliding_windows.execution.tasks}, Workers: {cfg.sliding_windows.execution.workers}")

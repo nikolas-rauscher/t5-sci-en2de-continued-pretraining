@@ -25,8 +25,41 @@ sliding_windows:
 
   window_config:
     target_tokens: 512        
-    overlap_ratio: 0.5        # 50% overlap (256 tokens)
+    overlap_ratio: 0.0        # 0% overlap (stride = 512)
     output_format: "text"     # "text" or "tokens"
+    # Optionally rebalance starts so the last window isn't too short
+    dynamic_last_window:
+      enable: false
+      min_last_tokens: 384
+
+  # text normalization during window creation
+  normalization:
+    enable: true              # collapse whitespace, normalize newlines, trim
+
+  # simple per-window quality filters (disabled by default)
+  filters:
+    enable: false
+    # token/length gates
+    min_actual_tokens: 256    # require at least half of the 512 target tokens
+    min_char_length: 800      # fallback if tokens missing
+    # ratio thresholds (computed on normalized text)
+    max_punctuation_ratio: 0.20
+    max_non_alpha_digit_ratio: 0.35
+    max_uppercase_ratio: 0.15
+
+  # optional: compute stats on windows in the same pipeline
+  stats:
+    enable: true
+    save_enriched_docs: true
+    # where to store aggregated stats; defaults to <output_folder>/stats if not set
+    # output_folder: "${sliding_windows.paths.output_folder}/stats"
+    modules:
+      doc_stats:
+        _target_: datatrove.pipeline.stats.DocStats
+        output_folder: "doc_stats"
+        groups_to_compute: ["summary", "histogram"]
+        histogram_round_digits: 3
+
 
   # execution config
   execution:
