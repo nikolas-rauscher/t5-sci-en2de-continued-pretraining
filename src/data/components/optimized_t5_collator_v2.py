@@ -243,10 +243,12 @@ class DataCollatorForT5MLM:
         
         # Mode-specific validation
         if not self.use_legacy_heuristic:
-            # In optimized mode, check that no unnecessary padding occurred  
-            effective_length = (batch["attention_mask"].sum(dim=1) > 0).sum().item()
-            if effective_length < self.input_length * 0.8:  # Allow some natural variation
-                print(f"WARNING: Low token utilization in optimized mode: {effective_length}/{self.input_length} tokens")
+            # Average token utilization across the batch (fraction of non-PAD tokens)
+            nonpad_per_sample = batch["attention_mask"].sum(dim=1)          # [B]
+            utilization = (nonpad_per_sample.float() / self.input_length).mean().item()
+            if utilization < 0.90:  # Threshold for good utilization
+                print(f"WARNING: Low token utilization in optimized mode: {utilization:.3f} "
+                      f"(avg non-pad tokens ≈ {nonpad_per_sample.float().mean().item():.1f}/{self.input_length})")
 
         return batch
 

@@ -8,20 +8,33 @@ import torch
 from torch.utils.data import DataLoader, random_split, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
 from lightning import LightningDataModule
+from lightning.fabric.utilities.types import _Stateful
 from transformers import AutoTokenizer
 from src.data.components.optimized_t5_collator_v2 import (
     DataCollatorForT5MLM, 
     compute_t5_input_and_target_lengths
 )
-from src.data.components.t5_dataset import (
-    T5MaterializedWindowDataset, 
-    T5ProcessedDatasetMemoryMapped,
-    DeterministicGlobalSampler
-)
+from src.data.components.t5_dataset import T5MaterializedWindowDataset
+from src.data.components.deterministic_sampler import DeterministicGlobalSampler
 import os
 import logging
 
 log = logging.getLogger(__name__)
+
+
+class StatefulDataLoader(DataLoader, _Stateful):
+    """DataLoader that implements Lightning's _Stateful interface for resumability."""
+    
+    def state_dict(self):
+        """Return state for checkpoint saving."""
+        if hasattr(self.sampler, 'get_state'):
+            return {'sampler_state': self.sampler.get_state()}
+        return {}
+    
+    def load_state_dict(self, state_dict):
+        """Load state from checkpoint."""
+        if 'sampler_state' in state_dict and hasattr(self.sampler, 'set_state'):
+            self.sampler.set_state(state_dict['sampler_state'])
 
 
 class T5DataModule(LightningDataModule):
@@ -63,7 +76,11 @@ class T5DataModule(LightningDataModule):
         self.train_dataset = None
         self.val_dataset = None
         self.collator = None
-        self.resume_global_start = 0
+        
+        # Resume controls (same as V1)
+        self.resume_global_start = None  # manual resume fallback (from global_step)
+        self._pending_sampler_state = None  # sampler state loaded before sampler exists
+        self.train_sampler = None  # Store sampler reference
 
     def setup(self, stage: Optional[str] = None):
         """Load and split dataset; create optimized collator."""
@@ -72,14 +89,19 @@ class T5DataModule(LightningDataModule):
         
         log.info(f"[rank: {os.environ.get('LOCAL_RANK', 0)}] Using materialized windows from: {self.hparams.data_dir}")
         
+        # Get parquet files from data directory
+        import glob
+        parquet_files = glob.glob(f"{self.hparams.data_dir}/*.parquet")
+        if not parquet_files:
+            raise ValueError(f"No parquet files found in {self.hparams.data_dir}")
+        
+        # Apply file limit if specified
+        if self.hparams.limit_files > 0:
+            parquet_files = parquet_files[:self.hparams.limit_files]
+            
         full_dataset = T5MaterializedWindowDataset(
-            data_dir=self.hparams.data_dir,
-            tokenizer=self.tokenizer,
-            max_length=self.hparams.max_length,
-            shuffle_on_load=False,
-            limit_files=self.hparams.limit_files,
+            parquet_files=parquet_files,
             limit_documents=self.hparams.limit_documents,
-            seed=self.hparams.seed,
         )
         
         self.full_dataset = full_dataset
@@ -95,17 +117,32 @@ class T5DataModule(LightningDataModule):
         # Create collator based on mode (check optimized flag first)
         if self.hparams.use_optimized_collator:
             # Optimized mode: calculate correct target_length
-            log.info("[Optimized Mode] Using exact T5 formula for collator")
-            _, target_length = compute_t5_input_and_target_lengths(
+            tokens_length, target_length = compute_t5_input_and_target_lengths(
                 self.hparams.max_length,
                 self.hparams.corruption_rate,
                 self.hparams.mean_span_length
             )
-            log.info(f"Calculated target_length: {target_length} (for input_length={self.hparams.max_length})")
+            log.info("="*60)
+            log.info("[OPTIMIZED MODE] Using exact T5 formula for collator")
+            log.info(f"  Input length: {self.hparams.max_length}")
+            log.info(f"  Expanded length: {tokens_length} ({tokens_length/self.hparams.max_length:.3f}x)")
+            log.info(f"  Target length: {target_length}")
+            log.info(f"  Noise density: {self.hparams.corruption_rate}")
+            log.info(f"  Mean span length: {self.hparams.mean_span_length}")
+            log.info("="*60)
+            
+            # Set tokenizer max_length to avoid warnings
+            self.tokenizer.model_max_length = tokens_length
             use_legacy = False
         else:
             # Legacy mode (default): use 1.5x heuristic with target_length=512
-            log.info("[Legacy Mode] Using 1.5x heuristic collator (default for backwards compatibility)")
+            log.info("="*60)
+            log.info("[LEGACY MODE] Using 1.5x heuristic collator (backwards compatibility)")
+            log.info(f"  Input length: {self.hparams.max_length}")
+            log.info(f"  Expanded length: {int(self.hparams.max_length * 1.5)} (1.5x)")
+            log.info(f"  Target length: {self.hparams.max_length} (forced)")
+            log.info("  NOTE: This mode is for backwards compatibility with running experiments")
+            log.info("="*60)
             target_length = self.hparams.max_length  # 512
             use_legacy = True
         
@@ -130,15 +167,55 @@ class T5DataModule(LightningDataModule):
 
     # Dataloaders
     def train_dataloader(self):
-        # We use DeterministicGlobalSampler for training
-        sampler = DeterministicGlobalSampler(
-            dataset_length=len(self.train_dataset),
-            seed=42,
-            resume_global_start=self.resume_global_start,
-        )
-        self.sampler = sampler
+        # Import here to avoid circular imports
+        import lightning as L
         
-        dataloader = DataLoader(
+        # Get distributed info - handle both distributed and single GPU cases
+        if torch.distributed.is_available() and torch.distributed.is_initialized():
+            world_size = torch.distributed.get_world_size()
+            rank = torch.distributed.get_rank()
+        else:
+            # Single GPU or not yet initialized
+            world_size = 1
+            rank = 0
+            
+        # CRITICAL: Use DeterministicGlobalSampler for exact resume support  
+        # IMPORTANT: Must match the dataset we actually iterate over (train_dataset)
+        sampler = DeterministicGlobalSampler(
+            dataset_length=len(self.train_dataset),  # Must match DataLoader dataset
+            world_size=world_size,
+            rank=rank,
+            seed=self.hparams.seed,
+            drop_last=True
+        )
+        # Store sampler reference for resume support
+        self.train_sampler = sampler
+        
+        # Apply any checkpoint-loaded sampler state (preferred), else manual resume offset
+        from src.utils.pylogger import RankedLogger
+        log = RankedLogger(__name__, rank_zero_only=True)
+        # Prefer precise resume from global_step calculation when available.
+        if self.resume_global_start is not None:
+            sampler.set_global_start(self.resume_global_start)
+            log.info(f"Applying resume_global_start={self.resume_global_start} (preferred over sampler_state)")
+        elif getattr(self, "_pending_sampler_state", None) is not None:
+            try:
+                sampler.set_state(self._pending_sampler_state)
+                log.info("Applied sampler state from checkpoint into fresh sampler (no global_step fallback available)")
+            except Exception:
+                log.warning("Failed to apply sampler_state; starting from position 0")
+        
+        # DEBUG: Log dataset lengths for epoch calculation verification
+        log.info(f"Dataset length verification:")
+        log.info(f"  - Full dataset length: {len(self.full_dataset):,}")
+        log.info(f"  - Train split length: {len(self.train_dataset):,}")
+        log.info(f"  - Sampler dataset_length (used): {sampler.dataset_length:,}")
+        log.info(f"  - Sampler samples_per_rank: {sampler.samples_per_rank:,}")
+        log.info(f"  - Sampler len(): {len(sampler):,}")
+        log.info(f"  - Expected batches per epoch per rank: {len(sampler) // self.hparams.batch_size:,}")
+        log.info(f"  - Expected optimizer steps per epoch: {(len(sampler) // self.hparams.batch_size) // 2:,} (with accumulate=2)")
+        
+        dataloader = StatefulDataLoader(
             self.train_dataset,
             batch_size=self.hparams.batch_size,
             sampler=sampler,
@@ -147,31 +224,25 @@ class T5DataModule(LightningDataModule):
             collate_fn=self.collator,
             prefetch_factor=self.hparams.prefetch_factor if self.hparams.num_workers > 0 else None,
             persistent_workers=self.hparams.persistent_workers if self.hparams.num_workers > 0 else False,
+            drop_last=True,
         )
         
         return dataloader
 
 
     def val_dataloader(self):
-        # Use deterministic sampler for validation
-        sampler = DeterministicGlobalSampler(
-            dataset_length=len(self.val_dataset),
-            seed=99,  # Different seed for validation
-            shuffle=False,
-        )
-        
-        dataloader = DataLoader(
+        # Simple validation without distributed sampler (same as V1)
+        return DataLoader(
             self.val_dataset,
             batch_size=self.hparams.batch_size,
-            sampler=sampler,
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,
+            persistent_workers=self.hparams.persistent_workers,
+            prefetch_factor=self.hparams.prefetch_factor,
+            shuffle=False,
             collate_fn=self.collator,
-            prefetch_factor=self.hparams.prefetch_factor if self.hparams.num_workers > 0 else None,
-            persistent_workers=self.hparams.persistent_workers if self.hparams.num_workers > 0 else False,
+            drop_last=False,  # Keep all validation data
         )
-        
-        return dataloader
             
     def on_after_batch_transfer(self, batch, dataloader_idx):
         """Apply label masking after batch is on correct device."""
@@ -181,14 +252,19 @@ class T5DataModule(LightningDataModule):
             batch["labels"][batch["labels"] == self.tokenizer.pad_token_id] = -100
         return batch
 
-    def state_dict(self):
-        """Save sampler state for resuming."""
+    def state_dict(self) -> dict:
+        """Get datamodule state for Lightning resumability."""
         state = {}
-        if self.sampler and hasattr(self.sampler, 'get_state'):
-            state['sampler_state'] = self.sampler.get_state()
+        if hasattr(self, 'train_sampler'):
+            state['sampler_state'] = self.train_sampler.get_state()
         return state
-
-    def load_state_dict(self, state_dict):
-        """Restore sampler state."""
-        if 'sampler_state' in state_dict and self.sampler and hasattr(self.sampler, 'set_state'):
-            self.sampler.set_state(state_dict['sampler_state'])
+    
+    def load_state_dict(self, state_dict: dict) -> None:
+        """Load datamodule state for Lightning resumability.
+        If sampler isn't constructed yet, stash state and apply in train_dataloader().
+        """
+        if 'sampler_state' in state_dict:
+            if hasattr(self, 'train_sampler') and self.train_sampler is not None:
+                self.train_sampler.set_state(state_dict['sampler_state'])
+            else:
+                self._pending_sampler_state = state_dict['sampler_state']
