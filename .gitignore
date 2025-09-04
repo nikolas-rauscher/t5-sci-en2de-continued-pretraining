@@ -214,7 +214,15 @@ converted_models/*
 
 
 pretraining_logs_lr_00005_gradient_clip_1_with_inverse_sqrt_schedule/*
-
+# new runs with the fiex padding -100 for ignored tokens
 pretraining_logs_lr_001_bugfixed_clean_restart/*
 pretraining_logs_lr_0001_bugfixed_clean_restart/*
 pretraining_logs_adafactor_relative_step_clip1/*
+
+# new runs with the fiex padding -100 for ignored tokens and 0% overlap in the dataset
+pretraining_logs_text_0olap512_v3_lr_0001_bugfixed/* 
+pretraining_logs_text_0olap512_v3_lr_001_bugfixed/* 
+
+# new runs with the fiex padding -100 for ignored tokens and 0% overlap in the dataset and optimized max encoder length instead of padding to max length 512 
+pretraining_logs_lr_001_OPTIMIZED_clean_restart/*
+pretraining_logs_text_0olap512_v3_lr_001_OPTIMIZED/*
