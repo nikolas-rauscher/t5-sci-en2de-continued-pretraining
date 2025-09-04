@@ -1,0 +1,27 @@
+# @package _global_
+
+# T5 Data configuration with LEGACY collator (1.5x heuristic)
+# For RESUME of existing runs - maintains backwards compatibility
+
+defaults:
+  - _self_
+
+_target_: src.data.T5DataModuleV2
+data_dir: /fscratch/nrauscher/projects/BA-hydra/data/validated_sliding_windows/validated
+tokenizer_name_or_path: ${model.model_name_or_path}
+batch_size: 48
+num_workers: 4
+pin_memory: True
+persistent_workers: True
+prefetch_factor: 4
+train_val_split: [0.999615, 0.000385]  # ~100k validation windows
+max_length: 512
+corruption_rate: 0.15
+mean_span_length: 3
+shuffle_buffer_size: 10000
+use_materialized_windows: true
+limit_files: -1
+limit_documents: -1
+seed: 42
+# No need to set anything - legacy is default!
+# use_optimized_collator: false  # This is already the default

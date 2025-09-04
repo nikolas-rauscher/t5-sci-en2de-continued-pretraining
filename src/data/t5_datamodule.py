@@ -118,12 +118,22 @@ class T5DataModule(LightningDataModule):
         )
 
         # Create optimized collator with all required parameters
+        # Import compute function to calculate correct target_length
+        from src.data.components.optimized_t5_collator import compute_t5_input_and_target_lengths
+        
+        # Calculate correct target_length based on T5 formula
+        _, target_length = compute_t5_input_and_target_lengths(
+            self.hparams.max_length,
+            self.hparams.corruption_rate,
+            self.hparams.mean_span_length
+        )
+        
         self.collator = DataCollatorForT5MLM(
             tokenizer=self.tokenizer,
             noise_density=self.hparams.corruption_rate,
             mean_noise_span_length=self.hparams.mean_span_length,
             input_length=self.hparams.max_length,
-            target_length=self.hparams.max_length,
+            target_length=target_length,  # Use calculated target_length (114 for standard params)
             pad_token_id=self.tokenizer.pad_token_id,
             decoder_start_token_id=self.tokenizer.pad_token_id,  # T5 uses pad_token_id for decoder start
         )

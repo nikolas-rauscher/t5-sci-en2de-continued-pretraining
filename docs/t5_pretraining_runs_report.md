@@ -12,7 +12,7 @@ This document summarizes all current T5 continued‑pretraining experiments in t
 
 ## Runs on 0% overlap dataset (512, v3)
 
-### LR 0.0001 — warmup 50k
+### LR 0.0001 — warmup 50k [still running]
 - Config: `configs/experiment/t5_continued_pretraining_lr_0001_bugfixed_text_0olap512_v3_warmup50k.yaml`
 - Start job: `jobs/t5_continued_pretraining_lr_0001_bugfixed_text_0olap512_v3.sh`
 - Smart‑resume: `jobs/smart_resume_t5_continued_pretraining_lr_0001_bugfixed_text_0olap512_v3_warmup50k.sh`
@@ -28,7 +28,7 @@ This document summarizes all current T5 continued‑pretraining experiments in t
   - Split: `train_val_split: [0.999226, 0.000774]` (~100k validation windows)
   
 
-### LR 0.001 — warmup 50k
+### LR 0.001 — warmup 50k [still running]
 - Config: `configs/experiment/t5_continued_pretraining_lr_001_bugfixed_text_0olap512_v3_warmup50k.yaml`
 - Start job: `jobs/t5_continued_pretraining_lr_001_bugfixed_text_0olap512_v3.sh`
 - Smart‑resume: `jobs/smart_resume_t5_continued_pretraining_lr_001_bugfixed_text_0olap512_v3_warmup50k.sh`
@@ -40,7 +40,7 @@ This document summarizes all current T5 continued‑pretraining experiments in t
 
 ## The runs where the Critical bug pretraining code got fixed, The Runs on validated windows dataset (legacy) old dataset with 50% overlap but with the fixed pretraining
 
-### LR 0.0001 — bugfixed clean‑restart
+### LR 0.0001 — bugfixed clean‑restart [still running]
 - Config: `configs/experiment/t5_continued_pretraining_lr_0001_bugfixed_clean_restart.yaml`
 - Start job: `jobs/t5_continued_pretraining_lr_0001_bugfixed_clean_restart.sh`
 - Smart‑resume: `jobs/smart_resume_t5_continued_pretraining_lr_0001_bugfixed_clean_restart.sh`
@@ -49,7 +49,7 @@ This document summarizes all current T5 continued‑pretraining experiments in t
 - W&B: name `lr-0001-bugfixed-clean-restart-warmup100k` (note: earlier 15k/100k variants used)
 - Dataset: validated windows (50% overlap)
 
-### LR 0.001 — bugfixed clean‑restart
+### LR 0.001 — bugfixed clean‑restart [still running]
 - Config: `configs/experiment/t5_continued_pretraining_lr_001_bugfixed_clean_restart.yaml`
 - Start job: `jobs/t5_continued_pretraining_lr_001_bugfixed_clean_restart.sh`
 - Smart‑resume: `jobs/smart_resume_t5_continued_pretraining_lr_001_bugfixed_clean_restart.sh`
@@ -58,16 +58,8 @@ This document summarizes all current T5 continued‑pretraining experiments in t
 - W&B: name `lr-001-bugfixed-clean-restart-warmup60k`
 - Dataset: validated windows (50% overlap)
 
-### LR 0.001 — inverse sqrt schedule (production variant)
-- dir: pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/${now:%Y-%m-%d_%H-%M-%S}
-- Config: `configs/experiment/t5_continued_pretraining_lr_001_gradient_clip_1_with_inverse_sqrt_schedule.yaml`
-- Start job: `jobs/t5_continued_pretraining_lr_001_gradient_clip_1_with_inverse_sqrt_schedule.sh`
-- Smart‑resume: `jobs/smart_resume_t5_continued_pretraining_lr_001_gradient_clip_1.sh`
-- Hydra root: `pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs`
-- Dataset: validated windows (50% overlap)
-- Notes: lr=1e‑3, warmup=20k, validated windows 50% overlap 
 
-### LR 0.0005 — inverse sqrt schedule
+### LR 0.0005 — inverse sqrt schedule [not running, was just a test]
 - Config: `configs/experiment/t5_continued_pretraining_lr_0005_gradient_clip_1_with_inverse_sqrt_schedule.yaml`
 - Start job: `jobs/t5_continued_pretraining_lr_0005_gradient_clip_1_with_inverse_sqrt_schedule.sh`
 - Smart‑resume: (not present)
@@ -75,7 +67,7 @@ This document summarizes all current T5 continued‑pretraining experiments in t
 - dir: `pretraining_logs_lr_0005_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/${now:%Y-%m-%d_%H-%M-%S}`
 - Dataset: validated windows (50% overlap)
 
-### LR 0.00005 — inverse sqrt schedule
+### LR 0.00005 — inverse sqrt schedule [still running]
 - Config: `configs/experiment/t5_continued_pretraining_lr_00005_gradient_clip_1_with_inverse_sqrt_schedule.yaml`
 - Start job: `jobs/t5_continued_pretraining_lr_00005_gradient_clip_1_with_inverse_sqrt_schedule.sh`
 - Smart‑resume: `jobs/smart_resume_t5_continued_pretraining_lr_00005_gradient_clip_1.sh`
@@ -83,7 +75,7 @@ This document summarizes all current T5 continued‑pretraining experiments in t
 - dir: `pretraining_logs_lr_00005_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/${now:%Y-%m-%d_%H-%M-%S}`
 - Dataset: validated windows (50% overlap)
 
-### Adafactor relative_step (no external scheduler)
+### Adafactor relative_step (no external scheduler) [still running]
 - Config: `configs/experiment/t5_continued_pretraining_adafactor_relative_step_clip_1.yaml`
 - Start job: `jobs/t5_continued_pretraining_adafactor_relative_step_clip_1.sh`
 - Smart‑resume: `jobs/smart_resume_t5_continued_pretraining_adafactor_relative_step_clip_1.sh`

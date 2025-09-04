@@ -2,12 +2,14 @@ _target_: src.models.t5_module.T5LitModule
 
 # Perplexity metric configuration
 ignore_index: -100  # Standard T5 label ignore index
+label_smoothing: 0.0  # Optional label smoothing (set >0.0 to enable)
 
 # single model config used by LitModule
 t5_model:
   _target_: src.models.components.t5_model.T5Model
   pretrained_model_name_or_path: t5-base
   enable_gradient_checkpointing: true
+  dropout_rate: null  # Override dropout (e.g., 0.1 or 0.2); null keeps model default
 
 # optimizer settings
 optimizer:

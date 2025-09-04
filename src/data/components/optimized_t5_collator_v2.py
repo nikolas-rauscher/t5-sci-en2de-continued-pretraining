@@ -1,6 +1,6 @@
 """
-DataCollatorForT5MLM adapted from HuggingFace OLM training repo.
-https://raw.githubusercontent.com/huggingface/olm-training/main/t5_data_collator.py
+DataCollatorForT5MLM with backwards compatibility for running experiments.
+Supports both legacy (1.5x heuristic) and optimized (exact T5 formula) modes.
 """
 
 from typing import Dict, List
@@ -73,25 +73,18 @@ def compute_t5_input_and_target_lengths(inputs_length, noise_density, mean_noise
 class DataCollatorForT5MLM:
     """
     Data collator used for T5 span-masked language modeling.
-    It is made sure that after masking the inputs are of length `data_args.max_seq_length` and targets are also of fixed length.
-    For more information on how T5 span-masked language modeling works, one can take a look
-    at the `official paper <https://arxiv.org/pdf/1910.10683.pdf>`__
-    or the `official code for preprocessing <https://github.com/google-research/text-to-text-transfer-transformer/blob/master/t5/data/preprocessors.py>`__ .
+    Supports both legacy (1.5x heuristic) and optimized (exact T5 formula) modes.
+    
     Args:
-        tokenizer (:class:`~transformers.PreTrainedTokenizer` or :class:`~transformers.PreTrainedTokenizerFast`):
-            The tokenizer used for encoding the data.
-        noise_density (:obj:`float`):
-            The probability with which to (randomly) mask tokens in the input.
-        mean_noise_span_length (:obj:`float`):
-            The average span length of the masked tokens.
-        input_length (:obj:`int`):
-            The expected input length after masking.
-        target_length (:obj:`int`):
-            The expected target length after masking.
-        pad_token_id: (:obj:`int`):
-            The pad token id of the model
-        decoder_start_token_id: (:obj:`int):
-            The decoder start token id of the model
+        tokenizer: The tokenizer used for encoding the data.
+        noise_density: The probability with which to (randomly) mask tokens in the input.
+        mean_noise_span_length: The average span length of the masked tokens.
+        input_length: The expected input length after masking.
+        target_length: The expected target length after masking.
+        pad_token_id: The pad token id of the model
+        decoder_start_token_id: The decoder start token id of the model
+        use_legacy_heuristic: If True, use 1.5x expansion (for backwards compatibility).
+                             If False, use exact T5 formula (recommended for new runs).
     """
 
     tokenizer: PreTrainedTokenizerBase
@@ -101,37 +94,44 @@ class DataCollatorForT5MLM:
     target_length: int
     pad_token_id: int
     decoder_start_token_id: int
+    use_legacy_heuristic: bool = True  # Default to legacy for backwards compatibility
 
     def __post_init__(self):
-        """Validate that target_length matches the T5 formula calculation."""
-        _, expected_target_length = compute_t5_input_and_target_lengths(
-            self.input_length, self.noise_density, self.mean_noise_span_length
-        )
-        if self.target_length != expected_target_length:
-            raise ValueError(
-                f"target_length mismatch: provided {self.target_length}, "
-                f"but T5 formula expects {expected_target_length} for "
-                f"input_length={self.input_length}, noise_density={self.noise_density}, "
-                f"mean_noise_span_length={self.mean_noise_span_length}"
+        """Validate configuration based on mode."""
+        if not self.use_legacy_heuristic:
+            # In optimized mode, validate that target_length matches T5 formula
+            _, expected_target_length = compute_t5_input_and_target_lengths(
+                self.input_length, self.noise_density, self.mean_noise_span_length
             )
+            if self.target_length != expected_target_length:
+                raise ValueError(
+                    f"target_length mismatch: provided {self.target_length}, "
+                    f"but T5 formula expects {expected_target_length} for "
+                    f"input_length={self.input_length}, noise_density={self.noise_density}, "
+                    f"mean_noise_span_length={self.mean_noise_span_length}. "
+                    f"Set use_legacy_heuristic=True to use 1.5x expansion instead."
+                )
         
-        # Get decoder start token robustly
-        self.decoder_start_token_id = (
-            self.decoder_start_token_id
-            or getattr(self.tokenizer, "decoder_start_token_id", None)
-            or self.pad_token_id
-        )
+        # Get decoder start token robustly (None-safe, since 0 is valid)
+        if self.decoder_start_token_id is None:
+            self.decoder_start_token_id = getattr(self.tokenizer, "decoder_start_token_id", None)
+        if self.decoder_start_token_id is None:
+            self.decoder_start_token_id = self.pad_token_id
 
     def __call__(self, examples: List[Dict[str, np.ndarray]]) -> Dict[str, np.ndarray]:
 
         # Handle both pre-tokenized and text inputs
         processed_examples = []
         
-        # Calculate exact expanded length using T5 formula
-        tokens_length, _ = compute_t5_input_and_target_lengths(
-            self.input_length, self.noise_density, self.mean_noise_span_length
-        )
-        expanded_length = tokens_length
+        if self.use_legacy_heuristic:
+            # Legacy mode: use 1.5x heuristic (for backwards compatibility with running experiments)
+            expanded_length = int(self.input_length * 1.5)
+        else:
+            # Optimized mode: calculate exact expanded length using T5 formula
+            tokens_length, _ = compute_t5_input_and_target_lengths(
+                self.input_length, self.noise_density, self.mean_noise_span_length
+            )
+            expanded_length = tokens_length
         
         for example in examples:
             if "tokens" in example and example["tokens"]:
@@ -145,19 +145,22 @@ class DataCollatorForT5MLM:
                 input_ids = np.array(tokens, dtype=np.int32)
             else:
                 # Regular text - tokenize
-                input_ids = np.array(self.tokenizer.encode(
-                    example["text"],
-                    add_special_tokens=False,
-                    truncation=True,
+                text = example.get("text", example.get("content", ""))
+                tokenized = self.tokenizer(
+                    text,
                     max_length=expanded_length,
-                    padding='max_length',
-                ), dtype=np.int32)
+                    truncation=True,
+                    padding="max_length",
+                    return_tensors="np",
+                    add_special_tokens=False,  # T5 doesn't use special tokens for MLM
+                )
+                input_ids = tokenized.input_ids[0]
             
             processed_examples.append({"input_ids": input_ids})
 
         # convert list to dict and tensorize input
         batch = BatchEncoding(
-            {k: np.array([processed_examples[i][k] for i in range(len(processed_examples))]) for k, v in processed_examples[0].items()}
+            {k: np.array([processed_examples[i][k] for i in range(len(processed_examples))]) for k in processed_examples[0].keys()}
         )
 
         input_ids = batch["input_ids"]
@@ -172,27 +175,45 @@ class DataCollatorForT5MLM:
         batch["input_ids"] = self.filter_input_ids(input_ids, input_ids_sentinel)
         batch["labels"] = self.filter_input_ids(input_ids, labels_sentinel)
 
-        # Verify/adjust lengths (should already match with correct expanded_length)
+        # Verify/adjust lengths
         input_length = batch["input_ids"].shape[-1]
         labels_length = batch["labels"].shape[-1]
         
-        # Only pad if necessary (should rarely happen with correct expanded_length)
-        if input_length < self.input_length:
-            pad_width = self.input_length - input_length
-            batch["input_ids"] = np.pad(batch["input_ids"], ((0, 0), (0, pad_width)), 
-                                      constant_values=self.pad_token_id)
-        elif input_length > self.input_length:
-            # This should not happen with correct expanded_length
-            batch["input_ids"] = batch["input_ids"][:, :self.input_length]
-        
-        if labels_length < self.target_length:
-            pad_width = self.target_length - labels_length
-            batch["labels"] = np.pad(
-                batch["labels"], ((0, 0), (0, pad_width)), constant_values=self.pad_token_id
-            )
-        elif labels_length > self.target_length:
-            # This should not happen with correct expanded_length
-            batch["labels"] = batch["labels"][:, :self.target_length]
+        # Handle padding/truncation based on mode
+        if self.use_legacy_heuristic:
+            # Legacy mode: may need more padding/truncation due to 1.5x heuristic
+            if input_length > self.input_length:
+                batch["input_ids"] = batch["input_ids"][:, :self.input_length]
+            elif input_length < self.input_length:
+                pad_width = self.input_length - input_length
+                batch["input_ids"] = np.pad(batch["input_ids"], ((0, 0), (0, pad_width)), 
+                                          constant_values=self.pad_token_id)
+            
+            if labels_length > self.target_length:
+                batch["labels"] = batch["labels"][:, :self.target_length]
+            elif labels_length < self.target_length:
+                pad_width = self.target_length - labels_length
+                batch["labels"] = np.pad(
+                    batch["labels"], ((0, 0), (0, pad_width)), constant_values=self.pad_token_id
+                )
+        else:
+            # Optimized mode: should rarely need padding with correct expanded_length
+            if input_length < self.input_length:
+                pad_width = self.input_length - input_length
+                batch["input_ids"] = np.pad(batch["input_ids"], ((0, 0), (0, pad_width)), 
+                                          constant_values=self.pad_token_id)
+            elif input_length > self.input_length:
+                # This should not happen with correct expanded_length
+                batch["input_ids"] = batch["input_ids"][:, :self.input_length]
+            
+            if labels_length < self.target_length:
+                pad_width = self.target_length - labels_length
+                batch["labels"] = np.pad(
+                    batch["labels"], ((0, 0), (0, pad_width)), constant_values=self.pad_token_id
+                )
+            elif labels_length > self.target_length:
+                # This should not happen with correct expanded_length
+                batch["labels"] = batch["labels"][:, :self.target_length]
 
         # IMPORTANT: Mask label padding positions BEFORE shift (ignore_index = -100)
         batch["labels"] = np.where(batch["labels"] == self.pad_token_id, -100, batch["labels"])
@@ -211,10 +232,21 @@ class DataCollatorForT5MLM:
         batch["decoder_input_ids"] = torch.as_tensor(batch["decoder_input_ids"], dtype=torch.long)
         batch["attention_mask"] = torch.as_tensor(batch["attention_mask"], dtype=torch.long)
         
-        # Sanity checks
-        assert batch["input_ids"].shape[-1] == self.input_length
-        assert batch["labels"].shape[-1] == self.target_length
-        assert (batch["labels"] == self.pad_token_id).sum() == 0, "No PAD tokens should remain in labels"
+        # Comprehensive sanity checks for both modes
+        assert batch["input_ids"].shape[-1] == self.input_length, f"Input shape mismatch: got {batch['input_ids'].shape[-1]}, expected {self.input_length}"
+        assert batch["labels"].shape[-1] == self.target_length, f"Labels shape mismatch: got {batch['labels'].shape[-1]}, expected {self.target_length}"
+        assert (batch["labels"] == self.pad_token_id).sum() == 0, "No PAD tokens should remain in labels (all should be -100)"
+        
+        # Dtype checks for all tensors
+        for key in ("input_ids", "labels", "decoder_input_ids", "attention_mask"):
+            assert batch[key].dtype == torch.long, f"{key} should be torch.long, got {batch[key].dtype}"
+        
+        # Mode-specific validation
+        if not self.use_legacy_heuristic:
+            # In optimized mode, check that no unnecessary padding occurred  
+            effective_length = (batch["attention_mask"].sum(dim=1) > 0).sum().item()
+            if effective_length < self.input_length * 0.8:  # Allow some natural variation
+                print(f"WARNING: Low token utilization in optimized mode: {effective_length}/{self.input_length} tokens")
 
         return batch
 
