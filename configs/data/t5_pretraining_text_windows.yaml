@@ -1,4 +1,4 @@
-_target_: src.data.t5_datamodule.T5DataModule
+_target_: src.data.t5_datamodule_v2.T5DataModule
 
 # Using validated materialized text-based sliding windows 
 data_dir: /fscratch/nrauscher/projects/BA-hydra/data/validated_sliding_windows/validated
@@ -18,3 +18,6 @@ train_val_split: [0.95, 0.05]
 use_materialized_windows: true
 limit_files: -1  # No limit for production
 limit_documents: -1  # No limit for production
+
+# Legacy mode (1.5x heuristic) is default - for backwards compatibility
+# use_optimized_collator: false  # This is the default, no need to set explicitly
