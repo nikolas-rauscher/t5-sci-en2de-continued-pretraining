@@ -97,37 +97,69 @@ class EvaluationAnalyzer:
         }
     
     def extract_mmlu_scores(self, results_data: Dict) -> Dict:
-        """Extract MMLU scores from results JSON."""
+        """Extract MMLU scores from results JSON (supports both FLAN and Global MMLU formats)."""
         scores = {}
         
         if 'results' in results_data:
             results = results_data['results']
             
-            # Main MMLU score
-            if 'mmlu_flan_n_shot_loglikelihood' in results:
+            # Main MMLU score - support both formats
+            if 'global_mmlu_full_en' in results:
+                # Global MMLU format
+                scores['mmlu_overall'] = results['global_mmlu_full_en']['acc,none']
+                scores['mmlu_overall_stderr'] = results['global_mmlu_full_en']['acc_stderr,none']
+                
+                # Category scores for global MMLU
+                category_mappings = {
+                    'humanities': 'global_mmlu_full_en_humanities',
+                    'social_sciences': 'global_mmlu_full_en_social_sciences', 
+                    'stem': 'global_mmlu_full_en_stem',
+                    'other': 'global_mmlu_full_en_other'
+                }
+                
+                for category_name, global_key in category_mappings.items():
+                    if global_key in results:
+                        scores[f'mmlu_{category_name}'] = results[global_key]['acc,none']
+                        scores[f'mmlu_{category_name}_stderr'] = results[global_key]['acc_stderr,none']
+                
+                # Individual subject scores for global MMLU
+                for key, value in results.items():
+                    if key.startswith('global_mmlu_full_en_') and isinstance(value, dict):
+                        # Skip category keys
+                        if key not in ['global_mmlu_full_en', 'global_mmlu_full_en_humanities', 
+                                      'global_mmlu_full_en_social_sciences', 'global_mmlu_full_en_stem', 
+                                      'global_mmlu_full_en_other']:
+                            # Extract subject name
+                            subject = key.replace('global_mmlu_full_en_', '')
+                            if 'acc,none' in value:
+                                scores[f'mmlu_subject_{subject}'] = value['acc,none']
+                                if 'acc_stderr,none' in value:
+                                    scores[f'mmlu_subject_{subject}_stderr'] = value['acc_stderr,none']
+                                    
+            elif 'mmlu_flan_n_shot_loglikelihood' in results:
+                # Original FLAN format (fallback for backwards compatibility)
                 scores['mmlu_overall'] = results['mmlu_flan_n_shot_loglikelihood']['acc,none']
                 scores['mmlu_overall_stderr'] = results['mmlu_flan_n_shot_loglikelihood']['acc_stderr,none']
-            
-            # Category scores
-            categories = ['humanities', 'social sciences', 'stem', 'other']
-            for category in categories:
-                if category in results:
-                    scores[f'mmlu_{category.replace(" ", "_")}'] = results[category]['acc,none']
-                    scores[f'mmlu_{category.replace(" ", "_")}_stderr'] = results[category]['acc_stderr,none']
-            
-            # Individual MMLU subject scores
-            for key, value in results.items():
-                if key.startswith('mmlu_flan_n_shot_loglikelihood_') and isinstance(value, dict):
-                    # Extract subject name (remove prefix)
-                    subject = key.replace('mmlu_flan_n_shot_loglikelihood_', '')
-                    if 'acc,none' in value:
-                        scores[f'mmlu_subject_{subject}'] = value['acc,none']
-                        if 'acc_stderr,none' in value:
-                            scores[f'mmlu_subject_{subject}_stderr'] = value['acc_stderr,none']
+                
+                # Category scores for FLAN format
+                categories = ['humanities', 'social sciences', 'stem', 'other']
+                for category in categories:
+                    if category in results:
+                        scores[f'mmlu_{category.replace(" ", "_")}'] = results[category]['acc,none']
+                        scores[f'mmlu_{category.replace(" ", "_")}_stderr'] = results[category]['acc_stderr,none']
+                
+                # Individual MMLU subject scores for FLAN format
+                for key, value in results.items():
+                    if key.startswith('mmlu_flan_n_shot_loglikelihood_') and isinstance(value, dict):
+                        subject = key.replace('mmlu_flan_n_shot_loglikelihood_', '')
+                        if 'acc,none' in value:
+                            scores[f'mmlu_subject_{subject}'] = value['acc,none']
+                            if 'acc_stderr,none' in value:
+                                scores[f'mmlu_subject_{subject}_stderr'] = value['acc_stderr,none']
         
         return scores
     
-    def scan_evaluation_results(self, run_dir: Optional[str] = None) -> List[Dict]:
+    def scan_evaluation_results(self, run_dir: Optional[str] = None, experiment_name: Optional[str] = None) -> List[Dict]:
         """Scan for all evaluation results in the specified directory."""
         results = []
         
@@ -147,7 +179,33 @@ class EvaluationAnalyzer:
             return []
         
         for run_dir_path in run_dirs:
-            eval_dir = run_dir_path / "evaluation" / "results" / "universal" / "universal_evaluation"
+            base_universal = run_dir_path / "evaluation" / "results" / "universal"
+            eval_dir = None
+            
+            # Prefer explicit experiment name when provided
+            if experiment_name:
+                candidate = base_universal / experiment_name
+                if candidate.exists():
+                    eval_dir = candidate
+                else:
+                    print(f"⚠️  Experiment '{experiment_name}' not found under {base_universal}")
+            
+            # Auto-detect experiment subdir when not provided
+            if eval_dir is None:
+                if not base_universal.exists():
+                    # Nothing to analyze for this run_dir
+                    continue
+                subdirs = [d for d in base_universal.iterdir() if d.is_dir()]
+                if not subdirs:
+                    continue
+                # Prefer legacy 'universal_evaluation' if present
+                legacy = [d for d in subdirs if d.name == 'universal_evaluation']
+                if legacy:
+                    eval_dir = legacy[0]
+                else:
+                    # Pick the most recently modified subdir
+                    subdirs.sort(key=lambda d: d.stat().st_mtime, reverse=True)
+                    eval_dir = subdirs[0]
             
             if not eval_dir.exists():
                 continue
@@ -213,6 +271,8 @@ class EvaluationAnalyzer:
         if 'mmlu_overall' in display_df.columns:
             display_df['mmlu_overall'] = display_df['mmlu_overall'].round(5)
         if 'ppl' in display_df.columns:
+            # Convert to numeric first, handling any non-numeric values
+            display_df['ppl'] = pd.to_numeric(display_df['ppl'], errors='coerce')
             display_df['ppl'] = display_df['ppl'].round(5)
         
         # Round other MMLU categories to 5 decimal places
@@ -1478,12 +1538,12 @@ class EvaluationAnalyzer:
             # Multiple run types - use directory name
             return Path(run_dir).name if run_dir else "multiple-runs"
     
-    def analyze(self, run_dir: Optional[str] = None, save_results: bool = True):
+    def analyze(self, run_dir: Optional[str] = None, save_results: bool = True, experiment_name: Optional[str] = None):
         """Main analysis function."""
         print("🔍 Starting evaluation results analysis...")
         
         # Scan for results
-        self.results = self.scan_evaluation_results(run_dir)
+        self.results = self.scan_evaluation_results(run_dir, experiment_name=experiment_name)
         
         if not self.results:
             print("❌ No evaluation results found!")
@@ -1566,6 +1626,7 @@ def main():
     parser = argparse.ArgumentParser(description='Analyze evaluation results for a specific run')
     parser.add_argument('run_dir', help='Run directory to analyze (e.g., logs/eval_pipeline/runs/2025-08-17_04-01-04 or 2025-08-17_04-01-04)')
     parser.add_argument('--no-save', action='store_true', help='Don\'t save results to files')
+    parser.add_argument('--experiment', type=str, default=None, help='Experiment name under evaluation/results/universal (auto-detected if omitted)')
     
     args = parser.parse_args()
     
@@ -1582,7 +1643,7 @@ def main():
     save_results = not args.no_save
     
     try:
-        results = analyzer.analyze(run_dir=run_dir, save_results=save_results)
+        results = analyzer.analyze(run_dir=run_dir, save_results=save_results, experiment_name=args.experiment)
         print(f"\n🎉 Analysis complete! Found {len(results['results'])} models.")
         
     except Exception as e:

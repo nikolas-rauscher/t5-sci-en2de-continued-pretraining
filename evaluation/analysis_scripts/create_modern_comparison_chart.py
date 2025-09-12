@@ -67,18 +67,36 @@ class ModernComparisonChart:
             'is_baseline': 'baseline' in file_path.lower() or 't5_base' in file_path.lower()
         }
         
-        # Extract MMLU overall score
-        if 'mmlu_flan_n_shot_loglikelihood' in results_data:
+        # Extract MMLU overall score - support both formats
+        if 'global_mmlu_full_en' in results_data:
+            # Global MMLU format
+            mmlu_data = results_data['global_mmlu_full_en']
+            if 'acc,none' in mmlu_data:
+                result['mmlu_overall'] = mmlu_data['acc,none']
+                
+            # Extract individual subject scores for global MMLU
+            for key, value in results_data.items():
+                if key.startswith('global_mmlu_full_en_') and isinstance(value, dict):
+                    # Skip category keys
+                    if key not in ['global_mmlu_full_en', 'global_mmlu_full_en_humanities',
+                                  'global_mmlu_full_en_social_sciences', 'global_mmlu_full_en_stem',
+                                  'global_mmlu_full_en_other']:
+                        subject = key.replace('global_mmlu_full_en_', '')
+                        if 'acc,none' in value:
+                            result[f'mmlu_subject_{subject}'] = value['acc,none']
+                            
+        elif 'mmlu_flan_n_shot_loglikelihood' in results_data:
+            # Original FLAN format (fallback)
             mmlu_data = results_data['mmlu_flan_n_shot_loglikelihood']
             if 'acc,none' in mmlu_data:
                 result['mmlu_overall'] = mmlu_data['acc,none']
-        
-        # Extract individual MMLU subject scores
-        for key, value in results_data.items():
-            if key.startswith('mmlu_flan_n_shot_loglikelihood_'):
-                subject = key.replace('mmlu_flan_n_shot_loglikelihood_', '')
-                if 'acc,none' in value:
-                    result[f'mmlu_subject_{subject}'] = value['acc,none']
+                
+            # Extract individual MMLU subject scores for FLAN format
+            for key, value in results_data.items():
+                if key.startswith('mmlu_flan_n_shot_loglikelihood_'):
+                    subject = key.replace('mmlu_flan_n_shot_loglikelihood_', '')
+                    if 'acc,none' in value:
+                        result[f'mmlu_subject_{subject}'] = value['acc,none']
         
         return result
     
