@@ -26,25 +26,25 @@ hydra:
 test: false
 train: true
 
-# 4-GPU training settings (memory optimized)
+# 4-GPU training settings (OPTIMIZED for better GPU utilization)
 data:
   _target_: src.data.t5_datamodule_v2.T5DataModule  # Use V2 for optimized mode
-  batch_size: 48  # per-GPU batch size (80GB)
+  batch_size: 96  # DOUBLED: per-GPU batch size (~70GB VRAM usage from 35GB)
   limit_files: -1  # Use all files
   limit_documents: -1  # Use all 260M docs for representative sampling
   train_val_split: [0.999615, 0.000385]  # 100k val docs (521 batches) for long runs
-  num_workers: 4   # per-GPU workers (total 16 across 4 GPUs)
-  prefetch_factor: 2
+  num_workers: 4   # Keep same to avoid RAM issues
+  prefetch_factor: 2  # Keep same to avoid RAM issues
   persistent_workers: true
   seed: 42
   use_optimized_collator: true  # NEW: Enable T5-formula mode
 
-# 4-GPU distributed training settings (memory optimized)
+# 4-GPU distributed training settings (optimized throughput)
 trainer:
   max_epochs: 1   # full epoch variant; control total steps via dataset
   max_steps: -1   # unlimited steps (controlled by epochs)
   precision: bf16-mixed
-  accumulate_grad_batches: 2  # Effective batch = 48 * 4 * 2 = 384
+  accumulate_grad_batches: 1  # REDUCED: No accumulation for faster iterations (Effective batch = 96 * 4 * 1 = 384)
   devices: 4
   accelerator: gpu
   strategy: ddp
@@ -106,5 +106,5 @@ callbacks:
 logger:
   wandb:
     group: "H100-4GPU-continued-pretraining-OPTIMIZED"  # NEW: Separate group
-    name: "adafactor-relative-step-clip-1.0-OPTIMIZED-full-epoch"  # NEW: Clearly marked
-    tags: ["relative-step", "adafactor", "clip-1.0", "full-epoch", "OPTIMIZED", "t5-formula"]
+    name: "adafactor-batch96-no-accum-70GB-VRAM-50olp"  # Updated: Shows new config
+    tags: ["relative-step", "adafactor", "clip-1.0", "full-epoch", "OPTIMIZED", "t5-formula", "batch96", "70GB-VRAM", "50olp"]
