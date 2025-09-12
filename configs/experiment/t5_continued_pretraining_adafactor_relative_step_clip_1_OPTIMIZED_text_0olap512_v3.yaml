@@ -1,0 +1,119 @@
+# @package _global_
+
+# T5 Continued Pretraining - Adafactor relative_step OPTIMIZED with 0% OVERLAP DATASET
+# No external scheduler, gradient clip 1.0, 4x H100
+# Uses exact T5 formula (1.109x expansion, target_length=114)
+# NEW: Uses 0% overlap sliding windows dataset (text_0olap512_v3)
+
+defaults:
+  - override /data: t5_pretraining_text_windows
+  - override /model: t5_base
+  - override /trainer: gpu
+  - override /logger: wandb
+  - override /callbacks: default
+
+experiment_name: t5_continued_pretraining_adafactor_relative_step_clip_1_OPTIMIZED_text_0olap512_v3
+
+tags: ["t5-base", "4gpu", "text-windows", "h100", "relative-step", "adafactor", "clip-1.0", "OPTIMIZED", "t5-formula", "text-0olap512-v3"]
+
+seed: 42
+
+# Use a new directory following the naming convention for 0% overlap variants
+hydra:
+  run:
+    dir: pretraining_logs_adafactor_relative_step_clip1_OPTIMIZED_text_0olap512_v3/train/runs/${now:%Y-%m-%d_%H-%M-%S}
+
+# Disable testing for pretraining
+test: false
+train: true
+
+# 4-GPU training settings (OPTIMIZED for better GPU utilization)
+data:
+  _target_: src.data.t5_datamodule_v2.T5DataModule  # Use V2 for optimized mode
+  # Override data directory to use 0% overlap dataset (v3)
+  data_dir: /fscratch/nrauscher/projects/BA-hydra/data/windows_text_0olap_512_v3/enriched_windows
+  batch_size: 96  # DOUBLED: per-GPU batch size (~70GB VRAM usage from 35GB)
+  limit_files: -1  # Use all files
+  limit_documents: -1  # Use all docs for representative sampling
+  train_val_split: [0.999226, 0.000774]  # ~100k val windows for 0% overlap dataset
+  num_workers: 4   # Keep same to avoid RAM issues
+  prefetch_factor: 2  # Keep same to avoid RAM issues
+  persistent_workers: true
+  seed: 42
+  use_optimized_collator: true  # NEW: Enable T5-formula mode
+  # Tokenizer settings
+  tokenizer_name_or_path: t5-base
+  max_length: 512
+  corruption_rate: 0.15
+  mean_span_length: 3
+  use_materialized_windows: true
+
+# 4-GPU distributed training settings (optimized throughput)
+trainer:
+  max_epochs: 3   # 3 epochs for extended training on 0% overlap dataset
+  max_steps: -1   # unlimited steps (controlled by epochs)
+  precision: bf16-mixed
+  accumulate_grad_batches: 1  # REDUCED: No accumulation for faster iterations (Effective batch = 96 * 4 * 1 = 384)
+  devices: 4
+  accelerator: gpu
+  strategy: ddp
+  gradient_clip_val: 1.0
+  check_val_every_n_epoch: null
+  limit_val_batches: null
+  val_check_interval: 5000
+  log_every_n_steps: 1
+  use_distributed_sampler: false
+
+model:
+  t5_model:
+    enable_gradient_checkpointing: true
+
+  optimizer:
+    _target_: transformers.optimization.Adafactor
+    # Adafactor recommended settings for relative step sizing
+    relative_step: true
+    warmup_init: true
+    scale_parameter: true
+    lr: null
+    _partial_: true
+    # Avoid AdamW leftovers
+    betas: null
+    weight_decay: null
+
+  # No external scheduler when using Adafactor relative_step
+  scheduler: null
+
+callbacks:
+  model_checkpoint:
+    dirpath: "${hydra:runtime.output_dir}/checkpoints/best/"
+    filename: "step-{step:06d}-val_ppl-{val/perplexity:.5f}"
+    save_top_k: 10
+    monitor: "val/perplexity"
+    mode: "min"
+    save_last: true
+    save_on_train_epoch_end: false
+    save_weights_only: false
+  step_checkpoint:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: "${hydra:runtime.output_dir}/checkpoints/steps/"
+    filename: "step-{step:06d}"
+    every_n_train_steps: 10000  # Checkpoint every 10k steps: ~14 checkpoints per epoch (140k steps)
+    save_last: true
+    save_top_k: 42  # Keep checkpoints for 3 epochs (14 per epoch)
+    monitor: "step"
+    mode: "max"
+    save_weights_only: false
+  early_stopping:
+    monitor: "val/loss"
+    mode: "min"
+    patience: 90
+    min_delta: 0.01
+    check_finite: false
+    verbose: true
+  rich_progress_bar: null
+
+logger:
+  wandb:
+    group: "adafactor-text-0olap512-v3-OPTIMIZED"  # Following naming convention
+    name: "adafactor-relative-step-OPTIMIZED-text-0olap512-v3"  # Shows dataset and optimization
+    tags: ["relative-step", "adafactor", "clip-1.0", "full-epoch", "OPTIMIZED", "t5-formula", "batch96", "70GB-VRAM", "text-0olap512-v3"]
