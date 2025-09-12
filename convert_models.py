@@ -24,6 +24,8 @@ import glob
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from datetime import datetime
+import re
+import time
 import torch
 from transformers import T5ForConditionalGeneration, T5Tokenizer, T5Config
 
@@ -78,6 +80,32 @@ class CheckpointAnalyzer:
                 'config_name': 'flan_t5_lr_001_gradient_clip_1_with_inverse_sqrt_schedule.yaml',
                 'full_name_template': 'yellow-run-flan-t5-base-sci-cp-en-{steps}k-steps-lr0001-clip1'
             }
+        elif 'pretraining_logs_text_0olap512_v3_lr_001_bugfixed' in path_lower:
+            return {
+                'run_name': 'v3-0olap-lr001',
+                'run_type': 'v3-0olap-lr001',
+                'base_model': 't5-base',
+                'base_model_hf': 't5-base',
+                'learning_rate': 0.001,
+                'gradient_clip': 1.0,
+                'scheduler': 'inverse_sqrt',
+                'warmup_steps': 50000,
+                'config_name': 't5_continued_pretraining_lr_001_bugfixed_text_0olap512_v3_warmup50k.yaml',
+                'full_name_template': 'v3-0olap-t5-base-en-{steps}k-steps-lr001'
+            }
+        elif 'pretraining_logs_text_0olap512_v3_lr_0001_bugfixed' in path_lower:
+            return {
+                'run_name': 'v3-0olap-lr0001',
+                'run_type': 'v3-0olap-lr0001',
+                'base_model': 't5-base',
+                'base_model_hf': 't5-base',
+                'learning_rate': 0.0001,
+                'gradient_clip': 1.0,
+                'scheduler': 'inverse_sqrt',
+                'warmup_steps': 50000,
+                'config_name': 't5_continued_pretraining_lr_0001_bugfixed_text_0olap512_v3_warmup50k.yaml',
+                'full_name_template': 'v3-0olap-t5-base-en-{steps}k-steps-lr0001'
+            }
         else:
             return {
                 'run_name': 'unknown-run',
@@ -115,11 +143,21 @@ class CheckpointAnalyzer:
             
             # Extract step from filename if available
             filename = checkpoint_path.name
-            if 'step=' in filename:
-                import re
-                match = re.search(r'step=(\d+)', filename)
+            # Common step encodings in filenames
+            # 1) lightning steps format: ...step=123456.ckpt
+            match = re.search(r'step=(\d+)', filename)
+            if match:
+                metadata['step_from_filename'] = int(match.group(1))
+            else:
+                # 2) best checkpoint format: step-123456-val_ppl-*.ckpt
+                match = re.search(r'step-(\d+)-val_ppl-[0-9.]+', filename)
                 if match:
                     metadata['step_from_filename'] = int(match.group(1))
+                else:
+                    # 3) epoch format: epoch-X-step-123456.ckpt
+                    match = re.search(r'epoch-\d+-step-(\d+)', filename)
+                    if match:
+                        metadata['step_from_filename'] = int(match.group(1))
             
             # Hyperparameters
             if 'hyper_parameters' in checkpoint:
@@ -146,7 +184,6 @@ class CheckpointAnalyzer:
             
             # Extract validation perplexity from filename if available
             if 'val_ppl' in filename:
-                import re
                 match = re.search(r'val_ppl-([0-9.]+)', filename)
                 if match:
                     metadata['val_perplexity'] = float(match.group(1))
@@ -205,7 +242,11 @@ class ModelConverter:
             ppl_str = f"ppl-{val_ppl:.3f}".replace('.', '')
             parts.append(ppl_str)
         
-        return '-'.join(parts)
+        name = '-'.join(parts)
+        if not name:
+            # Fallback to safe timestamped name
+            name = f"model_{int(time.time())}"
+        return name
     
     def convert_checkpoint(self, checkpoint_path: Path, metadata: Dict) -> Path:
         """Convert single checkpoint to HuggingFace format"""
