@@ -10,6 +10,24 @@ This document summarizes all current T5 continued‑pretraining experiments in t
 - Validated windows (legacy/pre‑existing)
   - Path: `/fscratch/nrauscher/projects/BA-hydra/data/validated_sliding_windows/validated`
 
+
+  - old Dataset 50% overlap sliding‑window dataset (legacy)
+
+## Current Gold Models
+
+- English Gold Model:
+  - Name: lr_001_OPTIMIZED_50olap_487500k_vppl_3.72168_gold
+  - Path: `pretraining_logs_lr_001_OPTIMIZED_clean_restart/train/runs/2025-09-08_02-33-22/checkpoints/best/step-487500-val_ppl-3.72168.ckpt`
+  - Performance: MMLU 0.2687 (+17.3% vs T5‑Base, EN 0‑shot)
+  - Method: T5‑Base → continued pretraining for 487k steps on validated windows (50% overlap), LR 0.001, OPTIMIZED collator
+  - diffrents vs other runs: uses legacy 50% overlap dataset and the OPTIMIZED T5‑formula collator (exact target_length=114 tokens)
+
+- German transferd Gold Model:
+  - Name: german_T5_Optimized_50Olap_clean_restart_487k
+  - Path: `cross_lingual_transfer/models/german_T5_Optimized_50Olap_clean_restart_487k/`
+  - Performance: TBD (evaluation running)
+  - Method: Wechsel transfer from the English Gold checkpoint (keeps all EN weights; swaps embeddings)
+
 ## Runs on 0% overlap dataset (512, v3)
 
 ### NEW: OPTIMIZED COLLATOR RUNS (T5-Formula Mode)
@@ -30,7 +48,7 @@ This document summarizes all current T5 continued‑pretraining experiments in t
   - Effective batch: 384 (48 × 4 GPUs × accumulate=2)
   - Split: `train_val_split: [0.999226, 0.000774]` (~100k validation windows)
 
-#### LR 0.001 — OPTIMIZED warmup 50k [NEW - ready to start]
+#### LR 0.001 — OPTIMIZED warmup 50k [still running]
 - Config: `configs/experiment/t5_continued_pretraining_lr_001_OPTIMIZED_text_0olap512_v3_warmup50k.yaml`
 - Start job: `jobs/t5_continued_pretraining_lr_001_OPTIMIZED_text_0olap512_v3.sh`
 - Smart‑resume: `jobs/smart_resume_t5_continued_pretraining_lr_001_OPTIMIZED_text_0olap512_v3_warmup50k.sh`
@@ -40,6 +58,15 @@ This document summarizes all current T5 continued‑pretraining experiments in t
 - **NEW**: Uses T5-formula collator (1.109x expansion, target_length=114)
 - **Optimization**: 35% less CPU overhead vs 1.5x heuristic
 - Key hyperparams: as above, but lr=1e‑3
+
+#### Adafactor relative_step — OPTIMIZED (no scheduler) [still running]
+- Config: `configs/experiment/t5_continued_pretraining_adafactor_relative_step_clip_1_OPTIMIZED_text_0olap512_v3.yaml`
+- Start job: `jobs/t5_continued_pretraining_adafactor_relative_step_clip_1_OPTIMIZED_text_0olap512_v3.sh`
+- Smart‑resume: `jobs/smart_resume_t5_continued_pretraining_adafactor_relative_step_clip_1_OPTIMIZED_text_0olap512_v3.sh`
+- Hydra root: `pretraining_logs_adafactor_relative_step_clip1_OPTIMIZED_text_0olap512_v3/train/runs`
+- dir: `pretraining_logs_adafactor_relative_step_clip1_OPTIMIZED_text_0olap512_v3/train/runs/${now:%Y-%m-%d_%H-%M-%S}`
+- Dataset: 0% overlap (512, v3)
+- Notes: Adafactor with `relative_step: true`, gradient clip 1.0, optimized collator (target_length≈114)
 
 ### LEGACY RUNS (1.5x Heuristic - Backwards Compatible)
 
@@ -115,6 +142,15 @@ This document summarizes all current T5 continued‑pretraining experiments in t
 - dir: `pretraining_logs_adafactor_relative_step_clip1/train/runs/${now:%Y-%m-%d_%H-%M-%S}`
 - Dataset: validated windows (50% overlap)
 
+### Adafactor relative_step — OPTIMIZED collator (no scheduler) [still running]
+- Config: `configs/experiment/t5_continued_pretraining_adafactor_relative_step_clip_1_OPTIMIZED.yaml`
+- Start job: `jobs/t5_continued_pretraining_adafactor_relative_step_clip_1_OPTIMIZED.sh`
+- Smart‑resume: `jobs/smart_resume_t5_continued_pretraining_adafactor_relative_step_clip_1_OPTIMIZED.sh`
+- Hydra root: `pretraining_logs_adafactor_relative_step_clip1_OPTIMIZED/train/runs`
+- dir: `pretraining_logs_adafactor_relative_step_clip1_OPTIMIZED/train/runs/${now:%Y-%m-%d_%H-%M-%S}`
+- Dataset: validated windows (50% overlap)
+- Notes: Same setup as above, but using the OPTIMIZED collator (T5‑formula, target_length≈114)
+
 ### Runs which we trained one full epoch on our data, Original our best and final runs but we found a critical bug so they are deprecated too 
 For these runs I already did a lot of evaluation like the heatmaps over all checkpoints and also benchmarking them on multiple benchmarks like MMLU 
 
@@ -136,6 +172,16 @@ For these runs I already did a lot of evaluation like the heatmaps over all chec
 - Hydra root: `pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs`
 - Dataset: validated windows (50% overlap)
 - Notes: lr=1e‑3, warmup=20k, validated windows 50% overlap 
+
+### LR 0.001 — OPTIMIZED clean‑restart [still running]
+- Config: `configs/experiment/t5_continued_pretraining_lr_001_OPTIMIZED_clean_restart.yaml`
+- Start job: `jobs/t5_continued_pretraining_lr_001_OPTIMIZED_clean_restart.sh`
+- Smart‑resume: `jobs/smart_resume_t5_continued_pretraining_lr_001_OPTIMIZED_clean_restart.sh`
+- Hydra root: `pretraining_logs_lr_001_OPTIMIZED_clean_restart/train/runs`
+- dir: `pretraining_logs_lr_001_OPTIMIZED_clean_restart/train/runs/${now:%Y-%m-%d_%H-%M-%S}`
+- Dataset: validated windows (50% overlap)
+- Notes: Clean‑restart family with OPTIMIZED collator (T5‑formula, exact target_length=114) for apples‑to‑apples comparison.
+- Gold checkpoint used for transfer/eval: `pretraining_logs_lr_001_OPTIMIZED_clean_restart/train/runs/2025-09-08_02-33-22/checkpoints/best/step-487500-val_ppl-3.72168.ckpt` (MMLU 0.2687, +17.3% vs T5‑Base)
 
 ### FLAN‑T5 LR 0.001 — inverse sqrt schedule e.g. Yellow Run 
 - Config: `configs/experiment/flan_t5_lr_001_gradient_clip_1_with_inverse_sqrt_schedule.yaml`
