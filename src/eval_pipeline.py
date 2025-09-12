@@ -522,6 +522,30 @@ class BenchmarkRunner:
         hydra_output_dir = Path(HydraConfig.get().runtime.output_dir)
         output_base = hydra_output_dir / "evaluation/results/universal" / self.cfg.experiment_name
         output_base.mkdir(parents=True, exist_ok=True)
+
+        # Create friendlier convenience link grouped by date only
+        try:
+            # Derive date/time from hydra run dir name if possible
+            stamp = hydra_output_dir.name
+            m = re.match(r"(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})", stamp)
+            if m:
+                date_str, time_str = m.group(1), m.group(2)
+            else:
+                now = datetime.now()
+                date_str, time_str = now.strftime("%Y-%m-%d"), now.strftime("%H-%M-%S")
+
+            project_root = Path(self.cfg.paths.root_dir)
+
+            # by_date: evaluation/results/by_date/YYYY-MM-DD/HH-MM-SS/<experiment_name> -> output_base
+            by_date_link = project_root / "evaluation" / "results" / "by_date" / date_str / time_str / self.cfg.experiment_name
+            by_date_link.parent.mkdir(parents=True, exist_ok=True)
+            if not by_date_link.exists():
+                os.symlink(output_base, by_date_link, target_is_directory=True)
+                log.info(f"📁 Linked results (by_date): {by_date_link}")
+
+            # Note: We intentionally do NOT create by_experiment links to keep layout minimal
+        except Exception as e:
+            log.warning(f"Could not create convenience result links: {e}")
         
         shots = benchmark_config.get('shots', [0, 5])
         
@@ -629,8 +653,8 @@ class BenchmarkRunner:
             "--model", "hf",
             "--model_args", model_args,
             "--tasks", task_name,
-            "--device", benchmark_config.get('device', 'cuda'),
-            "--batch_size", benchmark_config.get('batch_size', 'auto'),
+            "--device", str(benchmark_config.get('device', 'cuda')),
+            "--batch_size", str(benchmark_config.get('batch_size', 'auto')),
             "--output_path", str(output_dir),
             "--num_fewshot", str(shots),
             "--trust_remote_code"
