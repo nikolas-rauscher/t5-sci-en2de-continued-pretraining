@@ -18,6 +18,10 @@ import logging
 import subprocess
 import time
 import csv
+import threading
+import queue
+import hashlib
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Union, Any, Tuple
@@ -176,71 +180,18 @@ class ModelManager:
         self.temp_dir = self.project_root / "evaluation" / "models" / "temp"
         self.temp_dir.mkdir(parents=True, exist_ok=True)
         
+        # Aggressive background conversion for performance optimization
+        self._conversion_queue = queue.Queue()
+        self._conversion_results = {}
+        self._conversion_threads = []
+        self._stop_conversion = threading.Event()
+        self._conversion_cache = {}  # Cache for already converted models
+        self._max_conversion_workers = min(12, max(4, int(os.cpu_count() * 0.75)))  # Use up to 75% of CPU cores for conversion
+        
     def prepare_model(self, model_config: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
         """Prepare model for evaluation and return path + enriched metadata"""
-        
-        source_type = model_config.get('source_type', 'auto')
-        # Accept both 'source_path' and legacy 'path' keys
-        source_path = model_config.get('source_path', model_config.get('path'))
-        if not source_path:
-            raise KeyError("Model config must include 'source_path' (or legacy alias 'path')")
-        
-        # Auto-detect source type if not specified
-        if source_type == 'auto':
-            source_type = self._detect_source_type(source_path)
-            
-        # Prepare metadata
-        metadata = model_config.get('metadata', {})
-        
-        if source_type == 'huggingface':
-            # Use HuggingFace model directly
-            model_path = source_path
-            metadata.update({
-                'source_type': 'huggingface',
-                'original_source': source_path
-            })
-            
-        elif source_type == 'converted_path':
-            # Use existing converted model
-            path = Path(source_path)
-            if not path.is_absolute():
-                path = self.project_root / path
-            if not path.exists():
-                raise FileNotFoundError(f"Converted model not found: {path}")
-            
-            model_path = str(path)
-            metadata.update({
-                'source_type': 'converted_path',
-                'original_source': source_path
-            })
-            
-        elif source_type == 'checkpoint':
-            # Convert checkpoint and extract metadata
-            ckpt_path = Path(source_path)
-            if not ckpt_path.is_absolute():
-                ckpt_path = self.project_root / ckpt_path
-            if not ckpt_path.exists():
-                raise FileNotFoundError(f"Checkpoint not found: {ckpt_path}")
-                
-            # Extract metadata from checkpoint
-            checkpoint_metadata = CheckpointAnalyzer.analyze_checkpoint(ckpt_path)
-            metadata.update(checkpoint_metadata)
-            metadata.update({
-                'source_type': 'checkpoint',
-                'original_checkpoint': str(ckpt_path)
-            })
-            
-            # Generate model name based on metadata
-            model_name = self._generate_model_name(model_config, checkpoint_metadata)
-            
-            # Convert checkpoint
-            output_path = self.temp_dir / model_name
-            model_path = self._convert_checkpoint(ckpt_path, output_path, metadata)
-            
-        else:
-            raise ValueError(f"Unknown source_type: {source_type}")
-            
-        return model_path, metadata
+        # Use optimized conversion (cache + background conversion)
+        return self.get_converted_model(model_config)
     
     def _detect_source_type(self, source_path: str) -> str:
         """Auto-detect source type from path"""
@@ -475,11 +426,197 @@ class ModelManager:
     
     def cleanup_temp_models(self):
         """Remove temporary converted models"""
+        # Stop all background conversion threads
+        if self._conversion_threads:
+            self._stop_conversion.set()
+            for thread in self._conversion_threads:
+                if thread.is_alive():
+                    thread.join(timeout=10)
+            log.info(f"Stopped {len(self._conversion_threads)} conversion threads")
+            
         if self.cfg.eval.get('cleanup_temp_models', True):
             import shutil
             if self.temp_dir.exists():
                 shutil.rmtree(self.temp_dir)
                 log.info(f"Cleaned up temporary models: {self.temp_dir}")
+    
+    def _get_cache_key(self, model_config: Dict[str, Any]) -> str:
+        """Generate unique cache key for model"""
+        source_path = model_config.get('source_path', model_config.get('path', ''))
+        
+        # For checkpoints, use file modification time + path
+        if source_path.endswith('.ckpt'):
+            full_path = self.project_root / source_path
+            if full_path.exists():
+                mtime = full_path.stat().st_mtime
+                return hashlib.md5(f"{source_path}_{mtime}".encode()).hexdigest()
+        
+        # For other models, use just the path
+        return hashlib.md5(source_path.encode()).hexdigest()
+    
+    def _check_conversion_cache(self, model_config: Dict[str, Any]) -> Optional[Tuple[str, Dict[str, Any]]]:
+        """Check if model is already converted and cached"""
+        cache_key = self._get_cache_key(model_config)
+        
+        if cache_key in self._conversion_cache:
+            cached_path, cached_metadata = self._conversion_cache[cache_key]
+            # Verify cached model still exists
+            if Path(cached_path).exists():
+                log.info(f"Using cached conversion: {cached_path}")
+                return cached_path, cached_metadata
+            else:
+                # Remove invalid cache entry
+                del self._conversion_cache[cache_key]
+        
+        return None
+    
+    def _background_conversion_worker(self):
+        """Background thread worker for model conversion"""
+        while not self._stop_conversion.is_set():
+            try:
+                # Wait for model to convert (with timeout)
+                model_config = self._conversion_queue.get(timeout=1.0)
+                if model_config is None:  # Poison pill to stop
+                    break
+                
+                cache_key = self._get_cache_key(model_config)
+                log.info(f"Background converting: {model_config.get('name', 'unnamed')}")
+                
+                try:
+                    # Perform actual conversion
+                    model_path, metadata = self._convert_model_internal(model_config)
+                    
+                    # Cache result
+                    self._conversion_cache[cache_key] = (model_path, metadata)
+                    self._conversion_results[cache_key] = (model_path, metadata)
+                    
+                    log.info(f"Background conversion completed: {model_config.get('name', 'unnamed')}")
+                    
+                except Exception as e:
+                    log.error(f"Background conversion failed: {e}")
+                    self._conversion_results[cache_key] = None
+                
+                self._conversion_queue.task_done()
+                
+            except queue.Empty:
+                continue  # Timeout, check stop flag and continue
+            except Exception as e:
+                log.error(f"Background conversion worker error: {e}")
+    
+    def start_background_conversion(self):
+        """Start multiple background conversion threads"""
+        if not self._conversion_threads or not any(t.is_alive() for t in self._conversion_threads):
+            self._stop_conversion.clear()
+            self._conversion_threads = []
+            
+            for i in range(self._max_conversion_workers):
+                thread = threading.Thread(
+                    target=self._background_conversion_worker, 
+                    daemon=True,
+                    name=f"ConversionWorker-{i+1}"
+                )
+                thread.start()
+                self._conversion_threads.append(thread)
+            
+            log.info(f"Started {self._max_conversion_workers} background conversion threads (CPU cores: {os.cpu_count()})")
+    
+    def queue_model_for_conversion(self, model_config: Dict[str, Any]):
+        """Queue model for background conversion"""
+        # Only queue if not already cached
+        if self._check_conversion_cache(model_config) is None:
+            self._conversion_queue.put(model_config)
+            log.info(f"Queued for background conversion: {model_config.get('name', 'unnamed')}")
+    
+    def get_converted_model(self, model_config: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
+        """Get converted model, either from cache, background conversion, or convert now"""
+        cache_key = self._get_cache_key(model_config)
+        
+        # Check cache first
+        cached_result = self._check_conversion_cache(model_config)
+        if cached_result:
+            return cached_result
+        
+        # Check if background conversion completed
+        if cache_key in self._conversion_results:
+            result = self._conversion_results[cache_key]
+            if result is not None:
+                log.info(f"Using background-converted model: {model_config.get('name', 'unnamed')}")
+                return result
+            else:
+                log.warning(f"Background conversion failed, converting synchronously: {model_config.get('name', 'unnamed')}")
+        
+        # Fall back to synchronous conversion
+        log.info(f"Converting synchronously: {model_config.get('name', 'unnamed')}")
+        model_path, metadata = self._convert_model_internal(model_config)
+        
+        # Cache result
+        self._conversion_cache[cache_key] = (model_path, metadata)
+        return model_path, metadata
+    
+    def _convert_model_internal(self, model_config: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
+        """Internal method for actual model conversion (called by both sync and async paths)"""
+        source_type = model_config.get('source_type', 'auto')
+        source_path = model_config.get('source_path', model_config.get('path'))
+        
+        if not source_path:
+            raise KeyError("Model config must include 'source_path' (or legacy alias 'path')")
+        
+        # Auto-detect source type if not specified
+        if source_type == 'auto':
+            source_type = self._detect_source_type(source_path)
+            
+        # Prepare metadata
+        metadata = model_config.get('metadata', {})
+        
+        if source_type == 'huggingface':
+            # Use HuggingFace model directly
+            model_path = source_path
+            metadata.update({
+                'source_type': 'huggingface',
+                'original_source': source_path
+            })
+            
+        elif source_type == 'converted_path':
+            # Use existing converted model
+            path = Path(source_path)
+            if not path.is_absolute():
+                path = self.project_root / path
+            if not path.exists():
+                raise FileNotFoundError(f"Converted model not found: {path}")
+            
+            model_path = str(path)
+            metadata.update({
+                'source_type': 'converted_path',
+                'original_source': source_path
+            })
+            
+        elif source_type == 'checkpoint':
+            # Convert checkpoint and extract metadata
+            ckpt_path = Path(source_path)
+            if not ckpt_path.is_absolute():
+                ckpt_path = self.project_root / ckpt_path
+            if not ckpt_path.exists():
+                raise FileNotFoundError(f"Checkpoint not found: {ckpt_path}")
+                
+            # Extract metadata from checkpoint
+            checkpoint_metadata = CheckpointAnalyzer.analyze_checkpoint(ckpt_path)
+            metadata.update(checkpoint_metadata)
+            metadata.update({
+                'source_type': 'checkpoint',
+                'original_checkpoint': str(ckpt_path)
+            })
+            
+            # Generate model name based on metadata
+            model_name = self._generate_model_name(model_config, checkpoint_metadata)
+            
+            # Convert checkpoint
+            output_path = self.temp_dir / model_name
+            model_path = self._convert_checkpoint(ckpt_path, output_path, metadata)
+            
+        else:
+            raise ValueError(f"Unknown source_type: {source_type}")
+            
+        return model_path, metadata
 
 
 class BenchmarkRunner:
@@ -1053,31 +1190,53 @@ def evaluate(cfg: DictConfig) -> Dict[str, Any]:
     all_results = {}
     
     try:
-        # Process each model
+        # Start aggressive background conversion and queue ALL models immediately
+        model_manager.start_background_conversion()
+        
+        # Queue ALL models for background conversion (aggressive preloading)
+        for i, model_config in enumerate(cfg.models):
+            model_manager.queue_model_for_conversion(model_config)
+        
+        log.info(f"Started aggressive conversion: {model_manager._max_conversion_workers} threads converting {len(cfg.models)} models in parallel")
+        
+        # AGGRESSIVE GPU-Parallel Evaluation Setup 
+        # T5-base is only ~850MB, you have 80GB GPU and currently only use 32GB
+        # Let's use 60GB (75% of GPU memory) = ~70 models or 12-15 parallel evals
+        max_gpu_parallel = min(15, len(cfg.models))  # AGGRESSIVE: 15 parallel evals on 80GB GPU
+        log.info(f"🚀🚀🚀 MAXIMUM GPU-parallel evaluation: {max_gpu_parallel} models in parallel (targeting 60GB/80GB GPU usage)")
+        
+        # Prepare evaluation tasks
+        eval_tasks = []
         for i, model_config in enumerate(cfg.models):
             # Generate model name if not provided
             if 'name' in model_config and model_config['name']:
                 model_name = model_config['name']
             else:
-                # Use auto-generation based on source path
                 model_name = f"model_{i+1}"  # Temporary, will be updated after metadata extraction
             
+            eval_tasks.append((i, model_config, model_name))
+        
+        # Execute evaluations in parallel batches
+        def evaluate_model_task(task_info):
+            i, model_config, model_name = task_info
+            
             log.info(f"\n{'='*60}")
-            log.info(f"Processing model: {model_name}")
+            log.info(f"🔄 GPU-Parallel Processing model {i+1}/{len(cfg.models)}: {model_name}")
             log.info(f"Source: {model_config.get('source_path', model_config.get('path', 'unknown'))}")
             log.info(f"{'='*60}")
             
             try:
                 # Prepare model (convert if necessary) and extract metadata
+                # This will use cache/background conversion when available
                 model_path, metadata = model_manager.prepare_model(model_config)
                 
                 # Generate proper model name from metadata if not provided
                 if 'name' not in model_config or not model_config['name']:
                     model_name = model_manager._generate_model_name(model_config, metadata)
                 
-                log.info(f"Model name: {model_name}")
-                log.info(f"Model path: {model_path}")
-                log.info(f"Extracted metadata: {metadata}")
+                log.info(f"✅ Model ready: {model_name}")
+                log.info(f"📂 Model path: {model_path}")
+                log.info(f"📋 Extracted metadata: {metadata}")
                 
                 model_results = {
                     'model_config': model_config,
@@ -1088,7 +1247,7 @@ def evaluate(cfg: DictConfig) -> Dict[str, Any]:
                 
                 # Run each benchmark
                 for benchmark_config in cfg.benchmarks:
-                    log.info(f"\nRunning benchmark: {benchmark_config['name']}")
+                    log.info(f"\n🧪 Running benchmark: {benchmark_config['name']} on {model_name}")
                     
                     benchmark_results = benchmark_runner.run_benchmark(
                         model_path, model_name, benchmark_config
@@ -1101,15 +1260,34 @@ def evaluate(cfg: DictConfig) -> Dict[str, Any]:
                         model_name, metadata, benchmark_config['name'], benchmark_results
                     )
                 
-                all_results[model_name] = model_results
+                log.info(f"✅ Completed evaluation for {model_name}")
+                return model_name, model_results
                 
             except Exception as e:
-                log.error(f"Failed to process model {model_name}: {e}")
-                all_results[model_name] = {
+                log.error(f"❌ Failed to process model {model_name}: {e}")
+                return model_name, {
                     'model_config': model_config,
                     'status': 'failed',
                     'error': str(e)
                 }
+        
+        # Execute evaluations in parallel using ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=max_gpu_parallel, thread_name_prefix="GPUEval") as executor:
+            # Submit all tasks
+            future_to_task = {executor.submit(evaluate_model_task, task): task for task in eval_tasks}
+            
+            # Process completed tasks
+            for future in as_completed(future_to_task):
+                task = future_to_task[future]
+                try:
+                    model_name, model_results = future.result()
+                    all_results[model_name] = model_results
+                    log.info(f"🎯 Completed {len(all_results)}/{len(cfg.models)} models")
+                except Exception as e:
+                    task_info = task
+                    log.error(f"❌ Task failed for {task_info}: {e}")
+        
+        log.info(f"🎉 All {len(cfg.models)} models evaluated in parallel!")
         
         # Save results
         save_results(cfg, all_results)

@@ -45,9 +45,9 @@ def parse_still_running_roots(report_path: Path) -> list[Path]:
     i = 0
     while i < len(text):
         line = text[i]
-        if line.startswith("### ") and "[still running]" in line:
+        if (line.startswith("### ") or line.startswith("#### ")) and "[still running]" in line:
             j = i + 1
-            while j < len(text) and not text[j].startswith("### "):
+            while j < len(text) and not (text[j].startswith("### ") or text[j].startswith("#### ")):
                 l = text[j]
                 if "Hydra root" in l and "`" in l:
                     try:
@@ -114,8 +114,24 @@ def is_best_ckpt(path: Path) -> bool:
 
 
 def sample_checkpoints(ckpts: list[Path], include_best: bool, step_interval: int | None, include_all: bool) -> list[Path]:
+    # First, deduplicate by step number - prefer best checkpoints over regular ones
+    by_step: dict[int, Path] = {}
+    for c in ckpts:
+        step = extract_step(c)
+        if step < 0:
+            continue
+        # If we already have this step, prefer the best checkpoint
+        if step in by_step:
+            if is_best_ckpt(c) and not is_best_ckpt(by_step[step]):
+                by_step[step] = c
+        else:
+            by_step[step] = c
+    
+    # Now work with deduplicated checkpoints
+    unique_ckpts = list(by_step.values())
+    
     if include_all:
-        return sorted(ckpts, key=extract_step)
+        return sorted(unique_ckpts, key=extract_step)
 
     # Filter and sample
     selected: list[Path] = []
@@ -123,32 +139,23 @@ def sample_checkpoints(ckpts: list[Path], include_best: bool, step_interval: int
 
     # Always include best checkpoints if requested
     if include_best:
-        bests = [c for c in ckpts if is_best_ckpt(c)]
+        bests = [c for c in unique_ckpts if is_best_ckpt(c)]
         bests.sort(key=extract_step)
         selected.extend(bests)
         seen_steps.update(extract_step(c) for c in bests)
 
     # Add step checkpoints at requested interval
     if step_interval and step_interval > 0:
-        steps = [c for c in ckpts if not is_best_ckpt(c)]
-        steps.sort(key=extract_step)
+        steps = sorted(unique_ckpts, key=extract_step)
         last_included = -step_interval
         for c in steps:
             s = extract_step(c)
-            if s < 0:
-                continue
             if s - last_included >= step_interval and s not in seen_steps:
                 selected.append(c)
                 last_included = s
                 seen_steps.add(s)
 
-    # Deduplicate by path and return sorted
-    uniq, seen = [], set()
-    for c in selected:
-        if c not in seen:
-            uniq.append(c)
-            seen.add(c)
-    return sorted(uniq, key=extract_step)
+    return sorted(selected, key=extract_step)
 
 
 def family_name_from_root(root: Path) -> str:
@@ -171,10 +178,8 @@ def write_experiment_yaml(family: str, ckpts: list[Path]) -> Path:
     lines.append(f"description: \"Progression MMLU EN — {family} (auto-generated)\"")
     lines.append("")
     lines.append("models:")
-    # Determine a concise run label for analyzer styling (optional)
-    run_label = "clean_restart" if "clean_restart" in family else (
-        "green_run" if "gradient_clip_1_with_inverse" in family or "text_0olap512_v3_lr_001" in family else family
-    )
+    # Use actual family name for run label
+    run_label = family
 
     for idx, c in enumerate(ckpts, start=1):
         try:
@@ -215,11 +220,23 @@ def main():
     ap.add_argument("--include-best", action="store_true", help="Always include best checkpoints")
     ap.add_argument("--step-interval", type=int, default=25000, help="Sample step checkpoints every N steps (ignored with --all)")
     ap.add_argument("--filter", type=str, default=None, help="Only include families whose root matches this substring")
+    ap.add_argument("--root", type=str, default=None, help="Directly specify a root path (e.g., pretraining_logs_lr_001_OPTIMIZED_clean_restart_v2/train/runs)")
     args = ap.parse_args()
 
-    roots = parse_still_running_roots(RUNS_REPORT)
-    if args.filter:
-        roots = [r for r in roots if args.filter in str(r)]
+    # If --root is provided, use it directly
+    if args.root:
+        root_path = Path(args.root)
+        if not root_path.is_absolute():
+            root_path = PROJECT_ROOT / root_path
+        # Handle both full path and path without /train/runs
+        if not root_path.name == "runs":
+            root_path = root_path / "train" / "runs"
+        roots = [root_path]
+    else:
+        roots = parse_still_running_roots(RUNS_REPORT)
+        if args.filter:
+            roots = [r for r in roots if args.filter in str(r)]
+    
     if not roots:
         print("No matching families found.")
         return
