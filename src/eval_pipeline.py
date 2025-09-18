@@ -633,8 +633,9 @@ class BenchmarkRunner:
                                 shots: int, output_dir: Path) -> List[str]:
         """Build the evaluation command for lm-eval with native W&B integration"""
         
-        # Check if model_path is a local path (not a HuggingFace model name)
-        is_local_path = Path(model_path).exists() or '/' in model_path
+        # Check if model_path is a local filesystem path (directory or file)
+        # Important: Hugging Face model IDs also contain '/', so do NOT use that heuristic.
+        is_local_path = Path(model_path).expanduser().exists()
         
         if is_local_path:
             # For local paths, use trust_remote_code and local_files_only to avoid HF validation
@@ -848,6 +849,24 @@ class BenchmarkRunner:
                             'parse_status': 'success',
                             'primary_metric': metric,
                             'primary_score': main_result[metric],
+                            'raw_results': data
+                        }
+                # Perplexity-style metrics (prefer word_perplexity -> byte_perplexity -> bits_per_byte)
+                for metric in ['word_perplexity,none', 'byte_perplexity,none', 'bits_per_byte,none']:
+                    if metric in main_result:
+                        return {
+                            'parse_status': 'success',
+                            'primary_metric': metric,
+                            'primary_score': main_result[metric],
+                            'raw_results': data
+                        }
+                # Fallback: pick first metric containing a known key
+                for key in main_result.keys():
+                    if any(k in key for k in ['word_perplexity', 'byte_perplexity', 'bits_per_byte']):
+                        return {
+                            'parse_status': 'success',
+                            'primary_metric': key,
+                            'primary_score': main_result[key],
                             'raw_results': data
                         }
             

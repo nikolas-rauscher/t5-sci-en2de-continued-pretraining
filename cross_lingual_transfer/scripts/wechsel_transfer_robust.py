@@ -261,11 +261,11 @@ class CrossLingualTransferRobust:
 def main():
     """Main ROBUST transfer execution"""
     
-    # Path to best English checkpoint
-    english_checkpoint = "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_gradient_clip_1_with_inverse_sqrt_schedule/train/runs/2025-08-13_23-20-56/checkpoints/steps/step-step=640000.ckpt"
+    # Path to best English checkpoint (Clean Restart - best val_ppl)
+    english_checkpoint = "/netscratch/nrauscher/projects/BA-hydra/pretraining_logs_lr_001_OPTIMIZED_clean_restart/train/runs/2025-09-08_02-33-22/checkpoints/best/step-487500-val_ppl-3.72168.ckpt"
     
-    # Output directory for German model
-    output_dir = "/netscratch/nrauscher/projects/BA-hydra/cross_lingual_transfer/models/german_transferred_robust"
+    # Output directory for German model (Optimized 50% Overlap Clean Restart)
+    output_dir = "/netscratch/nrauscher/projects/BA-hydra/cross_lingual_transfer/models/german_T5_Optimized_50Olap_clean_restart_487k"
     
     # Execute transfer
     transfer = CrossLingualTransferRobust(english_checkpoint, output_dir)
