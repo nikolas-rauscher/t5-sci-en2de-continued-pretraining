@@ -1,0 +1,110 @@
+# @package _global_
+
+# German Continued Pretraining after Wechsel Transfer
+# Based on successful English config: t5_continued_pretraining_lr_001_OPTIMIZED_clean_restart_v2
+# Adapted for German scientific data with same optimizations as English
+
+defaults:
+  - override /data: t5_pretraining_text_windows
+  - override /model: t5_base
+  - override /trainer: gpu
+  - override /logger: wandb
+  - override /callbacks: default
+
+experiment_name: german_continued_pretraining_wechsel
+
+tags: ["german", "cross-lingual-transfer", "wechsel", "1gpu", "15k-steps", "lr-001", "clip-1.0", "OPTIMIZED", "t5-formula"]
+
+seed: 42
+
+# German cross-lingual transfer log directory
+hydra:
+  run:
+    dir: cross_lingual_transfer/logs/train/runs/${now:%Y-%m-%d_%H-%M-%S}
+
+test: false
+train: true
+
+data:
+  # German sliding windows dataset (needs to be prepared)
+  data_dir: /netscratch/nrauscher/projects/BA-hydra/cross_lingual_transfer/data/german/sliding_windows
+  tokenizer_name_or_path: /netscratch/nrauscher/projects/BA-hydra/cross_lingual_transfer/models/german_T5_Optimized_50Olap_clean_restart_487k/tokenizer
+  batch_size: 48  # Match English base batch size
+  limit_files: -1
+  limit_documents: -1
+  train_val_split: [0.999615, 0.000385]  # Same as English: 0.0385% validation for speed
+  num_workers: 4
+  prefetch_factor: 2
+  persistent_workers: true
+  seed: 42
+  use_optimized_collator: true  # CRITICAL: Enable T5-formula optimized collator
+
+trainer:
+  max_steps: 15000  # Short continued pretraining for transfer adaptation
+  max_epochs: -1
+  precision: bf16-mixed
+  accumulate_grad_batches: 1  # Effective batch = 48 * 1 * 1 = 48
+  devices: 1
+  accelerator: gpu
+  strategy: auto
+  gradient_clip_val: 1.0
+  check_val_every_n_epoch: null
+  limit_val_batches: null
+  val_check_interval: 2000  # Every 2k steps (adjusted for 15k total)
+  log_every_n_steps: 1
+  use_distributed_sampler: false  # CRITICAL: Our custom sampler handles distribution
+
+model:
+  t5_model:
+    pretrained_model_name_or_path: /netscratch/nrauscher/projects/BA-hydra/cross_lingual_transfer/models/german_T5_Optimized_50Olap_clean_restart_487k/model
+    enable_gradient_checkpointing: true
+
+  optimizer:
+    _target_: transformers.optimization.Adafactor
+    lr: 1e-3  # Proven 0.001 learning rate from English experiments
+    relative_step: false
+    warmup_init: false
+    scale_parameter: false
+    _partial_: true
+    betas: null
+    weight_decay: null
+
+  scheduler:
+    _target_: transformers.optimization.get_inverse_sqrt_schedule
+    num_warmup_steps: 1500  # 1.5k warmup for 15k total steps (10% like English)
+    _partial_: true
+
+callbacks:
+  model_checkpoint:
+    dirpath: "${hydra:runtime.output_dir}/checkpoints/best/"
+    filename: "step-{step:06d}-val_ppl-{val/perplexity:.5f}"
+    save_top_k: 3
+    monitor: "val/perplexity"
+    mode: "min"
+    save_last: true
+    save_on_train_epoch_end: false
+    save_weights_only: false
+  step_checkpoint:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: "${hydra:runtime.output_dir}/checkpoints/steps/"
+    filename: "step-{step:06d}"
+    every_n_train_steps: 2500  # Save every 2.5k steps
+    save_last: true
+    save_top_k: 5
+    monitor: "step"
+    mode: "max"
+    save_weights_only: false
+  early_stopping:
+    monitor: "val/loss"
+    mode: "min"
+    patience: 5  # Stop if no improvement for 5 validation cycles
+    min_delta: 0.001
+    check_finite: false
+    verbose: true
+  rich_progress_bar: null
+
+logger:
+  wandb:
+    group: "german_wechsel_continued_pretraining"
+    name: "german-15k-wechsel-OPTIMIZED"
+    tags: ["german", "cross-lingual-transfer", "wechsel", "15k-steps", "lr-001", "OPTIMIZED", "t5-formula"]

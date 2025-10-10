@@ -1,0 +1,110 @@
+# @package _global_
+
+# German NATIVE Baseline Continued Pretraining (ORIGINAL TOKENIZER)
+# Scientific comparison: German HF model + original German tokenizer vs Wechsel transfer
+# This is the TRUE baseline for cross-lingual transfer evaluation
+
+defaults:
+  - override /data: t5_pretraining_text_windows
+  - override /model: t5_base
+  - override /trainer: gpu
+  - override /logger: wandb
+  - override /callbacks: default
+
+experiment_name: german_native_baseline_continued_pretraining
+
+tags: ["german", "native-baseline", "original-tokenizer", "1gpu", "15k-steps", "lr-001", "clip-1.0", "OPTIMIZED", "t5-formula", "scientific-comparison"]
+
+seed: 42
+
+# German native baseline log directory
+hydra:
+  run:
+    dir: cross_lingual_transfer/logs/native_baseline/train/runs/${now:%Y-%m-%d_%H-%M-%S}
+
+test: false
+train: true
+
+data:
+  # German sliding windows dataset (same as Wechsel transfer)
+  data_dir: /netscratch/nrauscher/projects/BA-hydra/cross_lingual_transfer/data/german/sliding_windows
+  tokenizer_name_or_path: GermanT5/t5-efficient-gc4-german-base-nl36  # ORIGINAL German tokenizer - NOT transfer tokenizer
+  batch_size: 24  # Reduced due to memory constraints with accumulation
+  limit_files: -1
+  limit_documents: -1
+  train_val_split: [0.999615, 0.000385]  # Same as transfer: 0.0385% validation
+  num_workers: 4
+  prefetch_factor: 2
+  persistent_workers: true
+  seed: 42
+  use_optimized_collator: true  # CRITICAL: Enable T5-formula optimized collator
+
+trainer:
+  max_steps: 15000  # Same as Wechsel transfer for fair comparison
+  max_epochs: -1
+  precision: bf16-mixed
+  accumulate_grad_batches: 2  # Effective batch = 24 * 1 * 2 = 48 (same as transfer)
+  devices: 1
+  accelerator: gpu
+  strategy: auto
+  gradient_clip_val: 1.0
+  check_val_every_n_epoch: null
+  limit_val_batches: null
+  val_check_interval: 2000  # Every 2k steps (same as transfer)
+  log_every_n_steps: 1
+  use_distributed_sampler: false  # CRITICAL: Our custom sampler handles distribution
+
+model:
+  t5_model:
+    pretrained_model_name_or_path: GermanT5/t5-efficient-gc4-german-base-nl36  # Original German T5 (NO English transfer)
+    enable_gradient_checkpointing: true
+
+  optimizer:
+    _target_: transformers.optimization.Adafactor
+    lr: 1e-3  # Same 0.001 learning rate as Wechsel transfer
+    relative_step: false
+    warmup_init: false
+    scale_parameter: false
+    _partial_: true
+    betas: null
+    weight_decay: null
+
+  scheduler:
+    _target_: transformers.optimization.get_inverse_sqrt_schedule
+    num_warmup_steps: 1500  # 1.5k warmup for 15k total steps (10% like transfer)
+    _partial_: true
+
+callbacks:
+  model_checkpoint:
+    dirpath: "${hydra:runtime.output_dir}/checkpoints/best/"
+    filename: "step-{step:06d}-val_ppl-{val/perplexity:.5f}"
+    save_top_k: 3
+    monitor: "val/perplexity"
+    mode: "min"
+    save_last: true
+    save_on_train_epoch_end: false
+    save_weights_only: false
+  step_checkpoint:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: "${hydra:runtime.output_dir}/checkpoints/steps/"
+    filename: "step-{step:06d}"
+    every_n_train_steps: 2500  # Save every 2.5k steps
+    save_last: true
+    save_top_k: 5
+    monitor: "step"
+    mode: "max"
+    save_weights_only: false
+  early_stopping:
+    monitor: "val/loss"
+    mode: "min"
+    patience: 5  # Stop if no improvement for 5 validation cycles
+    min_delta: 0.001
+    check_finite: false
+    verbose: true
+  rich_progress_bar: null
+
+logger:
+  wandb:
+    group: "german_native_baseline_scientific_comparison"
+    name: "german-native-baseline-original-tokenizer-15k"
+    tags: ["german", "native-baseline", "original-tokenizer", "15k-steps", "lr-001", "OPTIMIZED", "t5-formula", "scientific-evaluation"]

@@ -1,0 +1,43 @@
+# @package _global_
+
+experiment_name: "gold_t5_scifive_global_mmlu"
+description: "Zero-shot Global MMLU (EN/DE) comparison: our gold checkpoint vs T5 base/large and SciFive base/large."
+
+models:
+  # Our English gold checkpoint (will be auto-converted to HF format)
+  - source_path: "pretraining_logs_lr_001_OPTIMIZED_clean_restart/train/runs/2025-09-08_02-33-22/checkpoints/best/step-487500-val_ppl-3.72168.ckpt"
+    name: "gold_clean_restart_487k"
+
+  # Baselines: T5 (HF Hub)
+  - source_path: "t5-base"
+    name: "t5-base-original"
+
+  - source_path: "t5-large"
+    name: "t5-large-original"
+
+  # SciFive models (HF Hub)
+  - source_path: "razent/SciFive-base-PubMed"
+    name: "scifive-base-pubmed"
+
+  - source_path: "razent/SciFive-large-PubMed"
+    name: "scifive-large-pubmed"
+
+benchmarks:
+  # Global MMLU English - Zero shot
+  - name: "global_mmlu_en"
+    tasks: ["global_mmlu_full_en"]
+    shots: [0]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+
+
+logger:
+  wandb:
+    project: "BA-T5-CrossLingual"
+    entity: "nikolas-rauscher-dfki"
+    group: "Gold-T5-SciFive-Global-MMLU"
+    name: "gold_t5_scifive_global_mmlu"
+    tags: ["global-mmlu", "zero-shot", "t5-base", "t5-large", "scifive"]
+

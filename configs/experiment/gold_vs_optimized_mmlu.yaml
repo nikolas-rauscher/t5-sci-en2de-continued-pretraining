@@ -1,0 +1,75 @@
+# @package _global_
+
+experiment_name: "gold_vs_optimized_mmlu"
+description: "Comparison of Gold model vs OPTIMIZED runs on MMLU"
+
+models:
+  # Gold Model (baseline reference)
+  - source_path: "pretraining_logs_lr_001_OPTIMIZED_clean_restart/train/runs/2025-09-08_02-33-22/checkpoints/best/step-487500-val_ppl-3.72168.ckpt"
+    name: "GOLD-487k-MMLU-0.2687"
+  
+  # OPTIMIZED text-0olap512-v3 with lr=0.001
+  - source_path: "pretraining_logs_text_0olap512_v3_lr_001_OPTIMIZED/train/runs/2025-09-10_08-24-34/checkpoints/best/step-415000-val_ppl-3.69812.ckpt"
+    name: "lr001-OPTIMIZED-0olap-415k"
+  
+  # Adafactor relative_step OPTIMIZED text-0olap512-v3  
+  - source_path: "pretraining_logs_adafactor_relative_step_clip1_OPTIMIZED_text_0olap512_v3/train/runs/2025-09-14_04-28-34/checkpoints/best/step-685000-val_ppl-3.54337.ckpt"
+    name: "adafactor-OPTIMIZED-0olap-685k"
+  
+  # Adafactor relative_step OPTIMIZED 50% overlap
+  - source_path: "pretraining_logs_adafactor_relative_step_clip1_OPTIMIZED/train/runs/2025-09-14_12-23-54/checkpoints/best/step-295000-val_ppl-3.70987.ckpt"
+    name: "adafactor-OPTIMIZED-50olap-295k"
+  
+  # Latest lr=0.001 OPTIMIZED clean_restart
+  - source_path: "pretraining_logs_lr_001_OPTIMIZED_clean_restart/train/runs/2025-09-13_17-43-38/checkpoints/best/step-677500-val_ppl-3.71713.ckpt"
+    name: "lr001-OPTIMIZED-50olap-677k"
+    
+  # Add baseline T5 for reference
+  - source_path: "t5-base"
+    name: "T5-Base-Baseline"
+
+  # Stronger instruction-tuned baselines (help T5-style models on MMLU)
+  - source_path: "google/flan-t5-base"
+    name: "FLAN-T5-Base"
+  - source_path: "google/flan-t5-large"
+    name: "FLAN-T5-Large"
+
+benchmarks:
+  # Global MMLU English - Zero shot
+  - name: "global_mmlu_en"
+    tasks: ["global_mmlu_full_en_textchoice"]
+    shots: [0, 5]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+  # Original MMLU with FLAN-style prompting (loglikelihood)
+  - name: "mmlu"
+    shots: [0, 5]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+  # Perplexity benchmarks for consistent comparison (general-domain)
+  - name: "mc4_ppl_en"
+    tasks: ["mc4_en_ppl"]
+    shots: [0]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+  - name: "mc4_ppl_de"
+    tasks: ["mc4_de_ppl"]
+    shots: [0]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+
+logger:
+  wandb:
+    project: "BA-T5-CrossLingual"
+    entity: "nikolas-rauscher-dfki"
+    group: "Gold-vs-OPTIMIZED-global_mmlu_full_en_textchoice"
+    name: "gold_vs_optimized_comparison"
+    tags: ["global-mmlu", "gold-model", "optimized", "comparison", "zero-shot", "five-shot"]

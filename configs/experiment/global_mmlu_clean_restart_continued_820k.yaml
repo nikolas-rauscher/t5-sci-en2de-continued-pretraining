@@ -1,0 +1,48 @@
+# @package _global_
+
+experiment_name: "global_mmlu_clean_restart_continued_820k"
+description: "Continued OPTIMIZED clean restart checkpoints (487k-820k) plus German transfer baselines on Global MMLU EN/DE"
+
+models:
+  # English continued pretraining checkpoints
+
+  # Alternative continued-pretraining variant (0% overlap windows)
+  - source_path: "pretraining_logs_text_0olap512_v3_lr_001_OPTIMIZED/train/runs/2025-09-10_08-24-34/checkpoints/best/step-415000-val_ppl-3.69812.ckpt"
+    name: "opt-0olap512-english-415k"
+
+  # Cross-lingual German transfer models
+  - source_path: "cross_lingual_transfer/models/german_T5_Optimized_50Olap_clean_restart_487k"
+    name: "wechsel-german-transfer-487k"
+  - source_path: "cross_lingual_transfer/logs/baseline/train/runs/2025-09-18_22-12-03/checkpoints/best/step-014000-val_ppl-5.60008.ckpt"
+    name: "wechsel-german-transfer-continued-14k"
+
+  # German native baselines
+  - source_path: "cross_lingual_transfer/logs/native_baseline/train/runs/2025-09-18_23-54-00/checkpoints/best/step-015000-val_ppl-7.06258.ckpt"
+    name: "german-native-baseline-continued-15k"
+  - source_path: "cross_lingual_transfer/logs/native_baseline/train/runs/2025-09-18_23-54-00/checkpoints/best/last.ckpt"
+    name: "german-native-baseline-continued-last"
+
+benchmarks:
+  # Global MMLU English (57 tasks)
+  - name: "global_mmlu_en"
+    tasks: ["global_mmlu_full_en"]
+    shots: [0]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+  # Global MMLU German (61 tasks)
+  - name: "global_mmlu_de"
+    tasks: ["global_mmlu_full_de"]
+    shots: [0]
+    seed: 42
+    device: "cuda"
+    batch_size: "auto"
+
+logger:
+  wandb:
+    project: "BA-T5-CrossLingual"
+    entity: "nikolas-rauscher-dfki"
+    group: "Global-MMLU-Clean-Restart-Continued-final"
+    name: "global_mmlu_clean_restart_continued_820k"
+    tags: ["global-mmlu", "english", "german", "clean-restart", "continued", "wechsel", "transfer", "progression"]
