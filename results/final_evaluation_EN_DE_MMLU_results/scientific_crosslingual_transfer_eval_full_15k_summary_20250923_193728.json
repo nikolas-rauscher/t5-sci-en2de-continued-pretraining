@@ -1,0 +1,177 @@
+{
+  "experiment_info": {
+    "name": "scientific_crosslingual_transfer_eval_full_15k",
+    "description": "MMLU 0-shot Vergleich: HF-GermanT5, Wechsel-Init, German native 15k, Wechsel-Weitertraining 15k.",
+    "timestamp": "20250923_193728",
+    "evaluation_date": "2025-09-23T19:37:28.344759",
+    "total_models": 6,
+    "benchmarks": [
+      "global_mmlu_en",
+      "global_mmlu_de"
+    ],
+    "shots_evaluated": [
+      "[0]",
+      "[0]"
+    ]
+  },
+  "models": {
+    "wechsel-transfer-en-487k-continued-pretraind-on-german-15k": {
+      "status": "success",
+      "source_path": "cross_lingual_transfer/logs/train/runs/2025-09-18_21-53-03/checkpoints/steps/step-step=015000.ckpt",
+      "metadata": {
+        "training_steps": 15000,
+        "val_perplexity": null,
+        "training_style": null,
+        "learning_rate": null,
+        "run_date": "2025-09-18",
+        "source_type": "checkpoint"
+      },
+      "benchmarks": {
+        "global_mmlu_en": {
+          "0_shot": {
+            "overall_accuracy": null,
+            "status": "success"
+          }
+        },
+        "global_mmlu_de": {
+          "0_shot": {
+            "overall_accuracy": null,
+            "status": "success"
+          }
+        }
+      }
+    },
+    "wechsel-transfer-en-487k": {
+      "status": "success",
+      "source_path": "cross_lingual_transfer/models/german_T5_Optimized_50Olap_clean_restart_487k",
+      "metadata": {
+        "training_steps": null,
+        "val_perplexity": null,
+        "training_style": null,
+        "learning_rate": null,
+        "run_date": null,
+        "source_type": "huggingface"
+      },
+      "benchmarks": {
+        "global_mmlu_en": {
+          "0_shot": {
+            "overall_accuracy": null,
+            "status": "success"
+          }
+        },
+        "global_mmlu_de": {
+          "0_shot": {
+            "overall_accuracy": null,
+            "status": "success"
+          }
+        }
+      }
+    },
+    "hf-germanT5-continued-pretraind-on-german-15k": {
+      "status": "success",
+      "source_path": "cross_lingual_transfer/logs/native_baseline/train/runs/2025-09-18_23-54-00/checkpoints/steps/step-step=015000.ckpt",
+      "metadata": {
+        "training_steps": 15000,
+        "val_perplexity": null,
+        "training_style": null,
+        "learning_rate": null,
+        "run_date": "2025-09-18",
+        "source_type": "checkpoint"
+      },
+      "benchmarks": {
+        "global_mmlu_en": {
+          "0_shot": {
+            "overall_accuracy": null,
+            "status": "success"
+          }
+        },
+        "global_mmlu_de": {
+          "0_shot": {
+            "overall_accuracy": null,
+            "status": "success"
+          }
+        }
+      }
+    },
+    "hf-germanT5-base": {
+      "status": "success",
+      "source_path": "GermanT5/t5-efficient-gc4-german-base-nl36",
+      "metadata": {
+        "training_steps": null,
+        "val_perplexity": null,
+        "training_style": null,
+        "learning_rate": null,
+        "run_date": null,
+        "source_type": "huggingface"
+      },
+      "benchmarks": {
+        "global_mmlu_en": {
+          "0_shot": {
+            "overall_accuracy": null,
+            "status": "success"
+          }
+        },
+        "global_mmlu_de": {
+          "0_shot": {
+            "overall_accuracy": null,
+            "status": "success"
+          }
+        }
+      }
+    },
+    "gold-continued-pretraind-on-english-487k": {
+      "status": "success",
+      "source_path": "pretraining_logs_lr_001_OPTIMIZED_clean_restart/train/runs/2025-09-08_02-33-22/checkpoints/best/step-487500-val_ppl-3.72168.ckpt",
+      "metadata": {
+        "training_steps": 487500,
+        "val_perplexity": 3.72168,
+        "training_style": "restart",
+        "learning_rate": null,
+        "run_date": "2025-09-08",
+        "source_type": "checkpoint"
+      },
+      "benchmarks": {
+        "global_mmlu_en": {
+          "0_shot": {
+            "overall_accuracy": null,
+            "status": "success"
+          }
+        },
+        "global_mmlu_de": {
+          "0_shot": {
+            "overall_accuracy": null,
+            "status": "success"
+          }
+        }
+      }
+    },
+    "t5-base": {
+      "status": "success",
+      "source_path": "t5-base",
+      "metadata": {
+        "training_steps": null,
+        "val_perplexity": null,
+        "training_style": null,
+        "learning_rate": null,
+        "run_date": null,
+        "source_type": "huggingface"
+      },
+      "benchmarks": {
+        "global_mmlu_en": {
+          "0_shot": {
+            "overall_accuracy": null,
+            "status": "success"
+          }
+        },
+        "global_mmlu_de": {
+          "0_shot": {
+            "overall_accuracy": null,
+            "status": "success"
+          }
+        }
+      }
+    }
+  },
+  "benchmark_rankings": {},
+  "performance_summary": {}
+}
