@@ -235,7 +235,10 @@ pretraining_logs_lr_001_OPTIMIZED_clean_restart_v2/train/runs/*
 evaluation/results/by_date/*
 cross_lingual_transfer/logs/*
 
-#generation test 
+#generation test
 generation_test/*
 t5_comparison/*
 t5_native_comparison/*
+
+# Auto-generated scilons evaluation jobs
+jobs/scilons_evals/*
