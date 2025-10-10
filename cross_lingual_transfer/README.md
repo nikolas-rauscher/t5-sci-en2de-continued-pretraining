@@ -24,7 +24,7 @@ Transfer the best English T5 checkpoint to German using the Wechsel library for 
 3. **Cross-Lingual Evaluation** → Test knowledge transfer effectiveness
 
 ## Implementation Status
-🟢 Final transfer script (ROBUST): `scripts/run_wechsel_transfer_robust.py`
+Final transfer script (ROBUST): `scripts/run_wechsel_transfer_robust.py`
 
 Usage (on cluster):
 ```bash

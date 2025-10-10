@@ -198,6 +198,7 @@ task_finetuning/outputs/*
 task_finetuning/task_finetuning/logs/*
 task_finetuning/lightning_logs/*
 task_finetuning/evaluation/models/best_finetuned_t5_step314/config.json
+scilons_eval_runs/*
 task_finetuning_env/*
 task_finetuning/evaluation/results/*
 task_finetuning/logs/*
@@ -226,3 +227,15 @@ pretraining_logs_text_0olap512_v3_lr_001_bugfixed/*
 # new runs with the fiex padding -100 for ignored tokens and 0% overlap in the dataset and optimized max encoder length instead of padding to max length 512 
 pretraining_logs_lr_001_OPTIMIZED_clean_restart/*
 pretraining_logs_text_0olap512_v3_lr_001_OPTIMIZED/*
+pretraining_logs_adafactor_relative_step_clip1_OPTIMIZED_text_0olap512_v3/*
+pretraining_logs_adafactor_relative_step_clip1_OPTIMIZED_text_0olap512_v3/*
+pretraining_logs_adafactor_relative_step_clip1_OPTIMIZED/train/runs/*
+pretraining_logs_text_0olap512_v3_lr_002_OPTIMIZED/train/runs/2025-09-08_02-24-29/checkpoints/steps/last.ckpt
+pretraining_logs_lr_001_OPTIMIZED_clean_restart_v2/train/runs/*
+evaluation/results/by_date/*
+cross_lingual_transfer/logs/*
+
+#generation test 
+generation_test/*
+t5_comparison/*
+t5_native_comparison/*
