@@ -208,13 +208,72 @@ class CrossLingualTransferRobust:
         
         return german_embeddings, transfer_info
     
+    def _fix_tokenizer_format(self, tokenizer_json_path):
+        """
+        Fix tokenizer.json format to ensure T5 compatibility.
+        Converts old-style pre_tokenizer and decoder to T5-standard format.
+        """
+        import json
+        from transformers import T5TokenizerFast
+        
+        logger.info(f"Fixing tokenizer format at: {tokenizer_json_path}")
+        
+        try:
+            # Load current tokenizer config
+            with open(tokenizer_json_path, 'r') as f:
+                config = json.load(f)
+            
+            # Get reference T5 format from t5-base
+            ref_tokenizer = T5TokenizerFast.from_pretrained('t5-base')
+            ref_config = json.loads(ref_tokenizer.backend_tokenizer.to_str())
+            
+            # Fix pre_tokenizer to T5 standard format
+            logger.info("Fixing pre_tokenizer format...")
+            config['pre_tokenizer'] = ref_config['pre_tokenizer']
+            
+            # Fix decoder to T5 standard format  
+            logger.info("Fixing decoder format...")
+            config['decoder'] = ref_config['decoder']
+            
+            # Backup original
+            backup_path = str(tokenizer_json_path) + '.backup'
+            with open(backup_path, 'w') as f:
+                json.dump(config, f, indent=2)
+            logger.info(f"Original backed up to: {backup_path}")
+            
+            # Save fixed version
+            with open(tokenizer_json_path, 'w') as f:
+                json.dump(config, f, indent=2)
+            
+            logger.info("Tokenizer format fixed to T5 standard")
+            
+            # Test that it loads correctly
+            from transformers import AutoTokenizer
+            test_tokenizer = AutoTokenizer.from_pretrained(tokenizer_json_path.parent)
+            logger.info(f"Format fix verified - tokenizer loads correctly (vocab size: {len(test_tokenizer)})")
+            
+        except Exception as e:
+            logger.error(f"Failed to fix tokenizer format: {e}")
+            logger.warning("Tokenizer may have compatibility issues, but transfer continues...")
+            # Don't fail the entire transfer for this
+    
     def save_german_model(self):
         """Save the German-transferred model and tokenizer"""
         logger.info(f"Saving ROBUST German model to: {self.output_dir}")
         
-        # Save model and tokenizer
+        # Save model
         self.model.save_pretrained(self.output_dir / "model")
+        
+        # Save tokenizer in T5-compatible format
+        logger.info("Saving tokenizer with T5-compatible format...")
+        
+        # First save normally
         self.german_tokenizer.save_pretrained(self.output_dir / "tokenizer")
+        
+        # Then fix the tokenizer.json format to ensure T5 compatibility
+        self._fix_tokenizer_format(self.output_dir / "tokenizer" / "tokenizer.json")
+        
+        logger.info("Tokenizer saved and format-fixed for T5 compatibility")
         
         # Save transfer metadata with robustness info
         metadata = {

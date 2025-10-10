@@ -22,6 +22,7 @@ import threading
 import queue
 import hashlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import socket
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Union, Any, Tuple
@@ -584,7 +585,49 @@ class ModelManager:
             if not path.exists():
                 raise FileNotFoundError(f"Converted model not found: {path}")
             
-            model_path = str(path)
+            # Handle common local layouts
+            # Case 1: HF layout at root (config.json present) -> use as-is
+            # Case 2: Split layout with model/ and tokenizer/ subfolders -> merge into a temp HF folder
+            model_path = None
+            if (path / 'config.json').exists():
+                # Already HF-compliant at root
+                model_path = str(path)
+                metadata.update({'layout': 'hf_root'})
+            elif (path / 'model' / 'config.json').exists():
+                # Merge into temporary directory
+                import shutil, tempfile
+                safe_name = hashlib.md5(str(path).encode()).hexdigest()[:10]
+                merged_dir = self.temp_dir / f"merged_{safe_name}"
+                merged_dir.mkdir(parents=True, exist_ok=True)
+
+                model_dir = path / 'model'
+                tokenizer_dir = path / 'tokenizer'
+
+                # Copy all files from model_dir into merged root
+                for item in model_dir.iterdir():
+                    if item.is_file():
+                        shutil.copy2(item, merged_dir / item.name)
+
+                # Copy tokenizer files if present
+                if tokenizer_dir.exists() and tokenizer_dir.is_dir():
+                    for item in tokenizer_dir.iterdir():
+                        if item.is_file():
+                            # avoid overwriting files with same name from model_dir
+                            dest = merged_dir / item.name
+                            if not dest.exists():
+                                shutil.copy2(item, dest)
+
+                # Write small marker for debugging
+                with open(merged_dir / 'LOCAL_LAYOUT_MERGED', 'w') as f:
+                    f.write(str(path))
+
+                model_path = str(merged_dir)
+                metadata.update({'layout': 'split_model_tokenizer_merged', 'merged_from': str(path)})
+            else:
+                # Unknown layout; keep path (lm-eval may still handle it)
+                model_path = str(path)
+                metadata.update({'layout': 'unknown'})
+
             metadata.update({
                 'source_type': 'converted_path',
                 'original_source': source_path
@@ -711,6 +754,21 @@ class BenchmarkRunner:
                     cmd_string = " ".join(cmd_parts)
                     log.info(f"Executing (shell=True): {cmd_string}")
                     
+                    # Prepare isolated env to avoid distributed port collisions across parallel evals
+                    local_env = os.environ.copy()
+                    local_env.setdefault('MASTER_ADDR', '127.0.0.1')
+                    # Find an ephemeral free port for this eval process group
+                    try:
+                        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                            s.bind(('127.0.0.1', 0))
+                            free_port = s.getsockname()[1]
+                    except Exception:
+                        free_port = 29500
+                    local_env['MASTER_PORT'] = str(free_port)
+                    local_env['RANK'] = '0'
+                    local_env['WORLD_SIZE'] = '1'
+                    local_env['LOCAL_RANK'] = '0'
+
                     result = subprocess.run(
                         cmd_string,
                         cwd=self.project_root,
@@ -718,7 +776,7 @@ class BenchmarkRunner:
                         text=True,
                         check=True,
                         shell=True,
-                        env=os.environ.copy()
+                        env=local_env
                     )
                     
                     # lm-eval handles W&B integration natively
@@ -726,13 +784,27 @@ class BenchmarkRunner:
                     # Use normal list-based execution for non-wandb commands
                     log.info(f"Executing: {' '.join(cmd)}")
                     
+                    # Prepare isolated env to avoid distributed port collisions across parallel evals
+                    local_env = os.environ.copy()
+                    local_env.setdefault('MASTER_ADDR', '127.0.0.1')
+                    try:
+                        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                            s.bind(('127.0.0.1', 0))
+                            free_port = s.getsockname()[1]
+                    except Exception:
+                        free_port = 29500
+                    local_env['MASTER_PORT'] = str(free_port)
+                    local_env['RANK'] = '0'
+                    local_env['WORLD_SIZE'] = '1'
+                    local_env['LOCAL_RANK'] = '0'
+
                     result = subprocess.run(
                         cmd,
                         cwd=self.project_root,
                         capture_output=True,
                         text=True,
                         check=True,
-                        env=os.environ.copy()
+                        env=local_env
                     )
                 
                 duration = time.time() - start_time
@@ -772,11 +844,61 @@ class BenchmarkRunner:
         
         # Check if model_path is a local filesystem path (directory or file)
         # Important: Hugging Face model IDs also contain '/', so do NOT use that heuristic.
-        is_local_path = Path(model_path).expanduser().exists()
-        
+        local_path = Path(model_path).expanduser()
+        is_local_path = local_path.exists()
+
         if is_local_path:
-            # For local paths, use trust_remote_code and local_files_only to avoid HF validation
-            model_args = f"pretrained={model_path},trust_remote_code=True,local_files_only=True"
+            # For local paths, build robust hf args:
+            # - handle layouts where model/ and tokenizer/ live in separate subfolders
+            # - prefer using local files only to avoid accidental network calls
+            extra_kv = []
+
+            # Detect common folder structure variants
+            subfolder = None
+            tokenizer_dir = None
+            # We may rewrite the model_path to directly point to the folder that contains config.json
+            # to avoid passing a `subfolder` argument altogether (lm-eval shares subfolder for tokenizer too).
+            rewritten_pretrained = None
+
+            if local_path.is_dir():
+                # Case A: top-level contains config.json -> use as-is
+                if (local_path / "config.json").exists():
+                    # Try to detect tokenizer colocated
+                    if (local_path / "tokenizer.json").exists() or (local_path / "tokenizer_config.json").exists():
+                        tokenizer_dir = str(local_path)
+                    # Else: check sibling tokenizer folder
+                    elif (local_path.parent / "tokenizer" / "tokenizer.json").exists() or (
+                        local_path.parent / "tokenizer" / "tokenizer_config.json"
+                    ).exists():
+                        tokenizer_dir = str(local_path.parent / "tokenizer")
+
+                # Case B: config lives in subfolder `model/`
+                elif (local_path / "model" / "config.json").exists():
+                    # Prefer rewriting `pretrained` to the actual model subdir so we don't need `subfolder`
+                    rewritten_pretrained = str(local_path / "model")
+                    # Tokenizer folder at sibling `tokenizer/` if present
+                    if (local_path / "tokenizer" / "tokenizer.json").exists() or (
+                        local_path / "tokenizer" / "tokenizer_config.json"
+                    ).exists():
+                        tokenizer_dir = str(local_path / "tokenizer")
+                # Case C: we were pointed directly at the `model/` subdir
+                elif local_path.name == "model" and (local_path / "config.json").exists():
+                    # Look for sibling tokenizer directory one level up
+                    if (local_path.parent / "tokenizer" / "tokenizer.json").exists() or (
+                        local_path.parent / "tokenizer" / "tokenizer_config.json"
+                    ).exists():
+                        tokenizer_dir = str(local_path.parent / "tokenizer")
+
+            # Compose model_args
+            resolved_pretrained = rewritten_pretrained if rewritten_pretrained else model_path
+            parts = [f"pretrained={resolved_pretrained}", "trust_remote_code=True", "local_files_only=True"]
+            # IMPORTANT: Do NOT pass `subfolder` when we also pass a custom `tokenizer` path.
+            # lm-eval forwards the same subfolder to tokenizer loading which breaks non-mirrored layouts.
+            if subfolder and not tokenizer_dir:
+                parts.append(f"subfolder={subfolder}")
+            if tokenizer_dir and tokenizer_dir != resolved_pretrained:
+                parts.append(f"tokenizer={tokenizer_dir}")
+            model_args = ",".join(parts)
         else:
             # For HuggingFace model names, use standard format
             model_args = f"pretrained={model_path}"
@@ -1199,11 +1321,47 @@ def evaluate(cfg: DictConfig) -> Dict[str, Any]:
         
         log.info(f"Started aggressive conversion: {model_manager._max_conversion_workers} threads converting {len(cfg.models)} models in parallel")
         
-        # AGGRESSIVE GPU-Parallel Evaluation Setup 
-        # T5-base is only ~850MB, you have 80GB GPU and currently only use 32GB
-        # Let's use 60GB (75% of GPU memory) = ~70 models or 12-15 parallel evals
-        max_gpu_parallel = min(15, len(cfg.models))  # AGGRESSIVE: 15 parallel evals on 80GB GPU
-        log.info(f"🚀🚀🚀 MAXIMUM GPU-parallel evaluation: {max_gpu_parallel} models in parallel (targeting 60GB/80GB GPU usage)")
+        # GPU-Parallel Evaluation Setup (adaptive)
+        # Priority: env override -> config override -> auto by GPU memory -> conservative default
+        max_gpu_parallel_env = os.environ.get('EVAL_MAX_PARALLEL')
+        max_gpu_parallel_cfg = None
+        try:
+            max_gpu_parallel_cfg = int(cfg.get('max_gpu_parallel', 0) or 0)
+        except Exception:
+            max_gpu_parallel_cfg = None
+
+        if max_gpu_parallel_env and str(max_gpu_parallel_env).strip():
+            try:
+                max_gpu_parallel = int(str(max_gpu_parallel_env))
+            except Exception:
+                max_gpu_parallel = 1
+        elif max_gpu_parallel_cfg and max_gpu_parallel_cfg > 0:
+            max_gpu_parallel = max_gpu_parallel_cfg
+        else:
+            # Auto-detect GPU memory and choose a safe parallelism
+            mem_total = None
+            try:
+                res = subprocess.run(
+                    ["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+                    capture_output=True, text=True, check=True
+                )
+                line = res.stdout.strip().splitlines()[0]
+                mem_total = int(line)
+            except Exception:
+                pass
+
+            if mem_total is not None:
+                if mem_total >= 80000:
+                    max_gpu_parallel = 4
+                elif mem_total >= 60000:
+                    max_gpu_parallel = 2
+                else:
+                    max_gpu_parallel = 1
+            else:
+                max_gpu_parallel = 2  # fallback conservative default
+
+        max_gpu_parallel = max(1, min(max_gpu_parallel, len(cfg.models)))
+        log.info(f"🚀 Parallel evaluation: {max_gpu_parallel} models in parallel (override via EVAL_MAX_PARALLEL)")
         
         # Prepare evaluation tasks
         eval_tasks = []

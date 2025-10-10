@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=flexible_eval_h100
-#SBATCH --partition=H100
+#SBATCH --partition=H100,A100-PCI,H200,RTXA6000-SLT,RTXA6000,B200-TRU
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1

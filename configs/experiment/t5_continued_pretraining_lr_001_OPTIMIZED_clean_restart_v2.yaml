@@ -1,7 +1,7 @@
 # @package _global_
 
 # T5 Continued Pretraining - Clean Restart with OPTIMIZED COLLATOR
-# LR 0.001, Gradient Clip 1.0, Inverse Sqrt Schedule, 60k Warmup
+# LR 0.001, Gradient Clip 1.0, Inverse Sqrt Schedule, 20k Warmup
 # Uses exact T5 formula (1.109x expansion, target_length=114) - OPTIMIZED
 # Full epoch - 4-GPU H100-80GB
 
@@ -40,7 +40,7 @@ data:
   use_optimized_collator: true  # NEW: Enable T5-formula mode
 
 trainer:
-  max_epochs: 1
+  max_epochs: 2
   max_steps: -1
   precision: bf16-mixed
   accumulate_grad_batches: 1  # Effective batch = 48 * 4 * 2 = 384

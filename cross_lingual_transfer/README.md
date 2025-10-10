@@ -24,4 +24,16 @@ Transfer the best English T5 checkpoint to German using the Wechsel library for 
 3. **Cross-Lingual Evaluation** → Test knowledge transfer effectiveness
 
 ## Implementation Status
-🟡 In Progress - Setting up project structure and configurations
+🟢 Final transfer script (ROBUST): `scripts/run_wechsel_transfer_robust.py`
+
+Usage (on cluster):
+```bash
+cd /netscratch/nrauscher/projects/BA-hydra
+python cross_lingual_transfer/scripts/run_wechsel_transfer_robust.py
+```
+
+Output model (HF format): `cross_lingual_transfer/models/german_transferred_robust/`
+
+Notes:
+- The robust script keeps all trained English weights and replaces only embeddings using Wechsel, with additional robustness fixes (tokenizer special tokens, dtype/device, embedding tying).
+- The older non‑robust script/outputs remain for reference.

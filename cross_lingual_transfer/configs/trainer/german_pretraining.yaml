@@ -11,8 +11,8 @@ val_check_interval: 1000  # Validate every 1k steps for monitoring
 
 # Hardware configuration
 accelerator: gpu
-devices: 4  # 4 H100 GPUs
-strategy: ddp  # Distributed training
+devices: 1  # 1 GPU sufficient for German continued pretraining
+strategy: auto  # Single GPU training
 precision: "bf16-mixed"  # Mixed precision for efficiency
 
 # Checkpointing strategy

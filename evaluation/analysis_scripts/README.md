@@ -29,6 +29,20 @@ Collection of analysis scripts for MMLU evaluation results visualization and com
 **Output**: Bar chart with relative improvements (percentage changes)  
 **Usage**: `python create_relative_bar_chart.py <run_directory>`
 
+### 6. `plot_mmlu_subtasks_across_models.py`
+**Purpose**: Grouped horizontal bars per MMLU subtask across multiple models (EN/DE).  
+**Output**: Interactive Plotly HTML (+ PNG if kaleido) and CSV with per‑subject accuracies.  
+**Usage**:
+```
+python evaluation/analysis_scripts/plot_mmlu_subtasks_across_models.py \
+  <results_dir_with_jsons> \
+  --model-alias "wechsel-transfer=Wechsel‑15k" \
+  --model-alias "german-native=Native‑15k" \
+  --model-alias "germanT5=HF‑GermanT5" \
+  --model-alias "clean_restart=EN‑Gold"
+```
+Saves to `evaluation/evaluation_results/<results_dir_name>/` by default.
+
 ## Input Data Structure
 
 All scripts expect evaluation results from:

@@ -41,7 +41,7 @@ data:
 
 # 4-GPU distributed training settings (optimized throughput)
 trainer:
-  max_epochs: 1   # full epoch variant; control total steps via dataset
+  max_epochs: 2   # full epoch variant; control total steps via dataset
   max_steps: -1   # unlimited steps (controlled by epochs)
   precision: bf16-mixed
   accumulate_grad_batches: 1  # REDUCED: No accumulation for faster iterations (Effective batch = 96 * 4 * 1 = 384)
