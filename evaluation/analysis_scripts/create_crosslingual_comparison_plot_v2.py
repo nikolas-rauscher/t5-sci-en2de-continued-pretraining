@@ -568,6 +568,113 @@ def create_subtask_comparison_plot(results, output_dir, baseline_key, highlight_
     return selected_names
 
 
+def create_detailed_subtask_csv(results, output_dir, baseline_key, all_subtasks, summary_models):
+    """Create detailed CSV with all subtask scores for all models."""
+
+    baseline_en_subtasks = results.get(baseline_key, {}).get('en', {}).get('subtasks', {})
+    baseline_de_subtasks = results.get(baseline_key, {}).get('de', {}).get('subtasks', {})
+
+    detailed_data = []
+
+    for subtask in sorted(all_subtasks):
+        for model in summary_models:
+            en_subtasks = results[model].get('en', {}).get('subtasks', {})
+            de_subtasks = results[model].get('de', {}).get('subtasks', {})
+
+            en_score = en_subtasks.get(subtask, np.nan)
+            de_score = de_subtasks.get(subtask, np.nan)
+
+            baseline_en_score = baseline_en_subtasks.get(subtask, np.nan)
+            baseline_de_score = baseline_de_subtasks.get(subtask, np.nan)
+
+            en_delta = en_score - baseline_en_score if not np.isnan(en_score) and not np.isnan(baseline_en_score) else np.nan
+            de_delta = de_score - baseline_de_score if not np.isnan(de_score) and not np.isnan(baseline_de_score) else np.nan
+
+            valid_deltas = [d for d in [en_delta, de_delta] if not np.isnan(d)]
+            mean_delta = np.mean(valid_deltas) if valid_deltas else np.nan
+
+            valid_scores = [s for s in [en_score, de_score] if not np.isnan(s)]
+            mean_score = np.mean(valid_scores) if valid_scores else np.nan
+
+            row = {
+                'subtask': subtask,
+                'model': get_nice_model_name(model),
+                'en_score': en_score,
+                'de_score': de_score,
+                'mean_score': mean_score,
+                'en_delta_vs_t5_base': en_delta,
+                'de_delta_vs_t5_base': de_delta,
+                'mean_delta_vs_t5_base': mean_delta,
+            }
+            detailed_data.append(row)
+
+    df_detailed = pd.DataFrame(detailed_data)
+    csv_path = output_dir / "04_detailed_subtask_scores.csv"
+    df_detailed.to_csv(csv_path, index=False, float_format='%.4f')
+    print(f"Saved detailed subtask CSV: {csv_path}")
+    print(f"  Total rows: {len(detailed_data)} (subtasks: {len(all_subtasks)}, models: {len(summary_models)})")
+
+
+def create_ranked_subtask_csv(results, output_dir, baseline_key, highlight_key, all_subtasks, summary_models):
+    """Create single ranked CSV (best to worst) based on highlight model improvement."""
+
+    baseline_en_subtasks = results.get(baseline_key, {}).get('en', {}).get('subtasks', {})
+    baseline_de_subtasks = results.get(baseline_key, {}).get('de', {}).get('subtasks', {})
+
+    highlight_en_subtasks = results.get(highlight_key, {}).get('en', {}).get('subtasks', {})
+    highlight_de_subtasks = results.get(highlight_key, {}).get('de', {}).get('subtasks', {})
+
+    ranked_data = []
+
+    for subtask in all_subtasks:
+        baseline_en_score = baseline_en_subtasks.get(subtask, np.nan)
+        baseline_de_score = baseline_de_subtasks.get(subtask, np.nan)
+
+        highlight_en_score = highlight_en_subtasks.get(subtask, np.nan)
+        highlight_de_score = highlight_de_subtasks.get(subtask, np.nan)
+
+        en_delta = highlight_en_score - baseline_en_score if not np.isnan(highlight_en_score) and not np.isnan(baseline_en_score) else np.nan
+        de_delta = highlight_de_score - baseline_de_score if not np.isnan(highlight_de_score) and not np.isnan(baseline_de_score) else np.nan
+
+        valid_deltas = [d for d in [en_delta, de_delta] if not np.isnan(d)]
+        mean_delta = np.mean(valid_deltas) if valid_deltas else np.nan
+
+        row = {
+            'rank': 0,
+            'subtask': subtask,
+            'highlight_model_delta': mean_delta,
+        }
+
+        for model in summary_models:
+            en_subtasks = results[model].get('en', {}).get('subtasks', {})
+            de_subtasks = results[model].get('de', {}).get('subtasks', {})
+
+            en_score = en_subtasks.get(subtask, np.nan)
+            de_score = de_subtasks.get(subtask, np.nan)
+
+            valid_scores = [s for s in [en_score, de_score] if not np.isnan(s)]
+            mean_score = np.mean(valid_scores) if valid_scores else np.nan
+
+            model_name = get_nice_model_name(model)
+            row[f'{model_name}_EN'] = en_score
+            row[f'{model_name}_DE'] = de_score
+            row[f'{model_name}_Mean'] = mean_score
+
+        ranked_data.append(row)
+
+    df_ranked = pd.DataFrame(ranked_data)
+    df_ranked = df_ranked.sort_values('highlight_model_delta', ascending=False, na_position='last')
+    df_ranked['rank'] = range(1, len(df_ranked) + 1)
+
+    cols = ['rank', 'subtask', 'highlight_model_delta'] + [col for col in df_ranked.columns if col not in ['rank', 'subtask', 'highlight_model_delta']]
+    df_ranked = df_ranked[cols]
+
+    csv_path = output_dir / "05_ranked_subtasks_best_to_worst.csv"
+    df_ranked.to_csv(csv_path, index=False, float_format='%.4f')
+    print(f"Saved ranked subtasks CSV (best to worst): {csv_path}")
+    print(f"  Sorted by: {get_nice_model_name(highlight_key)} improvement vs. {get_nice_model_name(baseline_key)}")
+
+
 def create_comprehensive_analysis(eval_run_dir, experiment_name):
     """Create all analysis plots and save to organized directory."""
 
@@ -641,6 +748,14 @@ def create_comprehensive_analysis(eval_run_dir, experiment_name):
     csv_path = output_dir / "00_summary_scores.csv"
     df.to_csv(csv_path, index=False, float_format='%.4f')
     print(f"Saved summary CSV: {csv_path}")
+
+    # Create detailed subtask CSV
+    print("\n5. Creating detailed subtask CSV...")
+    create_detailed_subtask_csv(results, output_dir, baseline_key, all_subtasks, summary_models)
+
+    # Create ranked subtask CSV (best to worst)
+    print("\n6. Creating ranked subtask CSV (best to worst)...")
+    create_ranked_subtask_csv(results, output_dir, baseline_key, highlight_key, all_subtasks, summary_models)
 
     print(f"\n✓ All visualizations saved to: {output_dir}")
     return output_dir

@@ -1,0 +1,343 @@
+subtask,model,en_score,de_score,mean_score,en_delta_vs_t5_base,de_delta_vs_t5_base,mean_delta_vs_t5_base
+abstract_algebra,Wechsel + 15k DE,0.2100,0.2400,0.2250,-0.0100,0.0200,0.0050
+abstract_algebra,Gold EN (487k),0.2100,0.2100,0.2100,-0.0100,-0.0100,-0.0100
+abstract_algebra,Wechsel EN-DE (487k),0.2800,0.2400,0.2600,0.0600,0.0200,0.0400
+abstract_algebra,German-T5 + 15k DE,0.2200,0.2200,0.2200,0.0000,0.0000,0.0000
+abstract_algebra,German-T5-Base,0.2200,0.2200,0.2200,0.0000,0.0000,0.0000
+abstract_algebra,T5-Base,0.2200,0.2200,0.2200,0.0000,0.0000,0.0000
+anatomy,Wechsel + 15k DE,0.2444,0.2296,0.2370,0.0593,0.0444,0.0519
+anatomy,Gold EN (487k),0.2296,0.2296,0.2296,0.0444,0.0444,0.0444
+anatomy,Wechsel EN-DE (487k),0.3111,0.2519,0.2815,0.1259,0.0667,0.0963
+anatomy,German-T5 + 15k DE,0.1852,0.1852,0.1852,0.0000,0.0000,0.0000
+anatomy,German-T5-Base,0.1852,0.1852,0.1852,0.0000,0.0000,0.0000
+anatomy,T5-Base,0.1852,0.1852,0.1852,0.0000,0.0000,0.0000
+astronomy,Wechsel + 15k DE,0.3355,0.3289,0.3322,0.1579,0.1447,0.1513
+astronomy,Gold EN (487k),0.3355,0.3355,0.3355,0.1579,0.1513,0.1546
+astronomy,Wechsel EN-DE (487k),0.1974,0.2303,0.2138,0.0197,0.0461,0.0329
+astronomy,German-T5 + 15k DE,0.1776,0.1776,0.1776,0.0000,-0.0066,-0.0033
+astronomy,German-T5-Base,0.1776,0.1776,0.1776,0.0000,-0.0066,-0.0033
+astronomy,T5-Base,0.1776,0.1842,0.1809,0.0000,0.0000,0.0000
+business_ethics,Wechsel + 15k DE,0.2300,0.2200,0.2250,-0.0700,-0.0800,-0.0750
+business_ethics,Gold EN (487k),0.2100,0.2100,0.2100,-0.0900,-0.0900,-0.0900
+business_ethics,Wechsel EN-DE (487k),0.3000,0.3400,0.3200,0.0000,0.0400,0.0200
+business_ethics,German-T5 + 15k DE,0.3000,0.3000,0.3000,0.0000,0.0000,0.0000
+business_ethics,German-T5-Base,0.3000,0.3000,0.3000,0.0000,0.0000,0.0000
+business_ethics,T5-Base,0.3000,0.3000,0.3000,0.0000,0.0000,0.0000
+clinical_knowledge,Wechsel + 15k DE,0.3170,0.2830,0.3000,0.0981,0.0679,0.0830
+clinical_knowledge,Gold EN (487k),0.2981,0.2981,0.2981,0.0792,0.0830,0.0811
+clinical_knowledge,Wechsel EN-DE (487k),0.1887,0.2151,0.2019,-0.0302,0.0000,-0.0151
+clinical_knowledge,German-T5 + 15k DE,0.2151,0.2151,0.2151,-0.0038,0.0000,-0.0019
+clinical_knowledge,German-T5-Base,0.2151,0.2151,0.2151,-0.0038,0.0000,-0.0019
+clinical_knowledge,T5-Base,0.2189,0.2151,0.2170,0.0000,0.0000,0.0000
+college_biology,Wechsel + 15k DE,0.3056,0.2778,0.2917,0.0347,0.0139,0.0243
+college_biology,Gold EN (487k),0.2569,0.2639,0.2604,-0.0139,0.0000,-0.0069
+college_biology,Wechsel EN-DE (487k),0.2500,0.2500,0.2500,-0.0208,-0.0139,-0.0174
+college_biology,German-T5 + 15k DE,0.2569,0.2569,0.2569,-0.0139,-0.0069,-0.0104
+college_biology,German-T5-Base,0.2569,0.2569,0.2569,-0.0139,-0.0069,-0.0104
+college_biology,T5-Base,0.2708,0.2639,0.2674,0.0000,0.0000,0.0000
+college_chemistry,Wechsel + 15k DE,0.4500,0.4100,0.4300,0.2500,0.2200,0.2350
+college_chemistry,Gold EN (487k),0.4100,0.4100,0.4100,0.2100,0.2200,0.2150
+college_chemistry,Wechsel EN-DE (487k),0.2100,0.2100,0.2100,0.0100,0.0200,0.0150
+college_chemistry,German-T5 + 15k DE,0.2000,0.2000,0.2000,0.0000,0.0100,0.0050
+college_chemistry,German-T5-Base,0.2000,0.2000,0.2000,0.0000,0.0100,0.0050
+college_chemistry,T5-Base,0.2000,0.1900,0.1950,0.0000,0.0000,0.0000
+college_computer_science,Wechsel + 15k DE,0.3600,0.3300,0.3450,0.1100,0.0900,0.1000
+college_computer_science,Gold EN (487k),0.3300,0.3300,0.3300,0.0800,0.0900,0.0850
+college_computer_science,Wechsel EN-DE (487k),0.2500,0.2000,0.2250,0.0000,-0.0400,-0.0200
+college_computer_science,German-T5 + 15k DE,0.2600,0.2600,0.2600,0.0100,0.0200,0.0150
+college_computer_science,German-T5-Base,0.2600,0.2600,0.2600,0.0100,0.0200,0.0150
+college_computer_science,T5-Base,0.2500,0.2400,0.2450,0.0000,0.0000,0.0000
+college_mathematics,Wechsel + 15k DE,0.2900,0.3000,0.2950,0.0800,0.0900,0.0850
+college_mathematics,Gold EN (487k),0.3100,0.3100,0.3100,0.1000,0.1000,0.1000
+college_mathematics,Wechsel EN-DE (487k),0.2000,0.1700,0.1850,-0.0100,-0.0400,-0.0250
+college_mathematics,German-T5 + 15k DE,0.2100,0.2100,0.2100,0.0000,0.0000,0.0000
+college_mathematics,German-T5-Base,0.2100,0.2100,0.2100,0.0000,0.0000,0.0000
+college_mathematics,T5-Base,0.2100,0.2100,0.2100,0.0000,0.0000,0.0000
+college_medicine,Wechsel + 15k DE,0.3410,0.3353,0.3382,0.1329,0.1329,0.1329
+college_medicine,Gold EN (487k),0.3353,0.3353,0.3353,0.1272,0.1329,0.1301
+college_medicine,Wechsel EN-DE (487k),0.2543,0.2081,0.2312,0.0462,0.0058,0.0260
+college_medicine,German-T5 + 15k DE,0.2081,0.2081,0.2081,0.0000,0.0058,0.0029
+college_medicine,German-T5-Base,0.2081,0.2081,0.2081,0.0000,0.0058,0.0029
+college_medicine,T5-Base,0.2081,0.2023,0.2052,0.0000,0.0000,0.0000
+college_physics,Wechsel + 15k DE,0.3431,0.3824,0.3627,0.1275,0.1667,0.1471
+college_physics,Gold EN (487k),0.3725,0.3725,0.3725,0.1569,0.1569,0.1569
+college_physics,Wechsel EN-DE (487k),0.2255,0.2157,0.2206,0.0098,0.0000,0.0049
+college_physics,German-T5 + 15k DE,0.2157,0.2157,0.2157,0.0000,0.0000,0.0000
+college_physics,German-T5-Base,0.2157,0.2157,0.2157,0.0000,0.0000,0.0000
+college_physics,T5-Base,0.2157,0.2157,0.2157,0.0000,0.0000,0.0000
+computer_security,Wechsel + 15k DE,0.2300,0.1900,0.2100,-0.0600,-0.1000,-0.0800
+computer_security,Gold EN (487k),0.1900,0.1800,0.1850,-0.1000,-0.1100,-0.1050
+computer_security,Wechsel EN-DE (487k),0.2600,0.3000,0.2800,-0.0300,0.0100,-0.0100
+computer_security,German-T5 + 15k DE,0.2800,0.2800,0.2800,-0.0100,-0.0100,-0.0100
+computer_security,German-T5-Base,0.2800,0.2800,0.2800,-0.0100,-0.0100,-0.0100
+computer_security,T5-Base,0.2900,0.2900,0.2900,0.0000,0.0000,0.0000
+conceptual_physics,Wechsel + 15k DE,0.2085,0.2128,0.2106,-0.0596,-0.0383,-0.0489
+conceptual_physics,Gold EN (487k),0.2170,0.2085,0.2128,-0.0511,-0.0426,-0.0468
+conceptual_physics,Wechsel EN-DE (487k),0.2383,0.2468,0.2426,-0.0298,-0.0043,-0.0170
+conceptual_physics,German-T5 + 15k DE,0.2638,0.2638,0.2638,-0.0043,0.0128,0.0043
+conceptual_physics,German-T5-Base,0.2638,0.2638,0.2638,-0.0043,0.0128,0.0043
+conceptual_physics,T5-Base,0.2681,0.2511,0.2596,0.0000,0.0000,0.0000
+econometrics,Wechsel + 15k DE,0.2193,0.2368,0.2281,-0.0175,0.0000,-0.0088
+econometrics,Gold EN (487k),0.2456,0.2368,0.2412,0.0088,0.0000,0.0044
+econometrics,Wechsel EN-DE (487k),0.2281,0.2544,0.2412,-0.0088,0.0175,0.0044
+econometrics,German-T5 + 15k DE,0.2368,0.2368,0.2368,0.0000,0.0000,0.0000
+econometrics,German-T5-Base,0.2368,0.2368,0.2368,0.0000,0.0000,0.0000
+econometrics,T5-Base,0.2368,0.2368,0.2368,0.0000,0.0000,0.0000
+electrical_engineering,Wechsel + 15k DE,0.2414,0.2621,0.2517,0.0069,0.0207,0.0138
+electrical_engineering,Gold EN (487k),0.2276,0.2414,0.2345,-0.0069,0.0000,-0.0034
+electrical_engineering,Wechsel EN-DE (487k),0.2207,0.2690,0.2448,-0.0138,0.0276,0.0069
+electrical_engineering,German-T5 + 15k DE,0.2414,0.2414,0.2414,0.0069,0.0000,0.0034
+electrical_engineering,German-T5-Base,0.2414,0.2414,0.2414,0.0069,0.0000,0.0034
+electrical_engineering,T5-Base,0.2345,0.2414,0.2379,0.0000,0.0000,0.0000
+elementary_mathematics,Wechsel + 15k DE,0.2672,0.2646,0.2659,0.0582,0.0556,0.0569
+elementary_mathematics,Gold EN (487k),0.2646,0.2646,0.2646,0.0556,0.0556,0.0556
+elementary_mathematics,Wechsel EN-DE (487k),0.2672,0.2619,0.2646,0.0582,0.0529,0.0556
+elementary_mathematics,German-T5 + 15k DE,0.2090,0.2090,0.2090,0.0000,0.0000,0.0000
+elementary_mathematics,German-T5-Base,0.2090,0.2090,0.2090,0.0000,0.0000,0.0000
+elementary_mathematics,T5-Base,0.2090,0.2090,0.2090,0.0000,0.0000,0.0000
+formal_logic,Wechsel + 15k DE,0.3730,0.3651,0.3690,0.1032,0.1270,0.1151
+formal_logic,Gold EN (487k),0.3651,0.3651,0.3651,0.0952,0.1270,0.1111
+formal_logic,Wechsel EN-DE (487k),0.3016,0.2857,0.2937,0.0317,0.0476,0.0397
+formal_logic,German-T5 + 15k DE,0.2857,0.2857,0.2857,0.0159,0.0476,0.0317
+formal_logic,German-T5-Base,0.2857,0.2857,0.2857,0.0159,0.0476,0.0317
+formal_logic,T5-Base,0.2698,0.2381,0.2540,0.0000,0.0000,0.0000
+global_facts,Wechsel + 15k DE,0.1800,0.1800,0.1800,0.0000,-0.0200,-0.0100
+global_facts,Gold EN (487k),0.1800,0.1800,0.1800,0.0000,-0.0200,-0.0100
+global_facts,Wechsel EN-DE (487k),0.3400,0.2700,0.3050,0.1600,0.0700,0.1150
+global_facts,German-T5 + 15k DE,0.1800,0.1800,0.1800,0.0000,-0.0200,-0.0100
+global_facts,German-T5-Base,0.1800,0.1800,0.1800,0.0000,-0.0200,-0.0100
+global_facts,T5-Base,0.1800,0.2000,0.1900,0.0000,0.0000,0.0000
+high_school_biology,Wechsel + 15k DE,0.2968,0.3097,0.3032,0.1194,0.1290,0.1242
+high_school_biology,Gold EN (487k),0.3129,0.3161,0.3145,0.1355,0.1355,0.1355
+high_school_biology,Wechsel EN-DE (487k),0.2097,0.2194,0.2145,0.0323,0.0387,0.0355
+high_school_biology,German-T5 + 15k DE,0.1774,0.1774,0.1774,0.0000,-0.0032,-0.0016
+high_school_biology,German-T5-Base,0.1774,0.1774,0.1774,0.0000,-0.0032,-0.0016
+high_school_biology,T5-Base,0.1774,0.1806,0.1790,0.0000,0.0000,0.0000
+high_school_chemistry,Wechsel + 15k DE,0.2660,0.2759,0.2709,0.1084,0.1182,0.1133
+high_school_chemistry,Gold EN (487k),0.2808,0.2808,0.2808,0.1232,0.1232,0.1232
+high_school_chemistry,Wechsel EN-DE (487k),0.2660,0.2562,0.2611,0.1084,0.0985,0.1034
+high_school_chemistry,German-T5 + 15k DE,0.1527,0.1527,0.1527,-0.0049,-0.0049,-0.0049
+high_school_chemistry,German-T5-Base,0.1527,0.1527,0.1527,-0.0049,-0.0049,-0.0049
+high_school_chemistry,T5-Base,0.1576,0.1576,0.1576,0.0000,0.0000,0.0000
+high_school_computer_science,Wechsel + 15k DE,0.2400,0.2000,0.2200,-0.0100,-0.0600,-0.0350
+high_school_computer_science,Gold EN (487k),0.1900,0.1900,0.1900,-0.0600,-0.0700,-0.0650
+high_school_computer_science,Wechsel EN-DE (487k),0.2400,0.3500,0.2950,-0.0100,0.0900,0.0400
+high_school_computer_science,German-T5 + 15k DE,0.2500,0.2500,0.2500,0.0000,-0.0100,-0.0050
+high_school_computer_science,German-T5-Base,0.2500,0.2500,0.2500,0.0000,-0.0100,-0.0050
+high_school_computer_science,T5-Base,0.2500,0.2600,0.2550,0.0000,0.0000,0.0000
+high_school_european_history,Wechsel + 15k DE,0.3333,0.2727,0.3030,0.1152,0.0545,0.0848
+high_school_european_history,Gold EN (487k),0.2545,0.2545,0.2545,0.0364,0.0364,0.0364
+high_school_european_history,Wechsel EN-DE (487k),0.2182,0.2182,0.2182,0.0000,0.0000,0.0000
+high_school_european_history,German-T5 + 15k DE,0.2182,0.2182,0.2182,0.0000,0.0000,0.0000
+high_school_european_history,German-T5-Base,0.2182,0.2182,0.2182,0.0000,0.0000,0.0000
+high_school_european_history,T5-Base,0.2182,0.2182,0.2182,0.0000,0.0000,0.0000
+high_school_geography,Wechsel + 15k DE,0.3485,0.3485,0.3485,0.1717,0.1717,0.1717
+high_school_geography,Gold EN (487k),0.3535,0.3535,0.3535,0.1768,0.1768,0.1768
+high_school_geography,Wechsel EN-DE (487k),0.2172,0.2323,0.2247,0.0404,0.0556,0.0480
+high_school_geography,German-T5 + 15k DE,0.1768,0.1768,0.1768,0.0000,0.0000,0.0000
+high_school_geography,German-T5-Base,0.1768,0.1768,0.1768,0.0000,0.0000,0.0000
+high_school_geography,T5-Base,0.1768,0.1768,0.1768,0.0000,0.0000,0.0000
+high_school_government_and_politics,Wechsel + 15k DE,0.3472,0.3472,0.3472,0.1503,0.1503,0.1503
+high_school_government_and_politics,Gold EN (487k),0.3627,0.3679,0.3653,0.1658,0.1710,0.1684
+high_school_government_and_politics,Wechsel EN-DE (487k),0.2435,0.2539,0.2487,0.0466,0.0570,0.0518
+high_school_government_and_politics,German-T5 + 15k DE,0.1969,0.1969,0.1969,0.0000,0.0000,0.0000
+high_school_government_and_politics,German-T5-Base,0.1969,0.1969,0.1969,0.0000,0.0000,0.0000
+high_school_government_and_politics,T5-Base,0.1969,0.1969,0.1969,0.0000,0.0000,0.0000
+high_school_macroeconomics,Wechsel + 15k DE,0.3564,0.3538,0.3551,0.1538,0.1462,0.1500
+high_school_macroeconomics,Gold EN (487k),0.3641,0.3641,0.3641,0.1615,0.1564,0.1590
+high_school_macroeconomics,Wechsel EN-DE (487k),0.2385,0.2487,0.2436,0.0359,0.0410,0.0385
+high_school_macroeconomics,German-T5 + 15k DE,0.2026,0.2026,0.2026,0.0000,-0.0051,-0.0026
+high_school_macroeconomics,German-T5-Base,0.2026,0.2026,0.2026,0.0000,-0.0051,-0.0026
+high_school_macroeconomics,T5-Base,0.2026,0.2077,0.2051,0.0000,0.0000,0.0000
+high_school_mathematics,Wechsel + 15k DE,0.2556,0.2630,0.2593,0.0444,0.0519,0.0481
+high_school_mathematics,Gold EN (487k),0.2593,0.2630,0.2611,0.0481,0.0519,0.0500
+high_school_mathematics,Wechsel EN-DE (487k),0.2519,0.2667,0.2593,0.0407,0.0556,0.0481
+high_school_mathematics,German-T5 + 15k DE,0.2111,0.2111,0.2111,0.0000,0.0000,0.0000
+high_school_mathematics,German-T5-Base,0.2111,0.2111,0.2111,0.0000,0.0000,0.0000
+high_school_mathematics,T5-Base,0.2111,0.2111,0.2111,0.0000,0.0000,0.0000
+high_school_microeconomics,Wechsel + 15k DE,0.3319,0.3529,0.3424,0.1218,0.1429,0.1324
+high_school_microeconomics,Gold EN (487k),0.3487,0.3487,0.3487,0.1387,0.1387,0.1387
+high_school_microeconomics,Wechsel EN-DE (487k),0.2227,0.2101,0.2164,0.0126,0.0000,0.0063
+high_school_microeconomics,German-T5 + 15k DE,0.2101,0.2101,0.2101,0.0000,0.0000,0.0000
+high_school_microeconomics,German-T5-Base,0.2101,0.2101,0.2101,0.0000,0.0000,0.0000
+high_school_microeconomics,T5-Base,0.2101,0.2101,0.2101,0.0000,0.0000,0.0000
+high_school_physics,Wechsel + 15k DE,0.3510,0.3245,0.3377,0.1523,0.1258,0.1391
+high_school_physics,Gold EN (487k),0.3311,0.3311,0.3311,0.1325,0.1325,0.1325
+high_school_physics,Wechsel EN-DE (487k),0.2252,0.2517,0.2384,0.0265,0.0530,0.0397
+high_school_physics,German-T5 + 15k DE,0.1987,0.1987,0.1987,0.0000,0.0000,0.0000
+high_school_physics,German-T5-Base,0.1987,0.1987,0.1987,0.0000,0.0000,0.0000
+high_school_physics,T5-Base,0.1987,0.1987,0.1987,0.0000,0.0000,0.0000
+high_school_psychology,Wechsel + 15k DE,0.3505,0.3541,0.3523,0.1541,0.1560,0.1550
+high_school_psychology,Gold EN (487k),0.3486,0.3486,0.3486,0.1523,0.1505,0.1514
+high_school_psychology,Wechsel EN-DE (487k),0.2037,0.1835,0.1936,0.0073,-0.0147,-0.0037
+high_school_psychology,German-T5 + 15k DE,0.1927,0.1927,0.1927,-0.0037,-0.0055,-0.0046
+high_school_psychology,German-T5-Base,0.1927,0.1927,0.1927,-0.0037,-0.0055,-0.0046
+high_school_psychology,T5-Base,0.1963,0.1982,0.1972,0.0000,0.0000,0.0000
+high_school_statistics,Wechsel + 15k DE,0.4259,0.4352,0.4306,0.2731,0.2778,0.2755
+high_school_statistics,Gold EN (487k),0.4722,0.4722,0.4722,0.3194,0.3148,0.3171
+high_school_statistics,Wechsel EN-DE (487k),0.1944,0.1667,0.1806,0.0417,0.0093,0.0255
+high_school_statistics,German-T5 + 15k DE,0.1528,0.1528,0.1528,0.0000,-0.0046,-0.0023
+high_school_statistics,German-T5-Base,0.1528,0.1528,0.1528,0.0000,-0.0046,-0.0023
+high_school_statistics,T5-Base,0.1528,0.1574,0.1551,0.0000,0.0000,0.0000
+high_school_us_history,Wechsel + 15k DE,0.3137,0.2255,0.2696,0.0637,-0.0245,0.0196
+high_school_us_history,Gold EN (487k),0.2549,0.2549,0.2549,0.0049,0.0049,0.0049
+high_school_us_history,Wechsel EN-DE (487k),0.2402,0.2598,0.2500,-0.0098,0.0098,0.0000
+high_school_us_history,German-T5 + 15k DE,0.2500,0.2500,0.2500,0.0000,0.0000,0.0000
+high_school_us_history,German-T5-Base,0.2500,0.2500,0.2500,0.0000,0.0000,0.0000
+high_school_us_history,T5-Base,0.2500,0.2500,0.2500,0.0000,0.0000,0.0000
+high_school_world_history,Wechsel + 15k DE,0.2363,0.2574,0.2468,-0.0295,-0.0127,-0.0211
+high_school_world_history,Gold EN (487k),0.2025,0.2025,0.2025,-0.0633,-0.0675,-0.0654
+high_school_world_history,Wechsel EN-DE (487k),0.2785,0.2911,0.2848,0.0127,0.0211,0.0169
+high_school_world_history,German-T5 + 15k DE,0.2700,0.2700,0.2700,0.0042,0.0000,0.0021
+high_school_world_history,German-T5-Base,0.2700,0.2700,0.2700,0.0042,0.0000,0.0021
+high_school_world_history,T5-Base,0.2658,0.2700,0.2679,0.0000,0.0000,0.0000
+human_aging,Wechsel + 15k DE,0.1076,0.1211,0.1143,-0.2018,-0.1973,-0.1996
+human_aging,Gold EN (487k),0.1076,0.1076,0.1076,-0.2018,-0.2108,-0.2063
+human_aging,Wechsel EN-DE (487k),0.2735,0.2691,0.2713,-0.0359,-0.0493,-0.0426
+human_aging,German-T5 + 15k DE,0.3139,0.3139,0.3139,0.0045,-0.0045,0.0000
+human_aging,German-T5-Base,0.3139,0.3139,0.3139,0.0045,-0.0045,0.0000
+human_aging,T5-Base,0.3094,0.3184,0.3139,0.0000,0.0000,0.0000
+human_sexuality,Wechsel + 15k DE,0.2672,0.2366,0.2519,0.0076,-0.0229,-0.0076
+human_sexuality,Gold EN (487k),0.2824,0.2824,0.2824,0.0229,0.0229,0.0229
+human_sexuality,Wechsel EN-DE (487k),0.2137,0.2748,0.2443,-0.0458,0.0153,-0.0153
+human_sexuality,German-T5 + 15k DE,0.2595,0.2595,0.2595,0.0000,0.0000,0.0000
+human_sexuality,German-T5-Base,0.2595,0.2595,0.2595,0.0000,0.0000,0.0000
+human_sexuality,T5-Base,0.2595,0.2595,0.2595,0.0000,0.0000,0.0000
+international_law,Wechsel + 15k DE,0.1488,0.1240,0.1364,-0.0909,-0.1157,-0.1033
+international_law,Gold EN (487k),0.1405,0.1405,0.1405,-0.0992,-0.0992,-0.0992
+international_law,Wechsel EN-DE (487k),0.2893,0.3140,0.3017,0.0496,0.0744,0.0620
+international_law,German-T5 + 15k DE,0.2397,0.2397,0.2397,0.0000,0.0000,0.0000
+international_law,German-T5-Base,0.2397,0.2397,0.2397,0.0000,0.0000,0.0000
+international_law,T5-Base,0.2397,0.2397,0.2397,0.0000,0.0000,0.0000
+jurisprudence,Wechsel + 15k DE,0.2593,0.2130,0.2361,0.0185,-0.0370,-0.0093
+jurisprudence,Gold EN (487k),0.2222,0.2037,0.2130,-0.0185,-0.0463,-0.0324
+jurisprudence,Wechsel EN-DE (487k),0.2778,0.2500,0.2639,0.0370,0.0000,0.0185
+jurisprudence,German-T5 + 15k DE,0.2593,0.2593,0.2593,0.0185,0.0093,0.0139
+jurisprudence,German-T5-Base,0.2593,0.2593,0.2593,0.0185,0.0093,0.0139
+jurisprudence,T5-Base,0.2407,0.2500,0.2454,0.0000,0.0000,0.0000
+logical_fallacies,Wechsel + 15k DE,0.2331,0.2515,0.2423,0.0123,0.0307,0.0215
+logical_fallacies,Gold EN (487k),0.2331,0.2331,0.2331,0.0123,0.0123,0.0123
+logical_fallacies,Wechsel EN-DE (487k),0.1840,0.1902,0.1871,-0.0368,-0.0307,-0.0337
+logical_fallacies,German-T5 + 15k DE,0.2209,0.2209,0.2209,0.0000,0.0000,0.0000
+logical_fallacies,German-T5-Base,0.2209,0.2209,0.2209,0.0000,0.0000,0.0000
+logical_fallacies,T5-Base,0.2209,0.2209,0.2209,0.0000,0.0000,0.0000
+machine_learning,Wechsel + 15k DE,0.1607,0.1607,0.1607,-0.1518,-0.1518,-0.1518
+machine_learning,Gold EN (487k),0.1607,0.1607,0.1607,-0.1518,-0.1518,-0.1518
+machine_learning,Wechsel EN-DE (487k),0.2411,0.3125,0.2768,-0.0714,0.0000,-0.0357
+machine_learning,German-T5 + 15k DE,0.3125,0.3125,0.3125,0.0000,0.0000,0.0000
+machine_learning,German-T5-Base,0.3125,0.3125,0.3125,0.0000,0.0000,0.0000
+machine_learning,T5-Base,0.3125,0.3125,0.3125,0.0000,0.0000,0.0000
+management,Wechsel + 15k DE,0.3786,0.3786,0.3786,0.2039,0.2039,0.2039
+management,Gold EN (487k),0.3786,0.3786,0.3786,0.2039,0.2039,0.2039
+management,Wechsel EN-DE (487k),0.2136,0.1553,0.1845,0.0388,-0.0194,0.0097
+management,German-T5 + 15k DE,0.1748,0.1748,0.1748,0.0000,0.0000,0.0000
+management,German-T5-Base,0.1748,0.1748,0.1748,0.0000,0.0000,0.0000
+management,T5-Base,0.1748,0.1748,0.1748,0.0000,0.0000,0.0000
+marketing,Wechsel + 15k DE,0.1966,0.2222,0.2094,-0.0940,-0.0641,-0.0791
+marketing,Gold EN (487k),0.1966,0.1966,0.1966,-0.0940,-0.0897,-0.0919
+marketing,Wechsel EN-DE (487k),0.2906,0.3120,0.3013,0.0000,0.0256,0.0128
+marketing,German-T5 + 15k DE,0.2906,0.2906,0.2906,0.0000,0.0043,0.0021
+marketing,German-T5-Base,0.2906,0.2906,0.2906,0.0000,0.0043,0.0021
+marketing,T5-Base,0.2906,0.2863,0.2885,0.0000,0.0000,0.0000
+medical_genetics,Wechsel + 15k DE,0.2600,0.2200,0.2400,-0.0400,-0.0800,-0.0600
+medical_genetics,Gold EN (487k),0.2300,0.2400,0.2350,-0.0700,-0.0600,-0.0650
+medical_genetics,Wechsel EN-DE (487k),0.2600,0.3000,0.2800,-0.0400,0.0000,-0.0200
+medical_genetics,German-T5 + 15k DE,0.3000,0.3000,0.3000,0.0000,0.0000,0.0000
+medical_genetics,German-T5-Base,0.3000,0.3000,0.3000,0.0000,0.0000,0.0000
+medical_genetics,T5-Base,0.3000,0.3000,0.3000,0.0000,0.0000,0.0000
+miscellaneous,Wechsel + 15k DE,0.2043,0.2018,0.2031,-0.0319,-0.0345,-0.0332
+miscellaneous,Gold EN (487k),0.2043,0.2043,0.2043,-0.0319,-0.0319,-0.0319
+miscellaneous,Wechsel EN-DE (487k),0.2669,0.2656,0.2663,0.0307,0.0294,0.0300
+miscellaneous,German-T5 + 15k DE,0.2375,0.2375,0.2375,0.0013,0.0013,0.0013
+miscellaneous,German-T5-Base,0.2375,0.2375,0.2375,0.0013,0.0013,0.0013
+miscellaneous,T5-Base,0.2363,0.2363,0.2363,0.0000,0.0000,0.0000
+moral_disputes,Wechsel + 15k DE,0.2254,0.2341,0.2298,-0.0202,-0.0029,-0.0116
+moral_disputes,Gold EN (487k),0.2139,0.2139,0.2139,-0.0318,-0.0231,-0.0275
+moral_disputes,Wechsel EN-DE (487k),0.2543,0.2659,0.2601,0.0087,0.0289,0.0188
+moral_disputes,German-T5 + 15k DE,0.2486,0.2486,0.2486,0.0029,0.0116,0.0072
+moral_disputes,German-T5-Base,0.2486,0.2486,0.2486,0.0029,0.0116,0.0072
+moral_disputes,T5-Base,0.2457,0.2370,0.2413,0.0000,0.0000,0.0000
+moral_scenarios,Wechsel + 15k DE,0.2704,0.2749,0.2726,0.0324,0.0369,0.0346
+moral_scenarios,Gold EN (487k),0.2726,0.2726,0.2726,0.0346,0.0346,0.0346
+moral_scenarios,Wechsel EN-DE (487k),0.2402,0.2346,0.2374,0.0022,-0.0034,-0.0006
+moral_scenarios,German-T5 + 15k DE,0.2380,0.2380,0.2380,0.0000,0.0000,0.0000
+moral_scenarios,German-T5-Base,0.2380,0.2380,0.2380,0.0000,0.0000,0.0000
+moral_scenarios,T5-Base,0.2380,0.2380,0.2380,0.0000,0.0000,0.0000
+nutrition,Wechsel + 15k DE,0.3007,0.2941,0.2974,0.0784,0.0752,0.0768
+nutrition,Gold EN (487k),0.2941,0.2941,0.2941,0.0719,0.0752,0.0735
+nutrition,Wechsel EN-DE (487k),0.2124,0.2418,0.2271,-0.0098,0.0229,0.0065
+nutrition,German-T5 + 15k DE,0.2255,0.2255,0.2255,0.0033,0.0065,0.0049
+nutrition,German-T5-Base,0.2255,0.2255,0.2255,0.0033,0.0065,0.0049
+nutrition,T5-Base,0.2222,0.2190,0.2206,0.0000,0.0000,0.0000
+philosophy,Wechsel + 15k DE,0.2508,0.2347,0.2428,0.0643,0.0450,0.0547
+philosophy,Gold EN (487k),0.2412,0.2412,0.2412,0.0547,0.0514,0.0531
+philosophy,Wechsel EN-DE (487k),0.2154,0.2186,0.2170,0.0289,0.0289,0.0289
+philosophy,German-T5 + 15k DE,0.1865,0.1865,0.1865,0.0000,-0.0032,-0.0016
+philosophy,German-T5-Base,0.1865,0.1865,0.1865,0.0000,-0.0032,-0.0016
+philosophy,T5-Base,0.1865,0.1897,0.1881,0.0000,0.0000,0.0000
+prehistory,Wechsel + 15k DE,0.2377,0.2346,0.2361,0.0216,0.0185,0.0201
+prehistory,Gold EN (487k),0.2253,0.2253,0.2253,0.0093,0.0093,0.0093
+prehistory,Wechsel EN-DE (487k),0.2809,0.3148,0.2978,0.0648,0.0988,0.0818
+prehistory,German-T5 + 15k DE,0.2160,0.2160,0.2160,0.0000,0.0000,0.0000
+prehistory,German-T5-Base,0.2160,0.2160,0.2160,0.0000,0.0000,0.0000
+prehistory,T5-Base,0.2160,0.2160,0.2160,0.0000,0.0000,0.0000
+professional_accounting,Wechsel + 15k DE,0.2660,0.2376,0.2518,0.0319,0.0035,0.0177
+professional_accounting,Gold EN (487k),0.2411,0.2411,0.2411,0.0071,0.0071,0.0071
+professional_accounting,Wechsel EN-DE (487k),0.2766,0.2660,0.2713,0.0426,0.0319,0.0372
+professional_accounting,German-T5 + 15k DE,0.2340,0.2340,0.2340,0.0000,0.0000,0.0000
+professional_accounting,German-T5-Base,0.2340,0.2340,0.2340,0.0000,0.0000,0.0000
+professional_accounting,T5-Base,0.2340,0.2340,0.2340,0.0000,0.0000,0.0000
+professional_law,Wechsel + 15k DE,0.2562,0.2673,0.2617,0.0111,0.0215,0.0163
+professional_law,Gold EN (487k),0.2445,0.2445,0.2445,-0.0007,-0.0013,-0.0010
+professional_law,Wechsel EN-DE (487k),0.2445,0.2549,0.2497,-0.0007,0.0091,0.0042
+professional_law,German-T5 + 15k DE,0.2458,0.2458,0.2458,0.0007,0.0000,0.0003
+professional_law,German-T5-Base,0.2458,0.2458,0.2458,0.0007,0.0000,0.0003
+professional_law,T5-Base,0.2451,0.2458,0.2454,0.0000,0.0000,0.0000
+professional_medicine,Wechsel + 15k DE,0.4228,0.3824,0.4026,0.2390,0.1985,0.2187
+professional_medicine,Gold EN (487k),0.4485,0.4485,0.4485,0.2647,0.2647,0.2647
+professional_medicine,Wechsel EN-DE (487k),0.1875,0.1765,0.1820,0.0037,-0.0074,-0.0018
+professional_medicine,German-T5 + 15k DE,0.1838,0.1838,0.1838,0.0000,0.0000,0.0000
+professional_medicine,German-T5-Base,0.1838,0.1838,0.1838,0.0000,0.0000,0.0000
+professional_medicine,T5-Base,0.1838,0.1838,0.1838,0.0000,0.0000,0.0000
+professional_psychology,Wechsel + 15k DE,0.2239,0.2239,0.2239,-0.0261,-0.0278,-0.0270
+professional_psychology,Gold EN (487k),0.2173,0.2173,0.2173,-0.0327,-0.0343,-0.0335
+professional_psychology,Wechsel EN-DE (487k),0.2598,0.2500,0.2549,0.0098,-0.0016,0.0041
+professional_psychology,German-T5 + 15k DE,0.2500,0.2500,0.2500,0.0000,-0.0016,-0.0008
+professional_psychology,German-T5-Base,0.2500,0.2500,0.2500,0.0000,-0.0016,-0.0008
+professional_psychology,T5-Base,0.2500,0.2516,0.2508,0.0000,0.0000,0.0000
+public_relations,Wechsel + 15k DE,0.2273,0.2182,0.2227,0.0091,0.0000,0.0045
+public_relations,Gold EN (487k),0.2273,0.2273,0.2273,0.0091,0.0091,0.0091
+public_relations,Wechsel EN-DE (487k),0.2273,0.2182,0.2227,0.0091,0.0000,0.0045
+public_relations,German-T5 + 15k DE,0.2182,0.2182,0.2182,0.0000,0.0000,0.0000
+public_relations,German-T5-Base,0.2182,0.2182,0.2182,0.0000,0.0000,0.0000
+public_relations,T5-Base,0.2182,0.2182,0.2182,0.0000,0.0000,0.0000
+security_studies,Wechsel + 15k DE,0.3714,0.4082,0.3898,0.1837,0.2204,0.2020
+security_studies,Gold EN (487k),0.4000,0.4000,0.4000,0.2122,0.2122,0.2122
+security_studies,Wechsel EN-DE (487k),0.2204,0.2245,0.2224,0.0327,0.0367,0.0347
+security_studies,German-T5 + 15k DE,0.1878,0.1878,0.1878,0.0000,0.0000,0.0000
+security_studies,German-T5-Base,0.1878,0.1878,0.1878,0.0000,0.0000,0.0000
+security_studies,T5-Base,0.1878,0.1878,0.1878,0.0000,0.0000,0.0000
+sociology,Wechsel + 15k DE,0.2886,0.2239,0.2562,0.0597,-0.0100,0.0249
+sociology,Gold EN (487k),0.2687,0.2687,0.2687,0.0398,0.0348,0.0373
+sociology,Wechsel EN-DE (487k),0.2338,0.2388,0.2363,0.0050,0.0050,0.0050
+sociology,German-T5 + 15k DE,0.2438,0.2438,0.2438,0.0149,0.0100,0.0124
+sociology,German-T5-Base,0.2438,0.2438,0.2438,0.0149,0.0100,0.0124
+sociology,T5-Base,0.2289,0.2338,0.2313,0.0000,0.0000,0.0000
+us_foreign_policy,Wechsel + 15k DE,0.2500,0.2500,0.2500,-0.0300,-0.0300,-0.0300
+us_foreign_policy,Gold EN (487k),0.2600,0.2600,0.2600,-0.0200,-0.0200,-0.0200
+us_foreign_policy,Wechsel EN-DE (487k),0.2700,0.2300,0.2500,-0.0100,-0.0500,-0.0300
+us_foreign_policy,German-T5 + 15k DE,0.2800,0.2800,0.2800,0.0000,0.0000,0.0000
+us_foreign_policy,German-T5-Base,0.2800,0.2800,0.2800,0.0000,0.0000,0.0000
+us_foreign_policy,T5-Base,0.2800,0.2800,0.2800,0.0000,0.0000,0.0000
+virology,Wechsel + 15k DE,0.2108,0.1627,0.1867,-0.0723,-0.1205,-0.0964
+virology,Gold EN (487k),0.1928,0.1928,0.1928,-0.0904,-0.0904,-0.0904
+virology,Wechsel EN-DE (487k),0.2651,0.2169,0.2410,-0.0181,-0.0663,-0.0422
+virology,German-T5 + 15k DE,0.2831,0.2831,0.2831,0.0000,0.0000,0.0000
+virology,German-T5-Base,0.2831,0.2831,0.2831,0.0000,0.0000,0.0000
+virology,T5-Base,0.2831,0.2831,0.2831,0.0000,0.0000,0.0000
+world_religions,Wechsel + 15k DE,0.1754,0.1754,0.1754,-0.1462,-0.1462,-0.1462
+world_religions,Gold EN (487k),0.1754,0.1754,0.1754,-0.1462,-0.1462,-0.1462
+world_religions,Wechsel EN-DE (487k),0.2865,0.2982,0.2924,-0.0351,-0.0234,-0.0292
+world_religions,German-T5 + 15k DE,0.3216,0.3216,0.3216,0.0000,0.0000,0.0000
+world_religions,German-T5-Base,0.3216,0.3216,0.3216,0.0000,0.0000,0.0000
+world_religions,T5-Base,0.3216,0.3216,0.3216,0.0000,0.0000,0.0000
