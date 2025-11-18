@@ -18,6 +18,22 @@ This repository contains the code and configurations for developing a German sci
 
 The domain-adapted English model (EN-T5-Sci) achieves +4.0 percentage points improvement on Global-MMLU compared to the base T5 model. The transferred German model (DE-T5-Sci-Transfer-15k) outperforms monolingual German baselines on scientific benchmarks.
 
+## Released Models
+
+| Model | Description | HuggingFace |
+|-------|-------------|-------------|
+| **EN-T5-Sci** | English T5-base with 487k steps continued pretraining on scientific text | [rausch/en-t5-sci-continued-pretraining-487k](https://huggingface.co/rausch/en-t5-sci-continued-pretraining-487k) |
+| **DE-T5-Sci-Transfer-Init** | German model after WECHSEL transfer (before alignment) | [rausch/de-t5-sci-transfer-init](https://huggingface.co/rausch/de-t5-sci-transfer-init) |
+| **DE-T5-Sci-Transfer-15k** | Final German model via WECHSEL + 15k alignment steps | [rausch/de-t5-sci-transfer-15k](https://huggingface.co/rausch/de-t5-sci-transfer-15k) |
+| **DE-T5-Base-15k** | German baseline with 15k steps continued pretraining | [rausch/de-t5-base-continued-15k](https://huggingface.co/rausch/de-t5-base-continued-15k) |
+
+**Datasets**
+
+| Dataset | Description | HuggingFace |
+|---------|-------------|-------------|
+| Scientific Corpus (Cleaned) | Cleaned English scientific corpus from Unpaywall | [rausch/scientific_corpus_cleaned](https://huggingface.co/datasets/rausch/scientific_corpus_cleaned) |
+| Sliding Windows | Preprocessed 512-token windows for training | [rausch/scientific_sliding_windows_en512](https://huggingface.co/datasets/rausch/scientific_sliding_windows_en512) |
+
 ## Key Results
 
 ### Zero-Shot Global-MMLU Evaluation
@@ -206,21 +222,7 @@ python evaluation/analysis_scripts/analyze_evaluation_results.py
 
 For task-specific fine-tuning evaluation (NER, relation extraction, etc.), use the [scilons-eval](https://github.com/scilons/scilons-eval) pipeline.
 
-## Models
-
-The trained models are available on the Hugging Face Hub:
-
-- [**en-t5-sci-continued-pretraining-487k**](https://huggingface.co/rausch/en-t5-sci-continued-pretraining-487k): English T5-base with continued pretraining on scientific text (487k steps)
-- [**de-t5-sci-transfer-init**](https://huggingface.co/rausch/de-t5-sci-transfer-init): German model after WECHSEL transfer (before alignment)
-- [**de-t5-sci-transfer-15k**](https://huggingface.co/rausch/de-t5-sci-transfer-15k): German model via WECHSEL transfer + 15k steps alignment
-- [**de-t5-base-continued-15k**](https://huggingface.co/rausch/de-t5-base-continued-15k): German baseline with 15k steps continued pretraining
-
 ## Data
-
-The training datasets are available on the Hugging Face Hub:
-
-- [**scientific_corpus_cleaned**](https://huggingface.co/datasets/rausch/scientific_corpus_cleaned): Cleaned English scientific corpus from Unpaywall
-- [**scientific_sliding_windows_en512**](https://huggingface.co/datasets/rausch/scientific_sliding_windows_en512): Preprocessed sliding windows for training
 
 ### Corpus Statistics
 
